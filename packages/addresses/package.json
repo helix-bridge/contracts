@@ -1,10 +1,10 @@
 {
-  "name": "@darwinia/addresses",
+  "name": "@helix/addresses",
   "version": "1.0.0",
-  "description": "Get addresses of deployed darwinia contracts",
+  "description": "Get addresses of deployed helix contracts",
   "main": "index.js",
-  "repository": "https://github.com/darwinia-network/darwinia-bridge-sol.git",
-  "author": "Darwinia dev",
+  "repository": "https://github.com/helix-bridge/contracts.git",
+  "author": "Helix dev",
   "license": "MIT",
   "scripts": {
     "build": "echo 0",

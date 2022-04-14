@@ -1,13 +1,13 @@
 {
   "private": true,
-  "name": "@darwinia/bridge",
+  "name": "@helix/bridge",
   "workspaces": [
     "packages/*",
     "contracts/*"
   ],
   "version": "1.0.0",
-  "repository": "https://github.com/darwinia-network/darwinia-bridge-sol.git",
-  "author": "Darwinia dev",
+  "repository": "https://github.com/helix-bridge/contracts.git",
+  "author": "Helix dev",
   "license": "MIT",
   "scripts": {
     "ci": "wsrun -r --stages --fast-exit --exclude-missing -p $PKG -c ci",
@@ -23,8 +23,8 @@
     "rebuild": "run-s clean build"
   },
   "config": {
-    "contractsPackages": "@darwinia/contracts-bridge @darwinia/contracts-tokens @darwinia/contracts-util @darwinia/contracts-verify",
-    "nonContractsPackages": "@darwinia/addresses @darwinia/assets"
+    "contractsPackages": "@helix/contracts",
+    "nonContractsPackages": "@helix/addresses"
   },
   "devDependencies": {
     "hardhat": "^2.3.0",

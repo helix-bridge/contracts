@@ -1,18 +1,12 @@
-# Darwinia Bridge Solidity
+# Helix Bridge Solidity
 
 ## Packages
 ```
 .
 ├── contracts
-│   ├── bridge
-│   ├── issuing-burn
-│   ├── mapping-token
-│   ├── tokens
-│   ├── utils
-│   └── verify
+│   └── helix
 └── packages
-    ├── addresses
-    └── assets
+    └── addresses
 ```
 
 ### Install dependencies
@@ -53,7 +47,7 @@ yarn build
 To build a specific package:
 
 ```bash
-PKG=@darwinia/contracts-bridge yarn build
+PKG=@helix/bridge yarn build
 ```
 
 To build all contracts packages:
@@ -73,7 +67,7 @@ yarn clean
 Clean a specific package
 
 ```bash
-PKG=@darwinia/contracts-bridge yarn clean
+PKG=@helix/bridge yarn clean
 ```
 
 ### Rebuild
@@ -87,6 +81,6 @@ yarn rebuild
 To re-build (clean & build) a specific package & it's deps:
 
 ```bash
-PKG=@darwinia/contracts-bridge yarn rebuild
+PKG=@helix/bridge yarn rebuild
 ```
 

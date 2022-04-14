@@ -3,7 +3,7 @@
 pragma solidity >=0.8.10;
 pragma experimental ABIEncoderV2;
 
-import "@darwinia/contracts-utils/contracts/ECDSA.sol";
+import "../../utils/ECDSA.sol";
 
 /**
  * @title Manages a set of guards and a threshold to double-check BEEFY commitment

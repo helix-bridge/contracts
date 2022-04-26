@@ -27,9 +27,8 @@ contract MappingTokenFactory is AccessController, Initializable {
         _;
     }
 
-    function initialize(address _messageHandle, address _remoteBacking) public initializer {
+    function initialize(address _messageHandle) public initializer {
         _setMessageHandle(_messageHandle);
-        _setRemoteBacking(_remoteBacking);
         _initialize(msg.sender);
     }
 
@@ -37,7 +36,7 @@ contract MappingTokenFactory is AccessController, Initializable {
         messageHandle = _messageHandle;
     }
 
-    function _setRemoteBacking(address _remoteBacking) internal {
+    function setRemoteBacking(address _remoteBacking) external onlyAdmin {
         remoteBacking = _remoteBacking;
     }
 

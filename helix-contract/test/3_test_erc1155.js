@@ -78,6 +78,8 @@ describe("darwinia<>bsc erc1155 mapping token tests", () => {
       const mtf = await mapping_token_factory.deploy();
       await mtf.deployed();
       console.log("mapping-token-factory address", mtf.address);
+      // init owner
+      await mtf.initialize(bscMessageHandle.address);
       /******* deploy mapping token factory  end *******/
 
       /******* deploy backing at darwinia ********/
@@ -85,18 +87,18 @@ describe("darwinia<>bsc erc1155 mapping token tests", () => {
       const backing = await backingContract.deploy();
       await backing.deployed();
       console.log("backing address", backing.address);
+      // init owner
+      await backing.initialize(darwiniaMessageHandle.address);
       /******* deploy backing end ***************/
 
       //********** configure mapping-token-factory ***********
-      // init owner
-      await mtf.initialize(bscMessageHandle.address, backing.address);
+      await mtf.setRemoteBacking(backing.address);
       await bscMessageHandle.grantRole(bscMessageHandle.CALLER_ROLE(), mtf.address);
       console.log("configure mapping token factory finished");
       //************ configure mapping-token end *************
 
       //********* configure backing **************************
-      // init owner
-      await backing.initialize(darwiniaMessageHandle.address, mtf.address);
+      await backing.setRemoteMappingTokenFactory(mtf.address);
       const [owner] = await ethers.getSigners();
       await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
       await darwiniaMessageHandle.grantRole(darwiniaMessageHandle.CALLER_ROLE(), backing.address);

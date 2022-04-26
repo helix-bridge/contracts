@@ -13,14 +13,17 @@ contract Backing is AccessController, Initializable {
         _;
     }
 
-    function initialize(address _messageHandle, address _remoteMappingTokenFactory) public initializer {
+    function initialize(address _messageHandle) public initializer {
         messageHandle = _messageHandle;
-        remoteMappingTokenFactory = _remoteMappingTokenFactory;
         _initialize(msg.sender);
     }
 
     function _setMessageHandle(address _messageHandle) internal {
         messageHandle = _messageHandle;
+    }
+
+    function setRemoteMappingTokenFactory(address _remoteMappingTokenFactory) external onlyAdmin {
+          remoteMappingTokenFactory = _remoteMappingTokenFactory;
     }
 }
  

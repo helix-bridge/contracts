@@ -7,7 +7,9 @@
   "scripts": {
     "build": "hardhat compile",
     "test": "npx hardhat test",
-    "clean": "shx rm -rf cache artifacts abi"
+    "deploy": "npx hardhat run",
+    "clean": "shx rm -rf cache artifacts abi",
+    "flatten": "npx hardhat flatten"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",

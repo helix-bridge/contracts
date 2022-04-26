@@ -51,6 +51,7 @@ contract Erc721BackingUnsupportingConfirm is Backing, IErc721Backing {
             remoteAttributesSerializer
         );
         IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc721Contract);
+        registeredTokens[token] = TokenInfo(token, attributesSerializer);
         emit NewErc721TokenRegistered(token);
     }
 

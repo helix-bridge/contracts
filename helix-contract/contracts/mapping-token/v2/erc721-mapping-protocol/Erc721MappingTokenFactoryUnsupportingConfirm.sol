@@ -95,6 +95,7 @@ contract Erc721MappingTokenFactoryUnsupportingConfirm is MappingTokenFactory {
         address serializer = IErc721MappingToken(mappingToken).attributeSerializer();
         for (uint256 idx = 0; idx < ids.length; idx++) {
             IERC721(mappingToken).transferFrom(msg.sender, address(this), ids[idx]);
+            IErc721MappingToken(mappingToken).burn(ids[idx]);
             if (serializer != address(0)) {
                 attrs[idx] = IErc721AttrSerializer(serializer).serialize(ids[idx]);
             }

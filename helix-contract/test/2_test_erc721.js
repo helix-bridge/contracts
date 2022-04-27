@@ -19,7 +19,7 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       // darwinia outboundLanePosition 2 <-----> 2 inboundLanePosition  bsc
       // from darwinia to bsc
       
-      /*******      deploy inboundLane/outboundLane     ********/
+      //*******      deploy inboundLane/outboundLane     ********
       // deploy inboundLane
       const inboundLaneContract = await ethers.getContractFactory("MockInboundLane");
       const darwiniaInboundLane = await inboundLaneContract.deploy(1, 1, 2, 1);
@@ -34,13 +34,13 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       const bscOutboundLane = await outboundLaneContract.deploy(2, 1, 1, 1, darwiniaInboundLane.address);
       await bscOutboundLane.deployed();
       console.log("deploy mock outboundLane success");
-      /******* deploy inboundLane/outboundLane finished ********/
+      //******* deploy inboundLane/outboundLane finished ********
 
       // deploy fee market
       const feeMarketContract = await ethers.getContractFactory("MockFeeMarket");
       const feeMarket = await feeMarketContract.deploy();
       await feeMarket.deployed();
-      /****** deploy fee market *****/
+      //****** deploy fee market *****
 
       // deploy darwiniaMessageHandle
       const messageHandleContract = await ethers.getContractFactory("DarwiniaMessageHandle");
@@ -48,7 +48,7 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       await darwiniaMessageHandle.deployed();
       const bscMessageHandle = await messageHandleContract.deploy();
       await bscMessageHandle.deployed();
-      /******* deploy darwiniaMessageHandle ******/
+      //******* deploy darwiniaMessageHandle ******
       // configure darwiniaMessageHandle
       await darwiniaMessageHandle.setBridgeInfo(2, bscMessageHandle.address);
       await darwiniaMessageHandle.setFeeMarket(feeMarket.address);
@@ -67,7 +67,7 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       const monkeyAttrContractOnDarwinia = await monkeyAttrContract.deploy();
       await monkeyAttrContractOnDarwinia.deployed();
       console.log("deploy erc721 attribute serializer success");
-      /******* deploy mapping token factory at bsc *******/
+      //******* deploy mapping token factory at bsc *******
       // deploy mapping token factory
       const mapping_token_factory = await ethers.getContractFactory("Erc721MappingTokenFactorySupportingConfirm");
       const mtf = await mapping_token_factory.deploy();
@@ -75,16 +75,16 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       console.log("mapping-token-factory address", mtf.address);
       // init owner
       await mtf.initialize(bscMessageHandle.address);
-      /******* deploy mapping token factory  end *******/
+      //******* deploy mapping token factory  end *******
 
-      /******* deploy backing at darwinia ********/
+      //******* deploy backing at darwinia ********
       backingContract = await ethers.getContractFactory("Erc721BackingSupportingConfirm");
       const backing = await backingContract.deploy();
       await backing.deployed();
       console.log("backing address", backing.address);
       // init owner
       await backing.initialize(darwiniaMessageHandle.address);
-      /******* deploy backing end ***************/
+      //******* deploy backing end ***************
 
       //********** configure mapping-token-factory ***********
       await mtf.setRemoteBacking(backing.address);
@@ -172,6 +172,130 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       expect(await mappedToken.ownerOf(1001)).to.equal(mtf.address);
       // after confirmed
       await bscOutboundLane.mock_confirm(1);
+      expect(await mappedToken.totalSupply()).to.equal(0);
+      expect(await originalToken.ownerOf(1001)).to.equal(owner.address);
+      expect(await monkeyAttrContractOnDarwinia.getAge(1001)).to.equal(19);
+      expect(await monkeyAttrContractOnDarwinia.getWeight(1001)).to.equal(70);
+  });
+
+  it("test_unsupporting_confirm_flow", async function () {
+      const ethMsgBusContract = await ethers.getContractFactory("MockcBridgeMsgBus");
+      const ethMsgBus = await ethMsgBusContract.deploy();
+      await ethMsgBus.deployed();
+      const bscMsgBusContract = await ethers.getContractFactory("MockcBridgeMsgBus");
+      const bscMsgBus = await bscMsgBusContract.deploy();
+      await bscMsgBus.deployed();
+      await ethMsgBus.setRemoteMsgBus(bscMsgBus.address);
+      await bscMsgBus.setRemoteMsgBus(ethMsgBus.address);
+      await ethMsgBus.setRemoteChainId(97);
+      await bscMsgBus.setRemoteChainId(5);
+
+      // deploy cBridgeMessageHandle
+      const messageHandleContract = await ethers.getContractFactory("cBridgeMessageHandle");
+      const ethMessageHandle = await messageHandleContract.deploy();
+      await ethMessageHandle.deployed();
+      const bscMessageHandle = await messageHandleContract.deploy();
+      await bscMessageHandle.deployed();
+      /******* deploy darwiniaMessageHandle ******/
+
+      // configure cBridgeMessageHandle
+      await ethMessageHandle.setMessageBus(ethMsgBus.address);
+      await ethMsgBus.setReceiver(ethMessageHandle.address);
+      await bscMessageHandle.setMessageBus(bscMsgBus.address);
+      await bscMsgBus.setReceiver(bscMessageHandle.address);
+      await ethMessageHandle.setBridgeInfo(5, bscMessageHandle.address);
+      await bscMessageHandle.setBridgeInfo(97, ethMessageHandle.address);
+      // end configure
+
+      // deploy erc721 serializer, local and remote
+      const monkeyAttrContract = await ethers.getContractFactory("Erc721MonkeyAttributeSerializer");
+      const monkeyAttrContractOnBsc = await monkeyAttrContract.deploy();
+      await monkeyAttrContractOnBsc.deployed();
+      const monkeyAttrContractOnDarwinia = await monkeyAttrContract.deploy();
+      await monkeyAttrContractOnDarwinia.deployed();
+      console.log("deploy erc721 attribute serializer success");
+      /******* deploy mapping token factory at bsc *******/
+      // deploy mapping token factory
+      const mapping_token_factory = await ethers.getContractFactory("Erc721MappingTokenFactoryUnsupportingConfirm");
+      const mtf = await mapping_token_factory.deploy();
+      await mtf.deployed();
+      console.log("mapping-token-factory address", mtf.address);
+      // init owner
+      await mtf.initialize(bscMessageHandle.address);
+      /******* deploy mapping token factory  end *******/
+
+      /******* deploy backing at darwinia ********/
+      backingContract = await ethers.getContractFactory("Erc721BackingUnsupportingConfirm");
+      const backing = await backingContract.deploy();
+      await backing.deployed();
+      console.log("backing address", backing.address);
+      // init owner
+      await backing.initialize(ethMessageHandle.address);
+      /******* deploy backing end ***************/
+
+      //********** configure mapping-token-factory ***********
+      await mtf.setRemoteBacking(backing.address);
+      await bscMessageHandle.grantRole(bscMessageHandle.CALLER_ROLE(), mtf.address);
+      //************ configure mapping-token end *************
+
+      //********* configure backing **************************
+      await backing.setRemoteMappingTokenFactory(mtf.address);
+      const [owner] = await ethers.getSigners();
+      await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
+      await ethMessageHandle.grantRole(ethMessageHandle.CALLER_ROLE(), backing.address);
+      //********* configure backing end   ********************
+
+      // this contract can be any erc721 contract. We use MappingToken as an example
+      const originalContract = await ethers.getContractFactory("Erc721MappingToken");
+      const originalToken = await originalContract.deploy(monkeyAttrContractOnBsc.address);
+      await originalToken.deployed();
+      await monkeyAttrContractOnDarwinia.setAttr(1001, 18, 60);
+
+      const zeroAddress = "0x0000000000000000000000000000000000000000";
+
+      // test register successed
+      await backing.registerErc721Token(
+          originalToken.address,
+          monkeyAttrContractOnDarwinia.address,
+          monkeyAttrContractOnBsc.address,
+          {value: ethers.utils.parseEther("10.0")});
+      // check register successed
+      expect((await backing.registeredTokens(originalToken.address)).token).to.equal(originalToken.address);
+      expect(await mtf.tokenLength()).to.equal(1);
+      const mappingTokenAddress = await mtf.allMappingTokens(0);
+      
+      // check unregistered
+      expect((await backing.registeredTokens(zeroAddress)).token).to.equal(zeroAddress);
+      expect(await mtf.tokenLength()).to.equal(1);
+
+      // test lock
+      await originalToken.mint(owner.address, 1001);
+      await originalToken.approve(backing.address, 1001);
+      
+      var mappedToken = await ethers.getContractAt("Erc721MappingToken", mappingTokenAddress);
+      // balance before
+      expect(await originalToken.ownerOf(1001)).to.equal(owner.address);
+      expect(await mappedToken.totalSupply()).to.equal(0);
+      await backing.lockAndRemoteIssuing(originalToken.address, owner.address, [1001], {value: ethers.utils.parseEther("10.0")});
+      // check lock and remote successed
+      expect(await originalToken.ownerOf(1001)).to.equal(backing.address);
+      expect(await mappedToken.totalSupply()).to.equal(1);
+      expect(await mappedToken.tokenOfOwnerByIndex(owner.address, 0)).to.equal(1001);
+      expect(await mappedToken.tokenByIndex(0)).to.equal(1001);
+      // check issuing successed
+      expect(await mappedToken.ownerOf(1001)).to.equal(owner.address);
+      expect(await monkeyAttrContractOnBsc.getAge(1001)).to.equal(18);
+      expect(await monkeyAttrContractOnBsc.getWeight(1001)).to.equal(60);
+
+      // update attr
+      await monkeyAttrContractOnBsc.setAttr(1001, 19, 70);
+
+      // test burn and unlock
+      await originalToken.transferOwnership(backing.address);
+      //approve to mapping-token-factory
+      await mappedToken.approve(mtf.address, 1001);
+      expect(await mappedToken.ownerOf(1001)).to.equal(owner.address);
+      await mtf.burnAndRemoteUnlock(mappingTokenAddress, owner.address, [1001], {value: ethers.utils.parseEther("10.0")});
       expect(await mappedToken.totalSupply()).to.equal(0);
       expect(await originalToken.ownerOf(1001)).to.equal(owner.address);
       expect(await monkeyAttrContractOnDarwinia.getAge(1001)).to.equal(19);

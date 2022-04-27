@@ -1,6 +1,7 @@
 var MappingTokenDeployer = require("./deploy.js")
 var ProxyDeployer = require("./proxy.js");
 
+// 1. deploy backing
 async function main() {
     // goerli testnet
     const helixHandler = await MappingTokenDeployer.deploycBridgeHelixHandler("0xF25170F86E4291a99a9A560032Fe9948b8BcFBB2");

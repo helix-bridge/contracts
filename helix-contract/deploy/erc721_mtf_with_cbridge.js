@@ -1,8 +1,9 @@
 var MappingTokenDeployer = require("./deploy.js")
 var ProxyDeployer = require("./proxy.js");
 
+// 2. deploy mapping token factory
 async function main() {
-    // goerli testnet
+    // bsc testnet
     const helixHandler = await MappingTokenDeployer.deploycBridgeHelixHandler("0xAd204986D6cB67A5Bc76a3CB8974823F43Cb9AAA");
     console.log("helix handler is", helixHandler.address);
     const admin = await ProxyDeployer.deployProxyAdmin();

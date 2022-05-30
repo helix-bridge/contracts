@@ -81,7 +81,10 @@ contract Sub2SubMappingTokenFactory is BasicMappingTokenFactory {
     function confirmBurnAndRemoteUnlock(bytes4 laneid, uint64 nonce, bool result) external onlySystem {
         bytes memory message_id = abi.encode(laneid, nonce);
         UnconfirmedInfo memory info = transferUnconfirmed[message_id];
-        require(info.amount > 0 && info.sender != address(0) && info.mapping_token != address(0), "invalid unconfirmed message");
+        // duplicate message or message not belong to this contract
+        if (info.amount == 0 || info.sender == address(0) || info.mapping_token == address(0)) {
+            return;
+        }
         if (result) {
             IERC20(info.mapping_token).burn(address(this), info.amount);
         } else {

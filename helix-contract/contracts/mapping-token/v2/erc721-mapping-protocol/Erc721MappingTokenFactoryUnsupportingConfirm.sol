@@ -6,24 +6,20 @@
 
 pragma solidity ^0.8.10;
 
-import "../interfaces/IErc721AttrSerializer.sol";
-import "../interfaces/IErc721Backing.sol";
-import "../interfaces/IErc721MappingToken.sol";
 import "./Erc721MappingToken.sol";
-import "./HelixApp.sol";
-import "./MappingTokenFactory.sol";
+import "../MappingTokenFactory.sol";
+import "../../interfaces/IErc721AttrSerializer.sol";
+import "../../interfaces/IErc721Backing.sol";
+import "../../interfaces/IErc721MappingToken.sol";
+import "../../interfaces/IHelixMessageHandle.sol";
 
-contract Erc721MappingTokenFactory is HelixApp, MappingTokenFactory {
-    struct UnconfirmedInfo {
-        address sender;
-        address mappingToken;
-        uint256[] ids;
-    }
-    mapping(uint256 => UnconfirmedInfo) public unlockRemoteUnconfirmed;
-
+contract Erc721MappingTokenFactoryUnsupportingConfirm is MappingTokenFactory {
     event IssuingERC721Created(address originalToken, address mappingToken);
-    event BurnAndWaitingConfirm(uint256 messageId, address sender, address recipient, address token, uint256[] ids);
-    event RemoteUnlockConfirmed(uint256 messageId, bool result);
+    event BurnAndRemoteUnlock(address sender, address recipient, address token, uint256[] ids);
+
+    function setMessageHandle(address _messageHandle) external onlyAdmin {
+        _setMessageHandle(_messageHandle);
+    }
 
     /**
      * @notice only admin can transfer the ownership of the mapping token from factory to other account
@@ -37,22 +33,17 @@ contract Erc721MappingTokenFactory is HelixApp, MappingTokenFactory {
 
     /**
      * @notice create new erc721 mapping contract, this can only be called by inboundLane
-     * @param backingAddress the backingAddress which send this message
      * @param originalToken the original token address
      * @param attrSerializer the serializer address of the attributes
-     * @param bridgedChainName bridged chain name
      */
     function newErc721Contract(
-        address backingAddress,
         address originalToken,
-        address attrSerializer,
-        string memory bridgedChainName
-    ) public onlyRemoteHelix(backingAddress) whenNotPaused returns (address mappingToken) {
-        // (bridgeChainId, backingAddress, originalToken) pack a unique new contract salt
-        bytes32 salt = keccak256(abi.encodePacked(remoteChainPosition, backingAddress, originalToken));
-        require(salt2MappingToken[salt] == address(0), "Erc721MappingTokenFactory:contract has been deployed");
+        address attrSerializer
+    ) public onlyMessageHandle whenNotPaused returns (address mappingToken) {
+        bytes32 salt = keccak256(abi.encodePacked(remoteBacking, originalToken));
+        require(salt2MappingToken[salt] == address(0), "Erc721MTFUnsupportingConfirm:contract has been deployed");
         bytes memory bytecode = type(Erc721MappingToken).creationCode;
-        bytes memory bytecodeWithInitdata = abi.encodePacked(bytecode, abi.encode(bridgedChainName, attrSerializer));
+        bytes memory bytecodeWithInitdata = abi.encodePacked(bytecode, abi.encode(attrSerializer));
         mappingToken = _deploy(salt, bytecodeWithInitdata);
         _addMappingToken(salt, originalToken, mappingToken);
         emit IssuingERC721Created(originalToken, mappingToken);
@@ -60,22 +51,20 @@ contract Erc721MappingTokenFactory is HelixApp, MappingTokenFactory {
 
     /**
      * @notice issue mapping token, only can be called by inboundLane
-     * @param backingAddress the backingAddress which send this message
      * @param originalToken the original token address
      * @param recipient the recipient of the issued mapping token
      * @param ids the ids of the issued mapping tokens
      * @param attrs the serialized data of the original token's attributes
      */
     function issueMappingToken(
-        address backingAddress,
         address originalToken,
         address recipient,
         uint256[] calldata ids,
         bytes[] calldata attrs
-    ) public onlyRemoteHelix(backingAddress) whenNotPaused {
-        address mappingToken = getMappingToken(remoteChainPosition, backingAddress, originalToken);
-        require(mappingToken != address(0), "Erc721MappingTokenFactory:mapping token has not created");
-        require(ids.length > 0, "Erc721MappingTokenFactory:can not receive empty ids");
+    ) public onlyMessageHandle whenNotPaused {
+        address mappingToken = getMappingToken(remoteBacking, originalToken);
+        require(mappingToken != address(0), "Erc721MTFUnsupportingConfirm:mapping token has not created");
+        require(ids.length > 0, "Erc721MTFUnsupportingConfirm:can not receive empty ids");
         address serializer = IErc721MappingToken(mappingToken).attributeSerializer();
         for (uint idx = 0; idx < ids.length; idx++) {
             IErc721MappingToken(mappingToken).mint(recipient, ids[idx]);
@@ -87,20 +76,18 @@ contract Erc721MappingTokenFactory is HelixApp, MappingTokenFactory {
 
     /**
      * @notice burn mapping token and unlock remote original token, waiting for the confirm
-     * @param bridgedLanePosition the bridged lane position to send the unlock message
      * @param mappingToken the burt mapping token address
      * @param recipient the recipient of the remote unlocked token
      * @param ids the ids of the burn and unlock
      */
-    function burnAndRemoteUnlockWaitingConfirm(
-        uint32 bridgedLanePosition,
+    function burnAndRemoteUnlock(
         address mappingToken,
         address recipient,
         uint256[] memory ids 
     ) external payable whenNotPaused {
-        require(ids.length > 0, "Erc721MappingTokenFactory:can not transfer empty id");
+        require(ids.length > 0, "Erc721MTFUnsupportingConfirm:can not transfer empty id");
         address originalToken = mappingToken2OriginalToken[mappingToken];
-        require(originalToken != address(0), "Erc721MappingTokenFactory:token is not created by factory");
+        require(originalToken != address(0), "Erc721MTFUnsupportingConfirm:token is not created by factory");
         // Lock the fund in this before message on remote backing chain get dispatched successfully and burn finally
         // If remote backing chain unlock the origin token successfully, then this fund will be burned.
         // Otherwise, these tokens will be transfered back to the msg.sender.
@@ -108,6 +95,7 @@ contract Erc721MappingTokenFactory is HelixApp, MappingTokenFactory {
         address serializer = IErc721MappingToken(mappingToken).attributeSerializer();
         for (uint256 idx = 0; idx < ids.length; idx++) {
             IERC721(mappingToken).transferFrom(msg.sender, address(this), ids[idx]);
+            IErc721MappingToken(mappingToken).burn(ids[idx]);
             if (serializer != address(0)) {
                 attrs[idx] = IErc721AttrSerializer(serializer).serialize(ids[idx]);
             }
@@ -115,39 +103,13 @@ contract Erc721MappingTokenFactory is HelixApp, MappingTokenFactory {
 
         bytes memory unlockFromRemote = abi.encodeWithSelector(
             IErc721Backing.unlockFromRemote.selector,
-            address(this),
             originalToken,
             recipient,
             ids,
             attrs
         );
-        uint256 messageId = _sendMessage(bridgedLanePosition, unlockFromRemote);
-        unlockRemoteUnconfirmed[messageId] = UnconfirmedInfo(msg.sender, mappingToken, ids);
-        emit BurnAndWaitingConfirm(messageId, msg.sender, recipient, mappingToken, ids);
-    }
-
-    /**
-     * @notice this will be called when the burn and unlock from remote message confirmed
-     * @param messageId the message id, is used to identify the unlocked message
-     * @param result the result of the remote backing's unlock, if false, the mapping token need to transfer back to the user, otherwise burt
-     */
-    function on_messages_delivered(
-        uint256 messageId,
-        bool result
-    ) external onlyOutBoundLane {
-        UnconfirmedInfo memory info = unlockRemoteUnconfirmed[messageId];
-        require(info.ids.length > 0 && info.sender != address(0) && info.mappingToken != address(0), "Erc721MappingTokenFactory:invalid unconfirmed message");
-        if (result) {
-            for (uint256 idx = 0; idx < info.ids.length; idx++) {
-                IErc721MappingToken(info.mappingToken).burn(info.ids[idx]);
-            }
-        } else {
-            for (uint256 idx = 0; idx < info.ids.length; idx++) {
-                IERC721(info.mappingToken).transferFrom(address(this), info.sender, info.ids[idx]);
-            }
-        }
-        delete unlockRemoteUnconfirmed[messageId];
-        emit RemoteUnlockConfirmed(messageId, result);
+        IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
+        emit BurnAndRemoteUnlock(msg.sender, recipient, mappingToken, ids);
     }
 }
 

@@ -22,14 +22,15 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
 
     // local call info
     bytes2  public callIndexOfSendMessage;
-    bytes4  public laneId;
+    bytes4  public inboundLaneId;
+    bytes4  public outboundLaneId;
 
     // lock readonly storage
     bytes32 public srcStorageKeyForMarketFee;
     bytes32 public srcStorageKeyForLatestNonce;
+    bytes32 public dstStorageKeyForLastDeliveredNonce;
 
-
-    constructor(bytes4 remoteChainId) {
+    constructor() {
         _initialize(msg.sender);
     }
 
@@ -38,7 +39,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         _;
     }
 
-    function setRemoteHelix(bytes4 _remoteChainId, address _remoteHelix) external onlyOperator {
+    function setRemoteHelix(bytes4 _remoteChainId, address _remoteHelix) external onlyAdmin {
         remoteHelix = _remoteHelix;
         derivedRemoteHelix = derivedRemoteSender(_remoteChainId, _remoteHelix);
     }
@@ -48,26 +49,31 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         uint256 _remoteReceiveGasLimit,
         uint32 _remoteSpecVersion,
         uint64 _remoteCallWeight
-    ) external onlyOperator {
+    ) external onlyAdmin {
         remoteMessageTransactCallIndex = _remoteMessageTransactCallIndex;
         remoteReceiveGasLimit = _remoteReceiveGasLimit;
         remoteSpecVersion = _remoteSpecVersion;
         remoteCallWeight = _remoteCallWeight;
     }
 
-    function setLocalAddress(address _storageAddress, address _dispatchAddress) external onlyOperator {
+    function setLocalAddress(address _storageAddress, address _dispatchAddress) external onlyAdmin {
         storageAddress = _storageAddress;
         dispatchAddress = _dispatchAddress;
     }
 
-    function setLocalCallInfo(bytes2 _callIndexOfSendMessage, bytes4 _laneId) external onlyOperator {
+    function setLocalCallInfo(bytes2 _callIndexOfSendMessage, bytes4 _outboundLaneId) external onlyAdmin {
         callIndexOfSendMessage = _callIndexOfSendMessage;
-        laneId = _laneId;
+        outboundLaneId = _outboundLaneId;
     }
 
-    function setLocalStoryageKey(bytes32 _srcStorageKeyForMarketFee, bytes32 _srcStorageKeyForLatestNonce) external onlyOperator {
+    function setLocalStoryageKey(
+        bytes32 _srcStorageKeyForMarketFee,
+        bytes32 _srcStorageKeyForLatestNonce,
+        bytes32 _dstStorageKeyForLastDeliveredNonce
+    ) external onlyAdmin {
         srcStorageKeyForMarketFee = _srcStorageKeyForMarketFee;
         srcStorageKeyForLatestNonce = _srcStorageKeyForLatestNonce;
+        dstStorageKeyForLastDeliveredNonce = _dstStorageKeyForLastDeliveredNonce;
     }
 
     function derivedRemoteSender(bytes4 srcChainId, address sender) public view returns(address) {
@@ -107,7 +113,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         SmartChainXLib.sendMessage(
             dispatchAddress,
             callIndexOfSendMessage,
-            laneId,
+            outboundLaneId,
             fee,
             payload
         );
@@ -115,7 +121,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         uint64 nonce = SmartChainXLib.latestNonce(
             storageAddress,
             srcStorageKeyForLatestNonce,
-            laneId
+            outboundLaneId
         );
         return uint256(nonce);
     }
@@ -124,6 +130,15 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         require(hasRole(CALLER_ROLE, receiver), "DarwiniaSub2SubMessageHandle:receiver is not caller");
         (bool result,) = receiver.call{value: 0}(message);
         require(result, "DarwiniaSub2SubMessageHandle:call app failed");
+    }
+
+    function latestRecvMessageId() public view returns(uint256) {
+        return 0;
+        //return SmartChainXLib.lastDeliveredNonce(
+            //storageAddress,
+            //dstStorageKeyForLastDeliveredNonce,
+            //inboundLaneId
+        //);
     }
 }
 

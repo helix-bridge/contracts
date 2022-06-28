@@ -41,6 +41,10 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
     receive() external payable {
     }
 
+    function initStorage() external onlyAdmin {
+        initTree();
+    }
+
     /**
      * @notice only admin can transfer the ownership of the mapping token from factory to other account
      * generally we should not do this. When we encounter a non-recoverable error, we temporarily transfer the privileges to a maintenance account.
@@ -121,10 +125,11 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
         require(mappingToken != address(0), "MappingTokenFactory:mapping token has not created");
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
         expendDailyLimit(mappingToken, amount);
+        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
+        BitMaps.set(issueMessages, messageId);
         if (guard != address(0)) {
             IERC20(mappingToken).mint(address(this), amount);
             require(IERC20(mappingToken).approve(guard, amount), "MappingTokenFactory:approve token transfer to guard failed");
-            uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
             IGuard(guard).deposit(messageId, mappingToken, recipient, amount);
         } else {
             IERC20(mappingToken).mint(recipient, amount);
@@ -158,7 +163,7 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
         );
 
         uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
-        bytes32 messageHash = hash(abi.encodePacked(msg.sender, mappingToken, amount));
+        bytes32 messageHash = hash(abi.encodePacked(mappingToken, msg.sender, amount));
         append(messageHash);
         emit BurnAndRemoteUnlocked(messageId, messageHash, msg.sender, recipient, mappingToken, amount);
     }

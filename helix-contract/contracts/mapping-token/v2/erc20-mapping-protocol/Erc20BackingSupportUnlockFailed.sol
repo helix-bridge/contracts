@@ -29,7 +29,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
     event TokenUnlocked(address token, address recipient, uint256 amount);
     event TokenUnlockedForFailed(address token, address recipient, uint256 amount);
 
-    constructor() {
+    function initStorage() external onlyAdmin {
         initTree();
     }
 
@@ -121,9 +121,10 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
         uint256 amount
     ) public onlyMessageHandle whenNotPaused {
         expendDailyLimit(token, amount);
+        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
+        BitMaps.set(unlockedMessages, messageId);
         if (guard != address(0)) {
             require(IERC20(token).approve(guard, amount), "Backing:approve token transfer to guard failed");
-            uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
             IGuard(guard).deposit(messageId, token, recipient, amount);
         } else {
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");

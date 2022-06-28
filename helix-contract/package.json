@@ -26,6 +26,8 @@
     "shx": "^0.3.3"
   },
   "dependencies": {
+    "@darwinia/contracts-periphery": "^1.0.1",
+    "@darwinia/contracts-utils": "^1.0.0",
     "@openzeppelin/contracts": "3.3.0",
     "@zeppelin-solidity-4.4.0/contracts": "npm:@openzeppelin/contracts@4.4.0-rc.0",
     "sgn-v2-contracts": "https://github.com/celer-network/sgn-v2-contracts.git#v0.2.0"

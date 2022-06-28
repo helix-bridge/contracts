@@ -5,12 +5,12 @@ contract IncreaseMerkleTree {
     uint constant TREE_DEPTH = 64;
     uint constant MAX_COUNT  = 2**TREE_DEPTH - 1;
     uint64 public total_count;
-    bytes32[TREE_DEPTH] branch;
-    bytes32[TREE_DEPTH] zero_hashes;
+    bytes32[TREE_DEPTH] public branch;
+    bytes32[TREE_DEPTH] public zero_hashes;
 
     function initTree() internal {
         for (uint height = 0; height < TREE_DEPTH - 1; height++) {
-            zero_hashes[height + 1] = hash(abi.encodePacked(zero_hashes[height], zero_hashes[height]));
+            zero_hashes[height + 1] = hashNode(zero_hashes[height], zero_hashes[height]);
         }
     }
 
@@ -19,15 +19,12 @@ contract IncreaseMerkleTree {
         uint64 size = total_count;
         for (uint height = 0; height < TREE_DEPTH; height++) {
             if ((size & 1) == 1)
-                node = hash(abi.encodePacked(branch[height], node));
+                node = hashNode(branch[height], node);
             else
-                node = hash(abi.encodePacked(node, zero_hashes[height]));
+                node = hashNode(node, zero_hashes[height]);
             size /= 2;
         }
-        return hash(abi.encodePacked(
-            node,
-            bytes24(0)
-        ));
+        return node;
     }
 
     function append(bytes32 node) internal {

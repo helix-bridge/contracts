@@ -22,10 +22,14 @@ describe("sub<>sub mapping token tests", () => {
       wkton.mint(owner.address, 10000);
 
       // deploy message handle 
+      // backing -> mtf message nonce
+      const backingStartNonce = 100;
+      // mtf -> backing message nonce
+      const mtfStartNonce = 200;
       const messageHandleContract = await ethers.getContractFactory("MockSub2SubMessageHandle");
-      const backingMessageHandle = await messageHandleContract.deploy();
+      const backingMessageHandle = await messageHandleContract.deploy(backingStartNonce, mtfStartNonce);
       await backingMessageHandle.deployed();
-      const mtfMessageHandle = await messageHandleContract.deploy();
+      const mtfMessageHandle = await messageHandleContract.deploy(200, 100);
       await mtfMessageHandle.deployed();
       await backingMessageHandle.setRemoteHelix(mtfMessageHandle.address);
       await mtfMessageHandle.setRemoteHelix(backingMessageHandle.address);
@@ -56,7 +60,7 @@ describe("sub<>sub mapping token tests", () => {
       await mtf.setRemoteBacking(backing.address);
 
       // register
-      // backing: nonce = 0
+      // backing: nonce += 0
       await backing.register(
           wkton.address,
           await wkton.name(),
@@ -79,7 +83,7 @@ describe("sub<>sub mapping token tests", () => {
       await wkton.approve(backing.address, 100000);
       // change daily limit
       await mtf.changeDailyLimit(mappingWktonAddress, 10000);
-      // backing: nonce = 1
+      // backing: nonce += 1
       await backing.lockAndRemoteIssuing(
         wkton.address,
         receiver,
@@ -93,7 +97,7 @@ describe("sub<>sub mapping token tests", () => {
           proof.push(await backing.zero_hashes(i));
       }
       await expect(mtf.handleFailedRemoteOperation(
-          1,
+          backingStartNonce + 1,
           wkton.address,
           owner.address,
           1000,
@@ -102,7 +106,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       // 3.2 unlock the failed remote message should be success
       await mtf.changeDailyLimit(mappingWktonAddress, 0);
-      // backing: nonce = 2
+      // backing: nonce += 2
       await backing.lockAndRemoteIssuing(
         wkton.address,
         receiver,
@@ -116,19 +120,19 @@ describe("sub<>sub mapping token tests", () => {
       for (let i = 1; i < 64; i++) {
           proof_success.push(await backing.zero_hashes(i));
       }
-      // mtf: nonce = 0
-      await mtf.handleFailedRemoteOperation(2, wkton.address, owner.address, 1000, proof_success, 1);
+      // mtf: nonce += 0
+      await mtf.handleFailedRemoteOperation(backingStartNonce + 2, wkton.address, owner.address, 1000, proof_success, 1);
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       // retry failed
-      // mtf: nonce = 1
-      await mtf.handleFailedRemoteOperation(2, wkton.address, owner.address, 1000, proof_success, 1);
+      // mtf: nonce += 1
+      await mtf.handleFailedRemoteOperation(backingStartNonce + 2, wkton.address, owner.address, 1000, proof_success, 1);
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
 
       // burn and unlock
       // 1. success
       await backing.changeDailyLimit(wkton.address, 100000);
       await mappedToken.approve(mtf.address, 100000);
-      // mtf: nonce = 2
+      // mtf: nonce += 2
       await mtf.burnAndRemoteUnlock(
           mappingWktonAddress,
           owner.address,
@@ -140,7 +144,7 @@ describe("sub<>sub mapping token tests", () => {
       // 2. unlock when failed
       // 2.1 can't unlock when success
       await expect(backing.handleFailedRemoteOperation(
-          2,
+          mtfStartNonce + 2,
           mappedToken.address,
           owner.address,
           100,
@@ -148,7 +152,7 @@ describe("sub<>sub mapping token tests", () => {
           0)).to.be.revertedWith("Backing:the message is already success");
       // 2.2 can unlock when failed
       await backing.changeDailyLimit(wkton.address, 0);
-      // mtf: nonce = 3
+      // mtf: nonce += 3
       await mtf.burnAndRemoteUnlock(
           mappingWktonAddress,
           owner.address,
@@ -161,7 +165,7 @@ describe("sub<>sub mapping token tests", () => {
           burn_proof_success.push(await mtf.zero_hashes(i));
       }
       backing.handleFailedRemoteOperation(
-          3,
+          mtfStartNonce + 3,
           mappedToken.address,
           owner.address,
           100,
@@ -170,7 +174,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // retry failed
       backing.handleFailedRemoteOperation(
-          3,
+          mtfStartNonce + 3,
           mappedToken.address,
           owner.address,
           100,

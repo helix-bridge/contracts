@@ -7,7 +7,9 @@ contract MockSub2SubMessageHandle is AccessController {
     address remoteHelix;
     uint256 outboundNonce;
     uint256 inboundNonce;
-    constructor() {
+    constructor(uint256 _outboundNonce, uint256 _inboundNonce) {
+        inboundNonce = _inboundNonce;
+        outboundNonce = _outboundNonce;
         _initialize(msg.sender);
     }
 

@@ -133,12 +133,11 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
     }
 
     function latestRecvMessageId() public view returns(uint256) {
-        return 0;
-        //return SmartChainXLib.lastDeliveredNonce(
-            //storageAddress,
-            //dstStorageKeyForLastDeliveredNonce,
-            //inboundLaneId
-        //);
+        return SmartChainXLib.lastDeliveredNonce(
+            storageAddress,
+            dstStorageKeyForLastDeliveredNonce,
+            inboundLaneId
+        );
     }
 }
 

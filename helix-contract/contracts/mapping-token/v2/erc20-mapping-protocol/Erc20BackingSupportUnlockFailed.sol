@@ -61,6 +61,9 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
      * @param decimals the decimals of the original token
      */
     function register(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
         address token,
         string memory name,
         string memory symbol,
@@ -75,7 +78,12 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
             symbol,
             decimals
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc20Contract);
+        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+            remoteReceiveGasLimit,
+            remoteSpecVersion,
+            remoteCallWeight,
+            remoteMappingTokenFactory,
+            newErc20Contract);
         emit NewErc20TokenRegistered(messageId, token);
     }
 
@@ -87,6 +95,9 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
      * @param amount amount of the locked token
      */
     function lockAndRemoteIssuing(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
         address token,
         address recipient,
         uint256 amount
@@ -101,7 +112,12 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
             recipient,
             amount
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
+        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+            remoteReceiveGasLimit,
+            remoteSpecVersion,
+            remoteCallWeight,
+            remoteMappingTokenFactory,
+            issueMappingToken);
         bytes32 lockMessageHash = hash(abi.encodePacked(messageId, token, msg.sender, amount));
         append(lockMessageHash);
         emit TokenLocked(messageId, total_count, lockMessageHash, token, msg.sender, recipient, amount);
@@ -159,6 +175,9 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
     }
 
     function handleFailedRemoteOperation(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
         uint256 messageId,
         address mappingToken,
         address originalSender,
@@ -180,7 +199,12 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
             proof,
             index
         );
-        IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, unlockForFailed);
+        IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+            remoteReceiveGasLimit,
+            remoteSpecVersion,
+            remoteCallWeight,
+            remoteMappingTokenFactory,
+            unlockForFailed);
     }
 
     /**

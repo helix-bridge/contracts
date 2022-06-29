@@ -143,6 +143,9 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
      * @param amount the amount of the burn and unlock
      */
     function burnAndRemoteUnlock(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
         address mappingToken,
         address recipient,
         uint256 amount
@@ -162,7 +165,12 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
             amount
         );
 
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
+        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+            remoteReceiveGasLimit,
+            remoteSpecVersion,
+            remoteCallWeight,
+            remoteBacking,
+            unlockFromRemote);
         bytes32 messageHash = hash(abi.encodePacked(messageId, mappingToken, msg.sender, amount));
         append(messageHash);
         emit BurnAndRemoteUnlocked(messageId, messageHash, msg.sender, recipient, mappingToken, amount);
@@ -177,6 +185,9 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
      * @param index the index of the failed message at the increased merkle tree on source backing
      */
     function handleFailedRemoteOperation(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
         uint256 messageId,
         address originalToken,
         address originalSender,
@@ -198,7 +209,12 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
             proof,
             index
         );
-        IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteBacking, unlockForFailed);
+        IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+            remoteReceiveGasLimit,
+            remoteSpecVersion,
+            remoteCallWeight,
+            remoteBacking,
+            unlockForFailed);
     }
 
     /**

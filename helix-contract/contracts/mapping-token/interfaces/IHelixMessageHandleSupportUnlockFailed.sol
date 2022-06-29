@@ -6,4 +6,10 @@ import "./IHelixMessageHandle.sol";
 
 interface IHelixMessageHandleSupportUnlockFailed is IHelixMessageHandle {
     function latestRecvMessageId() external view returns (uint256);
+    function sendMessage(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
+        address receiver,
+        bytes calldata encoded) external payable returns (uint256);
 }

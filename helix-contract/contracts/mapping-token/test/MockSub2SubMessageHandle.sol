@@ -22,7 +22,12 @@ contract MockSub2SubMessageHandle is AccessController {
         remoteHelix = _remoteHelix;
     }
 
-    function sendMessage(address receiver, bytes calldata message) external onlyCaller payable returns(uint256) {
+    function sendMessage(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
+        address receiver,
+        bytes calldata message) external onlyCaller payable returns(uint256) {
         bytes memory recv = abi.encodeWithSelector(
             MockSub2SubMessageHandle.recvMessage.selector,
             receiver,

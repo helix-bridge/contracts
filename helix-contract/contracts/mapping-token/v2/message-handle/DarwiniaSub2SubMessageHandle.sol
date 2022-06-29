@@ -12,9 +12,6 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
 
     // remote call info
     bytes2  public remoteMessageTransactCallIndex;
-    uint256 public remoteReceiveGasLimit;
-    uint32  public remoteSpecVersion;
-    uint64  public remoteCallWeight;
 
     // local call address
     address public storageAddress;
@@ -44,16 +41,8 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         derivedRemoteHelix = derivedRemoteSender(_remoteChainId, _remoteHelix);
     }
 
-    function setRemoteCallInfo(
-        bytes2 _remoteMessageTransactCallIndex,
-        uint256 _remoteReceiveGasLimit,
-        uint32 _remoteSpecVersion,
-        uint64 _remoteCallWeight
-    ) external onlyAdmin {
+    function setRemoteCallIndex(bytes2 _remoteMessageTransactCallIndex) external onlyAdmin {
         remoteMessageTransactCallIndex = _remoteMessageTransactCallIndex;
-        remoteReceiveGasLimit = _remoteReceiveGasLimit;
-        remoteSpecVersion = _remoteSpecVersion;
-        remoteCallWeight = _remoteCallWeight;
     }
 
     function setLocalAddress(address _storageAddress, address _dispatchAddress) external onlyAdmin {
@@ -83,7 +72,12 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         );
     }
 
-    function sendMessage(address receiver, bytes calldata message) external onlyCaller payable returns(uint256) {
+    function sendMessage(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
+        address receiver,
+        bytes calldata message) external onlyCaller payable returns(uint256) {
         PalletEthereum.MessageTransactCall memory call = PalletEthereum.MessageTransactCall(
             remoteMessageTransactCallIndex,
             PalletEthereum.buildTransactionV2ForMessageTransact(

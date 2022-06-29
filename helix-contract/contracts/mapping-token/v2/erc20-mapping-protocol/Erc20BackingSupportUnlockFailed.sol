@@ -102,7 +102,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
             amount
         );
         uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
-        bytes32 lockMessageHash = hash(abi.encodePacked(token, msg.sender, amount));
+        bytes32 lockMessageHash = hash(abi.encodePacked(messageId, token, msg.sender, amount));
         append(lockMessageHash);
         emit TokenLocked(messageId, total_count, lockMessageHash, token, msg.sender, recipient, amount);
     }
@@ -141,6 +141,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
      * @param index the index of the locked info in the increase merkle proof
      */
     function unlockForFailedRemoteOperation(
+        uint256 messageId,
         address token,
         address origin_sender,
         uint256 amount,
@@ -148,7 +149,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
         uint64 index
     ) external onlyMessageHandle whenNotPaused {
         require(indexHasBeenUnlocked(index) == false, "Backing:token has been unlocked");
-        bytes32 leaf = hash(abi.encodePacked(token, origin_sender, amount));
+        bytes32 leaf = hash(abi.encodePacked(messageId, token, origin_sender, amount));
         bool isValid = verifyProof(leaf, proof, index);
         require(isValid, "Backing:verify message proof failed");
         BitMaps.set(unlockForFailedRemoteIssueMapping, index);
@@ -172,6 +173,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
         require(messageId <= latestRecvMessageId, "Backing:the message is not checked by message layer");
         bytes memory unlockForFailed = abi.encodeWithSelector(
             IHelixAppSupportUnlockFailed.unlockForFailedRemoteOperation.selector,
+            messageId,
             mappingToken,
             originalSender,
             amount,

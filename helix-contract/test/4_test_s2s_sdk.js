@@ -115,11 +115,14 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       
       let proof_success = [];
-      const message = ethers.utils.solidityPack(["address", "address", "uint256"], [wkton.address, owner.address, 1000])
+      const message = ethers.utils.solidityPack(["uint256", "address", "address", "uint256"], [backingStartNonce + 1, wkton.address, owner.address, 1000])
       proof_success.push(await backing.hash(message));
+      const leafMessage = ethers.utils.solidityPack(["uint256", "address", "address", "uint256"], [backingStartNonce + 2, wkton.address, owner.address, 1000])
+      const leaf = await backing.hash(leafMessage);
       for (let i = 1; i < 64; i++) {
           proof_success.push(await backing.zero_hashes(i));
       }
+      expect(await backing.verifyProof(leaf, proof_success, 1)).to.equal(true);
       // mtf: nonce += 0
       await mtf.handleFailedRemoteOperation(backingStartNonce + 2, wkton.address, owner.address, 1000, proof_success, 1);
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
@@ -159,7 +162,7 @@ describe("sub<>sub mapping token tests", () => {
           100
       );
       let burn_proof_success = [];
-      const burn_message = ethers.utils.solidityPack(["address", "address", "uint256"], [mappedToken.address, owner.address, 100])
+      const burn_message = ethers.utils.solidityPack(["uint256", "address", "address", "uint256"], [mtfStartNonce + 2, mappedToken.address, owner.address, 100])
       burn_proof_success.push(await mtf.hash(burn_message));
       for (let i = 1; i < 64; i++) {
           burn_proof_success.push(await mtf.zero_hashes(i));

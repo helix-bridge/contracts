@@ -16,6 +16,7 @@ interface IHelixAppSupportUnlockFailed {
         uint64 index
     ) external;
     function unlockForFailedRemoteOperation(
+        uint256 messageId,
         address token,
         address sender,
         uint256 amount,

@@ -43,7 +43,6 @@ describe("sub<>sub mapping token tests", () => {
       const backing = await backingContract.deploy();
       await backing.deployed();
       await backing.initialize(backingMessageHandle.address);
-      await backing.initStorage();
       //await backing.setMessageHandle(backingMessageHandle.address);
       await backing.setChainName("pangolin smart");
       await backingMessageHandle.grantRole(backingMessageHandle.CALLER_ROLE(), backing.address);
@@ -54,7 +53,6 @@ describe("sub<>sub mapping token tests", () => {
       const mtf = await mtfContract.deploy();
       await mtf.deployed();
       await mtf.initialize(mtfMessageHandle.address);
-      await mtf.initStorage();
       //await mtf.setMessageHandle(mtfMessageHandle.address);
       await mtf.setTokenContractLogic(1, mappingToken.address);
       await mtf.setTokenContractLogic(2, mappingToken.address);
@@ -105,10 +103,12 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       // 3. test failed and unlock failed, update daily limit
       // 3.1 unlock the successed remote message should be failed
+      /*
       let proof = [];
       for (let i = 0; i < 64; i++) {
           proof.push(await backing.zero_hashes(i));
       }
+      */
       await expect(mtf.handleFailedRemoteOperation(
           remoteReceiveGasLimit,
           remoteSpecVersion,
@@ -116,9 +116,7 @@ describe("sub<>sub mapping token tests", () => {
           backingStartNonce + 1,
           wkton.address,
           owner.address,
-          1000,
-          proof,
-          0)).to.be.revertedWith("MappingTokenFactory:the message is already success");
+          1000)).to.be.revertedWith("MappingTokenFactory:success message can't refund for failed");
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       // 3.2 unlock the failed remote message should be success
       await mtf.changeDailyLimit(mappingWktonAddress, 0);
@@ -133,6 +131,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 2000);
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       
+      /*
       let proof_success = [];
       const message = ethers.utils.solidityPack(["uint256", "address", "address", "uint256"], [backingStartNonce + 1, wkton.address, owner.address, 1000])
       proof_success.push(await backing.hash(message));
@@ -142,6 +141,7 @@ describe("sub<>sub mapping token tests", () => {
           proof_success.push(await backing.zero_hashes(i));
       }
       expect(await backing.verifyProof(leaf, proof_success, 1)).to.equal(true);
+      */
       // mtf: nonce += 0
       await mtf.handleFailedRemoteOperation(
           remoteReceiveGasLimit,
@@ -150,9 +150,7 @@ describe("sub<>sub mapping token tests", () => {
           backingStartNonce + 2,
           wkton.address,
           owner.address,
-          1000,
-          proof_success,
-          1);
+          1000);
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       // retry failed
       // mtf: nonce += 1
@@ -163,9 +161,7 @@ describe("sub<>sub mapping token tests", () => {
           backingStartNonce + 2,
           wkton.address,
           owner.address,
-          1000,
-          proof_success,
-          1);
+          1000);
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
 
       // burn and unlock
@@ -193,9 +189,7 @@ describe("sub<>sub mapping token tests", () => {
           mtfStartNonce + 2,
           mappedToken.address,
           owner.address,
-          100,
-          proof,
-          0)).to.be.revertedWith("Backing:the message is already success");
+          100)).to.be.revertedWith("Backing:success message can't refund for failed");
       // 2.2 can unlock when failed
       await backing.changeDailyLimit(wkton.address, 0);
       // mtf: nonce += 3
@@ -207,12 +201,14 @@ describe("sub<>sub mapping token tests", () => {
           owner.address,
           100
       );
+      /*
       let burn_proof_success = [];
       const burn_message = ethers.utils.solidityPack(["uint256", "address", "address", "uint256"], [mtfStartNonce + 2, mappedToken.address, owner.address, 100])
       burn_proof_success.push(await mtf.hash(burn_message));
       for (let i = 1; i < 64; i++) {
           burn_proof_success.push(await mtf.zero_hashes(i));
       }
+      */
       backing.handleFailedRemoteOperation(
           remoteReceiveGasLimit,
           remoteSpecVersion,
@@ -220,9 +216,7 @@ describe("sub<>sub mapping token tests", () => {
           mtfStartNonce + 3,
           mappedToken.address,
           owner.address,
-          100,
-          burn_proof_success,
-          1)
+          100)
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // retry failed
       backing.handleFailedRemoteOperation(
@@ -232,9 +226,7 @@ describe("sub<>sub mapping token tests", () => {
           mtfStartNonce + 3,
           mappedToken.address,
           owner.address,
-          100,
-          burn_proof_success,
-          1)
+          100)
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
   });
 });

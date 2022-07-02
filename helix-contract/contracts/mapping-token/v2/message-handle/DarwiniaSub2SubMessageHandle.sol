@@ -55,7 +55,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         outboundLaneId = _outboundLaneId;
     }
 
-    function setLocalStoryageKey(
+    function setLocalStorageKey(
         bytes32 _srcStorageKeyForMarketFee,
         bytes32 _srcStorageKeyForLatestNonce,
         bytes32 _dstStorageKeyForLastDeliveredNonce
@@ -72,12 +72,12 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         );
     }
 
-    function sendMessage(
+    function testSendMessage(
         uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
         uint64  remoteCallWeight,
         address receiver,
-        bytes calldata message) external onlyCaller payable returns(uint256) {
+        bytes calldata message) external view returns(bytes memory, bytes memory) {
         PalletEthereum.MessageTransactCall memory call = PalletEthereum.MessageTransactCall(
             remoteMessageTransactCallIndex,
             PalletEthereum.buildTransactionV2ForMessageTransact(
@@ -93,31 +93,18 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         );
         bytes memory callEncoded = PalletEthereum.encodeMessageTransactCall(call);
 
-        uint128 fee = SmartChainXLib.marketFee(
-            storageAddress,
-            srcStorageKeyForMarketFee
-        );
+        //uint128 fee = SmartChainXLib.marketFee(
+            //storageAddress,
+            //srcStorageKeyForMarketFee
+        //);
+        uint128 fee = 100 ether;
 
         bytes memory payload = SmartChainXLib.buildMessage(
             remoteSpecVersion,
             remoteCallWeight,
             callEncoded
         );
-
-        SmartChainXLib.sendMessage(
-            dispatchAddress,
-            callIndexOfSendMessage,
-            outboundLaneId,
-            fee,
-            payload
-        );
-
-        uint64 nonce = SmartChainXLib.latestNonce(
-            storageAddress,
-            srcStorageKeyForLatestNonce,
-            outboundLaneId
-        );
-        return uint256(nonce);
+        return (payload, callEncoded);
     }
 
     function recvMessage(address receiver, bytes calldata message) external onlyRemoteHelix whenNotPaused {

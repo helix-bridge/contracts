@@ -12,26 +12,28 @@ import "../../interfaces/IHelixMessageHandle.sol";
 import "../../interfaces/IHelixMessageHandleSupportUnlockFailed.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../../utils/DailyLimit.sol";
-import "../../../utils/IncreaseMerkleTree.sol";
 
-contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, IncreaseMerkleTree {
+contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking {
     using SafeMath for uint256;
+
+    struct LockedInfo {
+        bytes32 hash;
+        bool hasRefundForFailed;
+    }
 
     uint32 public constant NATIVE_TOKEN_TYPE = 0;
     uint32 public constant ERC20_TOKEN_TYPE = 1;
     address public guard;
     string public chainName;
+
+    // (messageId => LockedInfo)
+    mapping(uint256 => LockedInfo) lockedMessages;
     BitMaps.BitMap unlockedMessages;
-    BitMaps.BitMap unlockForFailedRemoteIssueMapping;
 
     event NewErc20TokenRegistered(uint256 messageId, address token);
-    event TokenLocked(uint256 messageId, uint64 index, bytes32 hash, address token, address sender, address recipient, uint256 amount);
+    event TokenLocked(uint256 messageId, bytes32 hash, address token, address sender, address recipient, uint256 amount);
     event TokenUnlocked(address token, address recipient, uint256 amount);
-    event TokenUnlockedForFailed(address token, address recipient, uint256 amount);
-
-    function initStorage() external onlyAdmin {
-        initTree();
-    }
+    event TokenUnlockedForFailed(uint256 messageId, address token, address recipient, uint256 amount);
 
     function setMessageHandle(address _messageHandle) external onlyAdmin {
         _setMessageHandle(_messageHandle);
@@ -47,10 +49,6 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
 
     function updateGuard(address newGuard) external onlyAdmin {
         guard = newGuard;
-    }
-
-    function indexHasBeenUnlocked(uint64 index) public view returns(bool) {
-        return BitMaps.get(unlockForFailedRemoteIssueMapping, index);
     }
 
     /**
@@ -119,8 +117,8 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
             remoteMappingTokenFactory,
             issueMappingToken);
         bytes32 lockMessageHash = hash(abi.encodePacked(messageId, token, msg.sender, amount));
-        append(lockMessageHash);
-        emit TokenLocked(messageId, total_count, lockMessageHash, token, msg.sender, recipient, amount);
+        lockedMessages[messageId] = LockedInfo(lockMessageHash, false);
+        emit TokenLocked(messageId, lockMessageHash, token, msg.sender, recipient, amount);
     }
 
     /**
@@ -153,25 +151,21 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
      * @param token the original token address
      * @param origin_sender the origin_sender who will receive the unlocked token
      * @param amount amount of the unlocked token
-     * @param proof the proof of the existence of the locked info
-     * @param index the index of the locked info in the increase merkle proof
      */
     function unlockForFailedRemoteOperation(
         uint256 messageId,
         address token,
         address origin_sender,
-        uint256 amount,
-        bytes32[] memory proof,
-        uint64 index
+        uint256 amount
     ) external onlyMessageHandle whenNotPaused {
-        require(indexHasBeenUnlocked(index) == false, "Backing:token has been unlocked");
-        bytes32 leaf = hash(abi.encodePacked(messageId, token, origin_sender, amount));
-        bool isValid = verifyProof(leaf, proof, index);
-        require(isValid, "Backing:verify message proof failed");
-        BitMaps.set(unlockForFailedRemoteIssueMapping, index);
+        LockedInfo memory lockedMessage = lockedMessages[messageId];
+        require(lockedMessage.hasRefundForFailed == false, "Backing: the locked message has been refund");
+        bytes32 messageHash = hash(abi.encodePacked(messageId, token, origin_sender, amount));
+        require(lockedMessage.hash == messageHash, "Backing: message is not matched");
+        lockedMessages[messageId].hasRefundForFailed = true;
         // send token
         require(IERC20(token).transfer(origin_sender, amount), "Backing:unlock transfer failed");
-        emit TokenUnlockedForFailed(token, origin_sender, amount);
+        emit TokenUnlockedForFailed(messageId, token, origin_sender, amount);
     }
 
     function handleFailedRemoteOperation(
@@ -181,12 +175,10 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
         uint256 messageId,
         address mappingToken,
         address originalSender,
-        uint256 amount,
-        bytes32[] memory proof,
-        uint64 index
+        uint256 amount
     ) external payable whenNotPaused {
         // must not exist in successful issue list
-        require(BitMaps.get(unlockedMessages, messageId) == false, "Backing:the message is already success");
+        require(BitMaps.get(unlockedMessages, messageId) == false, "Backing:success message can't refund for failed");
         // must has been checked by message layer
         uint256 latestRecvMessageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
         require(messageId <= latestRecvMessageId, "Backing:the message is not checked by message layer");
@@ -195,9 +187,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
             messageId,
             mappingToken,
             originalSender,
-            amount,
-            proof,
-            index
+            amount
         );
         IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
             remoteReceiveGasLimit,
@@ -217,5 +207,10 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking, Incre
         uint256 amount
     ) external onlyAdmin {
         IERC20(token).transfer(recipient, amount);
+    }
+
+
+    function hash(bytes memory value) public pure returns (bytes32) {
+        return sha256(value);
     }
 }

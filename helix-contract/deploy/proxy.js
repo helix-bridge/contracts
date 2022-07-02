@@ -11,15 +11,17 @@ var ProxyDeployer = {
             throw e;
         }
     },
-    deployProxyAdmin: async function() {
-        const proxyAdminContract = await ethers.getContractFactory("ProxyAdmin");
+    deployProxyAdmin: async function(wallet) {
+        const proxyAdminContract = await ethers.getContractFactory("ProxyAdmin", wallet);
         const proxyAdmin = await proxyAdminContract.deploy();
+        await proxyAdmin.deployed();
         return proxyAdmin;
     },
-    deployProxyContract: async function(proxyAdminAddr, logicFactory, logicAddress, args) {
+    deployProxyContract: async function(proxyAdminAddr, logicFactory, logicAddress, args, wallet) {
         const calldata = ProxyDeployer.getInitializerData(logicFactory.interface, args, "initialize");
-        const proxyContract = await ethers.getContractFactory("TransparentUpgradeableProxy");
+        const proxyContract = await ethers.getContractFactory("TransparentUpgradeableProxy", wallet);
         const proxy = await proxyContract.deploy(logicAddress, proxyAdminAddr, calldata)
+        await proxy.deployed();
         return proxy;
     }
 }

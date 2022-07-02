@@ -16,14 +16,19 @@ import "../../interfaces/IHelixMessageHandle.sol";
 import "../../interfaces/IHelixMessageHandleSupportUnlockFailed.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../../utils/DailyLimit.sol";
-import "../../../utils/IncreaseMerkleTree.sol";
 
-contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20MappingTokenFactory, MappingTokenFactory, IncreaseMerkleTree {
+contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20MappingTokenFactory, MappingTokenFactory {
+    struct BurnInfo {
+        bytes32 hash;
+        bool hasRefundForFailed;
+    }
+
     address public constant BLACK_HOLE_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     // guard
     address public guard;
+
+    mapping(uint256 => BurnInfo) burnMessages;
     BitMaps.BitMap issueMessages;
-    BitMaps.BitMap unlockForFailedRemoteUnlockMapping;
 
     // tokenType=>Logic
     // tokenType comes from original token, the logic contract is used to create the mapping-token contract
@@ -32,17 +37,13 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
     event NewLogicSetted(uint32 tokenType, address addr);
     event IssuingERC20Created(address originalToken, address mappingToken);
     event BurnAndRemoteUnlocked(uint256 messageId, bytes32 messageHash, address sender, address recipient, address token, uint256 amount);
-    event TokenRemintForFailed(address token, address recipient, uint256 amount);
+    event TokenRemintForFailed(uint256 messageId, address token, address recipient, uint256 amount);
 
     function setMessageHandle(address _messageHandle) external onlyAdmin {
         _setMessageHandle(_messageHandle);
     }
 
     receive() external payable {
-    }
-
-    function initStorage() external onlyAdmin {
-        initTree();
     }
 
     /**
@@ -69,9 +70,6 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
         emit NewLogicSetted(tokenType, logic);
     }
 
-    function indexHasBeenUnlocked(uint64 index) public view returns(bool) {
-        return BitMaps.get(unlockForFailedRemoteUnlockMapping, index);
-    }
     /**
      * @notice create new erc20 mapping contract, this can only be called by inboundLane
      * @param tokenType the original token type
@@ -172,7 +170,7 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
             remoteBacking,
             unlockFromRemote);
         bytes32 messageHash = hash(abi.encodePacked(messageId, mappingToken, msg.sender, amount));
-        append(messageHash);
+        burnMessages[messageId] = BurnInfo(messageHash, false);
         emit BurnAndRemoteUnlocked(messageId, messageHash, msg.sender, recipient, mappingToken, amount);
     }
 
@@ -181,8 +179,6 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
      * @param originalToken the original token address
      * @param originalSender the originalSender of the remote unlocked token, must be the same as msg.send of the failed message.
      * @param amount the amount of the failed issue token.
-     * @param proof the merkle proof for the failed message on source backing
-     * @param index the index of the failed message at the increased merkle tree on source backing
      */
     function handleFailedRemoteOperation(
         uint256 remoteReceiveGasLimit,
@@ -191,12 +187,10 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
         uint256 messageId,
         address originalToken,
         address originalSender,
-        uint256 amount,
-        bytes32[] memory proof,
-        uint64 index
+        uint256 amount
     ) external payable whenNotPaused {
         // must not exist in successful issue list
-        require(BitMaps.get(issueMessages, messageId) == false, "MappingTokenFactory:the message is already success");
+        require(BitMaps.get(issueMessages, messageId) == false, "MappingTokenFactory:success message can't refund for failed");
         // must has been checked by message layer
         uint256 latestRecvMessageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
         require(messageId <= latestRecvMessageId, "MappingTokenFactory:the message is not checked by message layer");
@@ -205,9 +199,7 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
             messageId,
             originalToken,
             originalSender,
-            amount,
-            proof,
-            index
+            amount
         );
         IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
             remoteReceiveGasLimit,
@@ -222,25 +214,25 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
      * @param token the original token address
      * @param origin_sender the origin_sender who will receive the unlocked token
      * @param amount amount of the unlocked token
-     * @param proof the proof of the existence of the locked info
-     * @param index the index of the locked info in the increase merkle proof
      */
     function unlockForFailedRemoteOperation(
         uint256 messageId,
         address token,
         address origin_sender,
-        uint256 amount,
-        bytes32[] memory proof,
-        uint64 index
+        uint256 amount
     ) external onlyMessageHandle whenNotPaused {
-        require(indexHasBeenUnlocked(index) == false, "MappingTokenFactory:token has been unlocked");
-        bytes32 leaf = hash(abi.encodePacked(messageId, token, origin_sender, amount));
-        bool isValid = verifyProof(leaf, proof, index);
-        require(isValid, "MappingTokenFactory:verify message proof failed");
-        BitMaps.set(unlockForFailedRemoteUnlockMapping, index);
+        BurnInfo memory burnInfo = burnMessages[messageId];
+        require(burnInfo.hasRefundForFailed == false, "Backing:the burn message has been refund");
+        bytes32 messageHash = hash(abi.encodePacked(messageId, token, origin_sender, amount));
+        require(burnInfo.hash == messageHash, "Backing:message is not matched");
+        burnMessages[messageId].hasRefundForFailed = true;
         // remint token
         IERC20(token).mint(origin_sender, amount);
-        emit TokenRemintForFailed(token, origin_sender, amount);
+        emit TokenRemintForFailed(messageId, token, origin_sender, amount);
+    }
+
+    function hash(bytes memory value) public pure returns (bytes32) {
+        return sha256(value);
     }
 }
 

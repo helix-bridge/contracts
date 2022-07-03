@@ -7,6 +7,7 @@ import "@darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol";
 
 contract DarwiniaSub2SubMessageHandle is AccessController {
     // remote address
+    uint32 public remoteChainId;
     address public remoteHelix;
     address public derivedRemoteHelix;
 
@@ -37,6 +38,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
     }
 
     function setRemoteHelix(bytes4 _remoteChainId, address _remoteHelix) external onlyAdmin {
+        remoteChainId = uint32(_remoteChainId);
         remoteHelix = _remoteHelix;
         derivedRemoteHelix = derivedRemoteSender(_remoteChainId, _remoteHelix);
     }
@@ -72,20 +74,20 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         );
     }
 
-    function testSendMessage(
+    function sendMessage(
         uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
         uint64  remoteCallWeight,
         address receiver,
-        bytes calldata message) external view returns(bytes memory, bytes memory) {
+        bytes calldata message) external onlyCaller payable returns(uint256) {
         PalletEthereum.MessageTransactCall memory call = PalletEthereum.MessageTransactCall(
             remoteMessageTransactCallIndex,
             PalletEthereum.buildTransactionV2ForMessageTransact(
+                remoteChainId,
                 remoteReceiveGasLimit, // gas limit
                 remoteHelix,
                 abi.encodeWithSelector(
                     this.recvMessage.selector,
-                    address(this),
                     receiver,
                     message 
                 )
@@ -104,7 +106,21 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
             remoteCallWeight,
             callEncoded
         );
-        return (payload, callEncoded);
+
+        SmartChainXLib.sendMessage(
+            dispatchAddress,
+            callIndexOfSendMessage,
+            outboundLaneId,
+            fee,
+            payload
+        );
+
+        uint64 nonce = SmartChainXLib.latestNonce(
+            storageAddress,
+            srcStorageKeyForLatestNonce,
+            outboundLaneId
+        );
+        return uint256(nonce);
     }
 
     function recvMessage(address receiver, bytes calldata message) external onlyRemoteHelix whenNotPaused {

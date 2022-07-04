@@ -147,13 +147,11 @@ contract Erc20BackingSupportingConfirm is Backing, DailyLimit, IBacking {
 
     /**
      * @notice this will be called by inboundLane when the remote mapping token burned and want to unlock the original token
-     * @param mappingTokenFactory the remote mapping token factory address
      * @param token the original token address
      * @param recipient the recipient who will receive the unlocked token
      * @param amount amount of the unlocked token
      */
     function unlockFromRemote(
-        address mappingTokenFactory,
         address token,
         address recipient,
         uint256 amount

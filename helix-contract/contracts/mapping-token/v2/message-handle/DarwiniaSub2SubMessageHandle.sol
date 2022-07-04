@@ -52,9 +52,10 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         dispatchAddress = _dispatchAddress;
     }
 
-    function setLocalCallInfo(bytes2 _callIndexOfSendMessage, bytes4 _outboundLaneId) external onlyAdmin {
+    function setLocalCallInfo(bytes2 _callIndexOfSendMessage, bytes4 _outboundLaneId, bytes4 _inboundLaneId) external onlyAdmin {
         callIndexOfSendMessage = _callIndexOfSendMessage;
         outboundLaneId = _outboundLaneId;
+        inboundLaneId = _inboundLaneId;
     }
 
     function setLocalStorageKey(

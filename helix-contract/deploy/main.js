@@ -17,7 +17,7 @@ async function lockAndRemoteIssueNative(wethAddress, backingAddress, amount, wal
         28140,
         100000000000,
         wethAddress,
-        "0xd2c7008400F54aA70Af01CF8C747a4473246593E",
+        "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
         amount,
         { value: ethers.utils.parseEther("100.0") });
 }
@@ -31,7 +31,7 @@ async function burnAmdRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWa
         28140,
         100000000000,
         xwethAddress,
-        "0xd2c7008400F54aA70Af01CF8C747a4473246593E",
+        "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
         amount,
         { value: ethers.utils.parseEther("100.0") });
 }
@@ -44,6 +44,7 @@ async function main() {
 
     const backingUrl = "https://pangolin-rpc.darwinia.network";
     const backingNetworkId = "0x0000002b"; //43
+    const backingBridgeNetworkId = "0x7061676c";
     const backingTransactCallIndex = 10497;//0x2901
     const backingSendmsgIndex = 11011;//0x2b03
     const backingOutboundLaneId = "0x726f6c69";//726f6c69
@@ -52,6 +53,7 @@ async function main() {
     const backingStorageKeyForLastDeliveredNonce = "0xd86d7f611f4d004e041fda08f633f101e5f83cf83f2127eb47afdc35d6e43fab";
     const mtfUrl = "https://pangoro-rpc.darwinia.network";
     const mtfNetworkId = "0x0000002d"; //45
+    const mtfBridgeNetworkId = "0x70616772";
     const mtfTransactCallIndex = 6657;//1a01
     const mtfSendmsgIndex = 4355;//0x1103
     const mtfOutboundLaneId = "0x726f6c69";
@@ -66,7 +68,6 @@ async function main() {
     const mtfProvider = new ethers.providers.JsonRpcProvider(mtfUrl);
     const mtfWallet = new ethers.Wallet(privateKey, mtfProvider);
 
-    /*
     // deploy
     const backingMessageHandle = await deployMessageHandle(backingWallet);
     console.log("deploy backing message handle finished, address: ", backingMessageHandle.address);
@@ -74,13 +75,13 @@ async function main() {
     console.log("deploy mtf message handle finished, address: ", mtfMessageHandle.address);
 
     // configure message handle
-    await backingMessageHandle.setRemoteHelix(mtfNetworkId, mtfMessageHandle.address);
+    await backingMessageHandle.setRemoteHelix(mtfBridgeNetworkId, mtfNetworkId, mtfMessageHandle.address);
     await backingMessageHandle.setRemoteCallIndex(mtfTransactCallIndex);
     await backingMessageHandle.setLocalAddress(precompileStorageAddress, precompileDispatchAddress);
     await backingMessageHandle.setLocalCallInfo(backingSendmsgIndex, backingOutboundLaneId);
     await backingMessageHandle.setLocalStorageKey(backingStorageKeyForMarketFee, backingStorageKeyForLatestNonce, backingStorageKeyForLastDeliveredNonce);
     console.log("finish configure backing message handle");
-    await mtfMessageHandle.setRemoteHelix(backingNetworkId, backingMessageHandle.address);
+    await mtfMessageHandle.setRemoteHelix(backingBridgeNetworkId, backingNetworkId, backingMessageHandle.address);
     await mtfMessageHandle.setRemoteCallIndex(backingTransactCallIndex);
     await mtfMessageHandle.setLocalAddress(precompileStorageAddress, precompileDispatchAddress);
     await mtfMessageHandle.setLocalCallInfo(mtfSendmsgIndex, mtfOutboundLaneId);
@@ -137,7 +138,7 @@ async function main() {
 
     await backingMessageHandle.grantRole(await backingMessageHandle.CALLER_ROLE(), backing.address);
     await mtfMessageHandle.grantRole(await mtfMessageHandle.CALLER_ROLE(), mtf.address);
-    await backing.grantRole(await backing.OPERATOR_ROLE(), "0xd2c7008400F54aA70Af01CF8C747a4473246593E");
+    await backing.grantRole(await backing.OPERATOR_ROLE(), "0x3fc22FAe77159D9253851f4c7fa99786DA041f43");
     console.log("grant role permission finished");
 
     // register special erc20 token
@@ -164,7 +165,6 @@ async function main() {
         { value: ethers.utils.parseEther("100.0") }
     );
     console.log("transaction is ", tx);
-    */
 
     // lock and remot issue
     //await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);

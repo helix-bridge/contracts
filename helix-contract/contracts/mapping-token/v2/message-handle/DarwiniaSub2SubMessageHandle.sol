@@ -7,7 +7,7 @@ import "@darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol";
 
 contract DarwiniaSub2SubMessageHandle is AccessController {
     // remote address
-    uint32 public remoteChainId;
+    uint32 public remoteEvmChainId;
     address public remoteHelix;
     address public derivedRemoteHelix;
 
@@ -37,8 +37,8 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         _;
     }
 
-    function setRemoteHelix(bytes4 _remoteChainId, address _remoteHelix) external onlyAdmin {
-        remoteChainId = uint32(_remoteChainId);
+    function setRemoteHelix(bytes4 _remoteChainId, uint32 _remoteEvmChainId, address _remoteHelix) external onlyAdmin {
+        remoteEvmChainId = uint32(_remoteEvmChainId);
         remoteHelix = _remoteHelix;
         derivedRemoteHelix = derivedRemoteSender(_remoteChainId, _remoteHelix);
     }
@@ -83,7 +83,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         PalletEthereum.MessageTransactCall memory call = PalletEthereum.MessageTransactCall(
             remoteMessageTransactCallIndex,
             PalletEthereum.buildTransactionV2ForMessageTransact(
-                remoteChainId,
+                remoteEvmChainId,
                 remoteReceiveGasLimit, // gas limit
                 remoteHelix,
                 abi.encodeWithSelector(

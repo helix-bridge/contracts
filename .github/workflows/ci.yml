@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ xiaoch05-test-ci ]
   pull_request:
     branches: [ master ]
 
@@ -46,11 +46,6 @@ jobs:
 
       - name: test
         run: yarn test
-
-      - name: merge-gas-report
-        run: |
-          yarn mv-reporter
-          yarn merge
 
       - name: codechecks
         env:

@@ -40,19 +40,12 @@ jobs:
 
       - name: build
         run: |
+          cd helix-contract
           yarn install
           yarn build
           # yarn build:contracts
 
       - name: test
-        run: yarn test
-
-      - name: merge-gas-report
         run: |
-          yarn mv-reporter
-          yarn merge
-
-      - name: codechecks
-        env:
-          CC_SECRET: ${{ secrets.CC_SECRET }}
-        run: npx codechecks
+          cd helix-contract
+          yarn test

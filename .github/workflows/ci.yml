@@ -40,9 +40,11 @@ jobs:
 
       - name: build
         run: |
+          cd helix-contract
           yarn install
           yarn build
           # yarn build:contracts
 
       - name: test
+        cd helix-contract
         run: yarn test

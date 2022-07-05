@@ -13,11 +13,11 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
 import "../../interfaces/IHelixMessageHandle.sol";
-import "../../interfaces/IHelixMessageHandleSupportUnlockFailed.sol";
+import "../../interfaces/IHelixSub2SubMessageHandle.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../../utils/DailyLimit.sol";
 
-contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20MappingTokenFactory, MappingTokenFactory {
+contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactory, MappingTokenFactory {
     struct BurnInfo {
         bytes32 hash;
         bool hasRefundForFailed;
@@ -123,7 +123,7 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
         require(mappingToken != address(0), "MappingTokenFactory:mapping token has not created");
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
         expendDailyLimit(mappingToken, amount);
-        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
+        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
         BitMaps.set(issueMessages, messageId);
         if (guard != address(0)) {
             IERC20(mappingToken).mint(address(this), amount);
@@ -162,7 +162,7 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
             amount
         );
 
-        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
@@ -191,7 +191,7 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
         // must not exist in successful issue list
         require(BitMaps.get(issueMessages, messageId) == false, "MappingTokenFactory:success message can't refund for failed");
         // must has been checked by message layer
-        uint256 latestRecvMessageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
+        uint256 latestRecvMessageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId();
         require(messageId <= latestRecvMessageId, "MappingTokenFactory:the message is not checked by message layer");
         bytes memory unlockForFailed = abi.encodeWithSelector(
             IHelixAppSupportUnlockFailed.unlockForFailedRemoteOperation.selector,
@@ -200,7 +200,7 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
             originalSender,
             amount
         );
-        IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+        IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
@@ -232,6 +232,21 @@ contract Erc20MappingTokenFactorySupportUnlockFailed is DailyLimit, IErc20Mappin
 
     function hash(bytes memory value) public pure returns (bytes32) {
         return sha256(value);
+    }
+
+    function rescueFunds(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external onlyAdmin {
+        IERC20(token).transfer(recipient, amount);
+    }
+
+    function withdrawFee(
+        address payable recipient,
+        uint256 amount
+    ) external onlyAdmin {
+        recipient.transfer(amount);
     }
 }
 

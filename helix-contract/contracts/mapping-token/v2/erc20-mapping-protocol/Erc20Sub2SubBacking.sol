@@ -9,11 +9,11 @@ import "../../interfaces/IERC20.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
 import "../../interfaces/IHelixMessageHandle.sol";
-import "../../interfaces/IHelixMessageHandleSupportUnlockFailed.sol";
+import "../../interfaces/IHelixSub2SubMessageHandle.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../../utils/DailyLimit.sol";
 
-contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking {
+contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     using SafeMath for uint256;
 
     struct LockedInfo {
@@ -76,7 +76,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking {
             symbol,
             decimals
         );
-        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
@@ -110,7 +110,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking {
             recipient,
             amount
         );
-        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
@@ -133,7 +133,8 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking {
         uint256 amount
     ) public onlyMessageHandle whenNotPaused {
         expendDailyLimit(token, amount);
-        uint256 messageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
+        // current message id is last message id + 1
+        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
         BitMaps.set(unlockedMessages, messageId);
         if (guard != address(0)) {
             require(IERC20(token).approve(guard, amount), "Backing:approve token transfer to guard failed");
@@ -178,7 +179,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking {
         // must not exist in successful issue list
         require(BitMaps.get(unlockedMessages, messageId) == false, "Backing:success message can't refund for failed");
         // must has been checked by message layer
-        uint256 latestRecvMessageId = IHelixMessageHandleSupportUnlockFailed(messageHandle).latestRecvMessageId();
+        uint256 latestRecvMessageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId();
         require(messageId <= latestRecvMessageId, "Backing:the message is not checked by message layer");
         bytes memory unlockForFailed = abi.encodeWithSelector(
             IHelixAppSupportUnlockFailed.unlockForFailedRemoteOperation.selector,
@@ -187,7 +188,7 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking {
             originalSender,
             amount
         );
-        IHelixMessageHandleSupportUnlockFailed(messageHandle).sendMessage{value: msg.value}(
+        IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
@@ -207,6 +208,12 @@ contract Erc20BackingSupportUnlockFailed is Backing, DailyLimit, IBacking {
         IERC20(token).transfer(recipient, amount);
     }
 
+    function withdrawFee(
+        address payable recipient,
+        uint256 amount
+    ) external onlyAdmin {
+        recipient.transfer(amount);
+    }
 
     function hash(bytes memory value) public pure returns (bytes32) {
         return sha256(value);

@@ -39,7 +39,7 @@ describe("sub<>sub mapping token tests", () => {
       await mtfMessageHandle.setRemoteHelix(backingMessageHandle.address);
 
       // deploy backing
-      const backingContract = await ethers.getContractFactory("Erc20BackingSupportUnlockFailed");
+      const backingContract = await ethers.getContractFactory("Erc20Sub2SubBacking");
       const backing = await backingContract.deploy();
       await backing.deployed();
       await backing.initialize(backingMessageHandle.address);
@@ -49,7 +49,7 @@ describe("sub<>sub mapping token tests", () => {
       await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
 
       // deploy mapping token factory
-      const mtfContract = await ethers.getContractFactory("Erc20MappingTokenFactorySupportUnlockFailed");
+      const mtfContract = await ethers.getContractFactory("Erc20Sub2SubMappingTokenFactory");
       const mtf = await mtfContract.deploy();
       await mtf.deployed();
       await mtf.initialize(mtfMessageHandle.address);

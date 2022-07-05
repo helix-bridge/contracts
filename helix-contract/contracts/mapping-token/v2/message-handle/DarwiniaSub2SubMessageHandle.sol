@@ -7,7 +7,7 @@ import "@darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol";
 
 contract DarwiniaSub2SubMessageHandle is AccessController {
     // remote address
-    uint32 public remoteEvmChainId;
+    uint64 public remoteSmartChainId;
     address public remoteHelix;
     address public derivedRemoteHelix;
 
@@ -37,8 +37,8 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         _;
     }
 
-    function setRemoteHelix(bytes4 _remoteChainId, uint32 _remoteEvmChainId, address _remoteHelix) external onlyAdmin {
-        remoteEvmChainId = uint32(_remoteEvmChainId);
+    function setRemoteHelix(bytes4 _remoteChainId, uint64 _remoteSmartChainId, address _remoteHelix) external onlyAdmin {
+        remoteSmartChainId = _remoteSmartChainId;
         remoteHelix = _remoteHelix;
         derivedRemoteHelix = derivedRemoteSender(_remoteChainId, _remoteHelix);
     }
@@ -84,9 +84,9 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         PalletEthereum.MessageTransactCall memory call = PalletEthereum.MessageTransactCall(
             remoteMessageTransactCallIndex,
             PalletEthereum.buildTransactionV2ForMessageTransact(
-                remoteEvmChainId,
                 remoteReceiveGasLimit, // gas limit
                 remoteHelix,
+                remoteSmartChainId,
                 abi.encodeWithSelector(
                     this.recvMessage.selector,
                     receiver,
@@ -96,11 +96,17 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         );
         bytes memory callEncoded = PalletEthereum.encodeMessageTransactCall(call);
 
-        //uint128 fee = SmartChainXLib.marketFee(
-            //storageAddress,
-            //srcStorageKeyForMarketFee
-        //);
-        uint128 fee = 100 ether;
+        uint128 fee = SmartChainXLib.marketFee(
+            storageAddress,
+            srcStorageKeyForMarketFee
+        );
+        // transform decimals
+        fee = fee * 10 ** 9;
+        require(msg.value >= fee, "DarwiniaSub2SubMessageHandle:the fee is not enough");
+
+        if (msg.value > fee) {
+            payable(msg.sender).transfer(msg.value - fee);
+        }
 
         bytes memory payload = SmartChainXLib.buildMessage(
             remoteSpecVersion,

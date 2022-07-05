@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import "./IHelixMessageHandle.sol";
 
-interface IHelixMessageHandleSupportUnlockFailed is IHelixMessageHandle {
+interface IHelixSub2SubMessageHandle is IHelixMessageHandle {
     function latestRecvMessageId() external view returns (uint256);
     function sendMessage(
         uint256 remoteReceiveGasLimit,

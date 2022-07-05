@@ -46,5 +46,6 @@ jobs:
           # yarn build:contracts
 
       - name: test
-        cd helix-contract
-        run: yarn test
+        run: |
+          cd helix-contract
+          yarn test

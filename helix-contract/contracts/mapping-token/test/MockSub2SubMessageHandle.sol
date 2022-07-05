@@ -33,9 +33,9 @@ contract MockSub2SubMessageHandle is AccessController {
             receiver,
             message
         );
-        remoteHelix.call{value: 0}(recv);
         outboundNonce += 1;
-        return outboundNonce - 1;
+        remoteHelix.call{value: 0}(recv);
+        return outboundNonce;
     }
 
     function recvMessage(address receiver, bytes calldata message) external onlyRemoteHelix {

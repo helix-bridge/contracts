@@ -62,7 +62,7 @@ describe("sub<>sub mapping token tests", () => {
       await mtf.setRemoteBacking(backing.address);
 
       // register
-      // backing: nonce += 0
+      // backing: nonce += 1
       await backing.register(
           remoteReceiveGasLimit,
           remoteSpecVersion,
@@ -91,7 +91,7 @@ describe("sub<>sub mapping token tests", () => {
       await wkton.approve(backing.address, 100000);
       // change daily limit
       await mtf.changeDailyLimit(mappingWktonAddress, 10000);
-      // backing: nonce += 1
+      // backing: nonce += 2
       await backing.lockAndRemoteIssuing(
         remoteReceiveGasLimit,
         remoteSpecVersion,
@@ -103,17 +103,11 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       // 3. test failed and unlock failed, update daily limit
       // 3.1 unlock the successed remote message should be failed
-      /*
-      let proof = [];
-      for (let i = 0; i < 64; i++) {
-          proof.push(await backing.zero_hashes(i));
-      }
-      */
       await expect(mtf.handleFailedRemoteOperation(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
-          backingStartNonce + 1,
+          backingStartNonce + 2,
           wkton.address,
           owner.address,
           1000)).to.be.revertedWith("MappingTokenFactory:success message can't refund for failed");
@@ -131,23 +125,12 @@ describe("sub<>sub mapping token tests", () => {
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 2000);
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       
-      /*
-      let proof_success = [];
-      const message = ethers.utils.solidityPack(["uint256", "address", "address", "uint256"], [backingStartNonce + 1, wkton.address, owner.address, 1000])
-      proof_success.push(await backing.hash(message));
-      const leafMessage = ethers.utils.solidityPack(["uint256", "address", "address", "uint256"], [backingStartNonce + 2, wkton.address, owner.address, 1000])
-      const leaf = await backing.hash(leafMessage);
-      for (let i = 1; i < 64; i++) {
-          proof_success.push(await backing.zero_hashes(i));
-      }
-      expect(await backing.verifyProof(leaf, proof_success, 1)).to.equal(true);
-      */
       // mtf: nonce += 0
       await mtf.handleFailedRemoteOperation(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
-          backingStartNonce + 2,
+          backingStartNonce + 3,
           wkton.address,
           owner.address,
           1000);
@@ -158,7 +141,7 @@ describe("sub<>sub mapping token tests", () => {
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
-          backingStartNonce + 2,
+          backingStartNonce + 3,
           wkton.address,
           owner.address,
           1000);
@@ -186,7 +169,7 @@ describe("sub<>sub mapping token tests", () => {
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
-          mtfStartNonce + 2,
+          mtfStartNonce + 3,
           mappedToken.address,
           owner.address,
           100)).to.be.revertedWith("Backing:success message can't refund for failed");
@@ -201,19 +184,11 @@ describe("sub<>sub mapping token tests", () => {
           owner.address,
           100
       );
-      /*
-      let burn_proof_success = [];
-      const burn_message = ethers.utils.solidityPack(["uint256", "address", "address", "uint256"], [mtfStartNonce + 2, mappedToken.address, owner.address, 100])
-      burn_proof_success.push(await mtf.hash(burn_message));
-      for (let i = 1; i < 64; i++) {
-          burn_proof_success.push(await mtf.zero_hashes(i));
-      }
-      */
       backing.handleFailedRemoteOperation(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
-          mtfStartNonce + 3,
+          mtfStartNonce + 4,
           mappedToken.address,
           owner.address,
           100)
@@ -223,7 +198,7 @@ describe("sub<>sub mapping token tests", () => {
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
-          mtfStartNonce + 3,
+          mtfStartNonce + 4,
           mappedToken.address,
           owner.address,
           100)

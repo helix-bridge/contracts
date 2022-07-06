@@ -18,12 +18,12 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
     address public storageAddress;
     address public dispatchAddress;
 
-    // local call info
+    // local bridge info
     bytes2  public callIndexOfSendMessage;
     bytes4  public inboundLaneId;
     bytes4  public outboundLaneId;
 
-    // lock readonly storage
+    // readonly storage key
     bytes32 public srcStorageKeyForMarketFee;
     bytes32 public srcStorageKeyForLatestNonce;
     bytes32 public dstStorageKeyForLastDeliveredNonce;

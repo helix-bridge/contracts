@@ -96,12 +96,10 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         );
         bytes memory callEncoded = PalletEthereum.encodeMessageTransactCall(call);
 
-        uint128 fee = SmartChainXLib.marketFee(
+        uint256 fee = SmartChainXLib.marketFee(
             storageAddress,
             srcStorageKeyForMarketFee
         );
-        // transform decimals
-        fee = fee * 10 ** 9;
         require(msg.value >= fee, "DarwiniaSub2SubMessageHandle:the fee is not enough");
 
         if (msg.value > fee) {

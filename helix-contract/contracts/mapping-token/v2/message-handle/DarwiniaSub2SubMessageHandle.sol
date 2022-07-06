@@ -95,17 +95,6 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
             )
         );
         bytes memory callEncoded = PalletEthereum.encodeMessageTransactCall(call);
-
-        uint256 fee = SmartChainXLib.marketFee(
-            storageAddress,
-            srcStorageKeyForMarketFee
-        );
-        require(msg.value >= fee, "DarwiniaSub2SubMessageHandle:the fee is not enough");
-
-        if (msg.value > fee) {
-            payable(msg.sender).transfer(msg.value - fee);
-        }
-
         bytes memory payload = SmartChainXLib.buildMessage(
             remoteSpecVersion,
             remoteCallWeight,
@@ -116,7 +105,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
             dispatchAddress,
             callIndexOfSendMessage,
             outboundLaneId,
-            fee,
+            msg.value,
             payload
         );
 
@@ -139,6 +128,13 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
             storageAddress,
             dstStorageKeyForLastDeliveredNonce,
             inboundLaneId
+        );
+    }
+
+    function fee() public view returns(uint256) {
+        return SmartChainXLib.marketFee(
+            storageAddress,
+            srcStorageKeyForMarketFee
         );
     }
 }

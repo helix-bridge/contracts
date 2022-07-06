@@ -25,6 +25,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     uint32 public constant ERC20_TOKEN_TYPE = 1;
     address public guard;
     string public chainName;
+    uint256 public helixFee;
 
     // (messageId => LockedInfo)
     mapping(uint256 => LockedInfo) lockedMessages;
@@ -47,8 +48,38 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         _changeDailyLimit(mappingToken, amount);
     }
 
+    function setHelixFee(uint256 _helixFee) external onlyAdmin {
+        helixFee = _helixFee;
+    }
+
     function updateGuard(address newGuard) external onlyAdmin {
         guard = newGuard;
+    }
+
+    function fee() external view returns(uint256) {
+        return IHelixSub2SubMessageHandle(messageHandle).fee() + helixFee;
+    }
+
+    function _sendMessage(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
+        address receiver,
+        bytes memory message
+    ) internal nonReentrant returns(uint256) {
+        uint256 bridgeFee = IHelixSub2SubMessageHandle(messageHandle).fee();
+        uint256 totalFee = bridgeFee + helixFee;
+        require(msg.value >= totalFee, "backing:the fee is not enough");
+        if (msg.value > totalFee) {
+            // refund fee to msgSender
+            payable(msg.sender).transfer(msg.value - totalFee);
+        }
+        return IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: bridgeFee}(
+            remoteReceiveGasLimit,
+            remoteSpecVersion,
+            remoteCallWeight,
+            remoteMappingTokenFactory,
+            message);
     }
 
     /**
@@ -78,12 +109,13 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             decimals,
             dailyLimit
         );
-        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
+        uint256 messageId = _sendMessage(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
             remoteMappingTokenFactory,
-            newErc20Contract);
+            newErc20Contract
+        );
         _changeDailyLimit(token, dailyLimit);
         emit NewErc20TokenRegistered(messageId, token);
     }
@@ -113,12 +145,13 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             recipient,
             amount
         );
-        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
+        uint256 messageId = _sendMessage(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
             remoteMappingTokenFactory,
-            issueMappingToken);
+            issueMappingToken
+        );
         bytes32 lockMessageHash = hash(abi.encodePacked(messageId, token, msg.sender, amount));
         lockedMessages[messageId] = LockedInfo(lockMessageHash, false);
         emit TokenLocked(messageId, lockMessageHash, token, msg.sender, recipient, amount);
@@ -191,12 +224,13 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             originalSender,
             amount
         );
-        IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
+        _sendMessage(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
             remoteMappingTokenFactory,
-            unlockForFailed);
+            unlockForFailed
+        );
     }
 
     /**

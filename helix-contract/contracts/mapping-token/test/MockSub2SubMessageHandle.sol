@@ -28,6 +28,7 @@ contract MockSub2SubMessageHandle is AccessController {
         uint64  remoteCallWeight,
         address receiver,
         bytes calldata message) external onlyCaller payable returns(uint256) {
+        require(msg.value == fee(), "fee is not matched");
         bytes memory recv = abi.encodeWithSelector(
             MockSub2SubMessageHandle.recvMessage.selector,
             receiver,
@@ -47,6 +48,10 @@ contract MockSub2SubMessageHandle is AccessController {
 
     function latestRecvMessageId() public view returns(uint256) {
         return inboundNonce;
+    }
+
+    function fee() public view returns(uint256) {
+        return 1 ether;
     }
 }
 

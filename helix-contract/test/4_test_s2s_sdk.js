@@ -71,7 +71,8 @@ describe("sub<>sub mapping token tests", () => {
           await wkton.name(),
           await wkton.symbol(),
           await wkton.decimals(),
-          10000
+          10000,
+          { value: ethers.utils.parseEther("1.0") }
       );
 
       expect(await mtf.tokenLength()).to.equal(1);
@@ -86,7 +87,9 @@ describe("sub<>sub mapping token tests", () => {
         remoteCallWeight,
         wkton.address,
         receiver,
-        1000)).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
+        1000,
+        { value: ethers.utils.parseEther("1.0") }
+      )).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
       // 2. success
       // must approve first
       await wkton.approve(backing.address, 100000);
@@ -98,7 +101,9 @@ describe("sub<>sub mapping token tests", () => {
         remoteCallWeight,
         wkton.address,
         receiver,
-        1000);
+        1000,
+        { value: ethers.utils.parseEther("1.0") }
+      );
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       // 3. test failed and unlock failed, update daily limit
@@ -110,7 +115,9 @@ describe("sub<>sub mapping token tests", () => {
           backingStartNonce + 2,
           wkton.address,
           owner.address,
-          1000)).to.be.revertedWith("MappingTokenFactory:success message can't refund for failed");
+          1000,
+          { value: ethers.utils.parseEther("1.0") }
+      )).to.be.revertedWith("MappingTokenFactory:success message can't refund for failed");
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       // 3.2 unlock the failed remote message should be success
       await mtf.changeDailyLimit(mappingWktonAddress, 0);
@@ -121,7 +128,9 @@ describe("sub<>sub mapping token tests", () => {
         remoteCallWeight,
         wkton.address,
         receiver,
-        1000);
+        1000,
+        { value: ethers.utils.parseEther("1.0") }
+      );
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 2000);
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       
@@ -133,7 +142,9 @@ describe("sub<>sub mapping token tests", () => {
           backingStartNonce + 3,
           wkton.address,
           owner.address,
-          1000);
+          1000,
+          { value: ethers.utils.parseEther("1.2") }
+      );
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       // retry failed
       // mtf: nonce += 1
@@ -144,7 +155,9 @@ describe("sub<>sub mapping token tests", () => {
           backingStartNonce + 3,
           wkton.address,
           owner.address,
-          1000);
+          1000,
+          { value: ethers.utils.parseEther("1.0") }
+      );
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
 
       // burn and unlock
@@ -157,7 +170,8 @@ describe("sub<>sub mapping token tests", () => {
           remoteCallWeight,
           mappingWktonAddress,
           owner.address,
-          100
+          100,
+          { value: ethers.utils.parseEther("1.0") }
       );
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
@@ -171,7 +185,9 @@ describe("sub<>sub mapping token tests", () => {
           mtfStartNonce + 3,
           mappedToken.address,
           owner.address,
-          100)).to.be.revertedWith("Backing:success message can't refund for failed");
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      )).to.be.revertedWith("Backing:success message can't refund for failed");
       // 2.2 can unlock when failed
       await backing.changeDailyLimit(wkton.address, 0);
       // mtf: nonce += 3
@@ -181,7 +197,8 @@ describe("sub<>sub mapping token tests", () => {
           remoteCallWeight,
           mappingWktonAddress,
           owner.address,
-          100
+          100,
+          { value: ethers.utils.parseEther("1.0") }
       );
       backing.withdrawFailedTransfer(
           remoteReceiveGasLimit,
@@ -190,7 +207,9 @@ describe("sub<>sub mapping token tests", () => {
           mtfStartNonce + 4,
           mappedToken.address,
           owner.address,
-          100)
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      )
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // retry failed
       backing.withdrawFailedTransfer(
@@ -200,7 +219,9 @@ describe("sub<>sub mapping token tests", () => {
           mtfStartNonce + 4,
           mappedToken.address,
           owner.address,
-          100)
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      )
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
   });
 });

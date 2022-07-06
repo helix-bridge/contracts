@@ -7,6 +7,14 @@ import "./AccessController.sol";
 contract Backing is AccessController, Initializable {
     address public messageHandle;
     address public remoteMappingTokenFactory;
+    
+    uint256 internal locked;
+    modifier nonReentrant {
+        require(locked == 0, "backing: locked");
+        locked = 1;
+        _;
+        locked = 0;
+    }
 
     modifier onlyMessageHandle() {
         require(messageHandle == msg.sender, "Backing:Bad message handle");

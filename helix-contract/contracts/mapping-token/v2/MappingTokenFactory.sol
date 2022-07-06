@@ -18,9 +18,16 @@ contract MappingTokenFactory is AccessController, Initializable {
     // so this is a mapping from mappingToken to original token
     mapping(address => address) public mappingToken2OriginalToken;
 
-
     address public messageHandle;
     address public remoteBacking;
+
+    uint256 internal locked;
+    modifier nonReentrant {
+        require(locked == 0, "MappingTokenFactory: locked");
+        locked = 1;
+        _;
+        locked = 0;
+    }
 
     modifier onlyMessageHandle() {
         require(messageHandle == msg.sender, "MappingTokenFactory:Bad message handle");

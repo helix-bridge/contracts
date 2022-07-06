@@ -26,6 +26,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
     address public constant BLACK_HOLE_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     // guard
     address public guard;
+    uint256 public helixFee;
 
     mapping(uint256 => BurnInfo) burnMessages;
     BitMaps.BitMap issueMessages;
@@ -68,6 +69,36 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
     function setTokenContractLogic(uint32 tokenType, address logic) external onlyAdmin {
         tokenType2Logic[tokenType] = logic;
         emit NewLogicSetted(tokenType, logic);
+    }
+
+    function setHelixFee(uint256 _helixFee) external onlyAdmin {
+        helixFee = _helixFee;
+    }
+
+    function fee() external view returns(uint256) {
+        return IHelixSub2SubMessageHandle(messageHandle).fee() + helixFee;
+    }
+
+    function _sendMessage(
+        uint256 remoteReceiveGasLimit,
+        uint32  remoteSpecVersion,
+        uint64  remoteCallWeight,
+        address receiver,
+        bytes memory message
+    ) internal nonReentrant returns(uint256) {
+        uint256 bridgeFee = IHelixSub2SubMessageHandle(messageHandle).fee();
+        uint256 totalFee = bridgeFee + helixFee;
+        require(msg.value >= totalFee, "backing:the fee is not enough");
+        if (msg.value > totalFee) {
+            // refund fee to msgSender
+            payable(msg.sender).transfer(msg.value - totalFee);
+        }
+        return IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: bridgeFee}(
+            remoteReceiveGasLimit,
+            remoteSpecVersion,
+            remoteCallWeight,
+            remoteBacking,
+            message);
     }
 
     /**
@@ -164,12 +195,13 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             amount
         );
 
-        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
+        uint256 messageId = _sendMessage(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
             remoteBacking,
-            unlockFromRemote);
+            unlockFromRemote
+        );
         bytes32 messageHash = hash(abi.encodePacked(messageId, mappingToken, msg.sender, amount));
         burnMessages[messageId] = BurnInfo(messageHash, false);
         emit BurnAndRemoteUnlocked(messageId, messageHash, msg.sender, recipient, mappingToken, amount);
@@ -202,12 +234,13 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             originalSender,
             amount
         );
-        IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
+        _sendMessage(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
             remoteBacking,
-            unlockForFailed);
+            unlockForFailed
+        );
     }
 
     /**

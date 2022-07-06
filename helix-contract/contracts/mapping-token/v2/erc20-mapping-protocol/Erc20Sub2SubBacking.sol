@@ -152,6 +152,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             remoteMappingTokenFactory,
             issueMappingToken
         );
+        require(lockedMessages[messageId].hash == bytes32(0), "backing: message exist");
         bytes32 lockMessageHash = hash(abi.encodePacked(messageId, token, msg.sender, amount));
         lockedMessages[messageId] = LockedInfo(lockMessageHash, false);
         emit TokenLocked(messageId, lockMessageHash, token, msg.sender, recipient, amount);

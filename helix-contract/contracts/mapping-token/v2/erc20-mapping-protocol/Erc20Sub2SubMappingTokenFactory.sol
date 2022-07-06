@@ -88,7 +88,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
     ) internal nonReentrant returns(uint256) {
         uint256 bridgeFee = IHelixSub2SubMessageHandle(messageHandle).fee();
         uint256 totalFee = bridgeFee + helixFee;
-        require(msg.value >= totalFee, "backing:the fee is not enough");
+        require(msg.value >= totalFee, "MappingTokenFactory:the fee is not enough");
         if (msg.value > totalFee) {
             // refund fee to msgSender
             payable(msg.sender).transfer(msg.value - totalFee);
@@ -202,6 +202,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             remoteBacking,
             unlockFromRemote
         );
+        require(burnMessages[messageId].hash == bytes32(0), "MappingTokenFactory: message exist");
         bytes32 messageHash = hash(abi.encodePacked(messageId, mappingToken, msg.sender, amount));
         burnMessages[messageId] = BurnInfo(messageHash, false);
         emit BurnAndRemoteUnlocked(messageId, messageHash, msg.sender, recipient, mappingToken, amount);

@@ -65,7 +65,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         address token,
         string memory name,
         string memory symbol,
-        uint8 decimals
+        uint8 decimals,
+        uint256 dailyLimit
     ) external payable onlyOperator {
         bytes memory newErc20Contract = abi.encodeWithSelector(
             IErc20MappingTokenFactory.newErc20Contract.selector,
@@ -74,7 +75,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             chainName,
             name,
             symbol,
-            decimals
+            decimals,
+            dailyLimit
         );
         uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: msg.value}(
             remoteReceiveGasLimit,
@@ -82,6 +84,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             remoteCallWeight,
             remoteMappingTokenFactory,
             newErc20Contract);
+        _changeDailyLimit(token, dailyLimit);
         emit NewErc20TokenRegistered(messageId, token);
     }
 

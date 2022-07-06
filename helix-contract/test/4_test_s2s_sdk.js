@@ -70,7 +70,8 @@ describe("sub<>sub mapping token tests", () => {
           wkton.address,
           await wkton.name(),
           await wkton.symbol(),
-          await wkton.decimals()
+          await wkton.decimals(),
+          10000
       );
 
       expect(await mtf.tokenLength()).to.equal(1);
@@ -90,7 +91,6 @@ describe("sub<>sub mapping token tests", () => {
       // must approve first
       await wkton.approve(backing.address, 100000);
       // change daily limit
-      await mtf.changeDailyLimit(mappingWktonAddress, 10000);
       // backing: nonce += 2
       await backing.lockAndRemoteIssuing(
         remoteReceiveGasLimit,
@@ -149,7 +149,6 @@ describe("sub<>sub mapping token tests", () => {
 
       // burn and unlock
       // 1. success
-      await backing.changeDailyLimit(wkton.address, 100000);
       await mappedToken.approve(mtf.address, 100000);
       // mtf: nonce += 2
       await mtf.burnAndRemoteUnlock(

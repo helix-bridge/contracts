@@ -116,10 +116,11 @@ describe("darwinia<>bsc mapping token tests", () => {
           tokenName,
           tokenSymbol,
           9,
+          1000,
           {value: ethers.utils.parseEther("9.9999999999")}
       )).to.be.revertedWith("DarwiniaMessageHandle:not enough fee to pay");
       // test register successed
-      await backing.registerErc20Token(originalToken.address, tokenName, tokenSymbol, 9, {value: ethers.utils.parseEther("10.0")});
+      await backing.registerErc20Token(originalToken.address, tokenName, tokenSymbol, 9, 1000, {value: ethers.utils.parseEther("10.0")});
       // check not exist
       expect(await backing.registeredTokens(originalToken.address)).to.equal(false);
       // confirmed

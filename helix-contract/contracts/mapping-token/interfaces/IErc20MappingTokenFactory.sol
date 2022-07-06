@@ -9,7 +9,8 @@ interface IErc20MappingTokenFactory {
         string memory bridgedChainName,
         string memory name,
         string memory symbol,
-        uint8 decimals
+        uint8 decimals,
+        uint256 dailyLimit
     ) external returns (address mappingToken);
     function issueMappingToken(
         address originalToken,

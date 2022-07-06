@@ -153,6 +153,7 @@ async function main() {
     const gasLimit = 5000000;
     const specVersion = 28140;
     const callWeight = 200000000000;
+    const dailyLimit = ethers.utils.parseEther("10000");
     //const tx = await backing.callStatic.register(
     const tx = await backing.register(
         gasLimit,
@@ -162,6 +163,7 @@ async function main() {
         "wrapped eth",
         "weth",
         18,
+        dailyLimit,
         { value: ethers.utils.parseEther("100.0") }
     );
     console.log("transaction is ", tx);
@@ -174,14 +176,14 @@ async function main() {
     // 1. lock and remote issue
     //await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
-    await mtf.changeDailyLimit(await mtf.allMappingTokens(0), "0xffffffffffffffffffffffffffffffff");
+    //await mtf.changeDailyLimit(await mtf.allMappingTokens(0), "0xffffffffffffffffffffffffffffffff");
     await lockAndRemoteIssueNative(wethAddress, backingAddress, ethers.utils.parseEther("100.0"), backingWallet);
     */
 
     /*
     // 2. burn and remote unlock
     const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, backingWallet);
-    await backing.changeDailyLimit(wethAddress, "0xffffffffffffffffffffffffffffffff");
+    //await backing.changeDailyLimit(wethAddress, "0xffffffffffffffffffffffffffffffff");
     const tx = await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("12.0"), mtfWallet);
     console.log(tx);
     */

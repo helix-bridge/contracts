@@ -68,7 +68,8 @@ contract Erc20BackingSupportingConfirm is Backing, DailyLimit, IBacking {
         address token,
         string memory name,
         string memory symbol,
-        uint8 decimals
+        uint8 decimals,
+        uint256 dailyLimit
     ) external payable onlyOperator {
         require(registeredTokens[token] == false, "Backing:token has been registered");
 
@@ -79,10 +80,12 @@ contract Erc20BackingSupportingConfirm is Backing, DailyLimit, IBacking {
             chainName,
             name,
             symbol,
-            decimals
+            decimals,
+            dailyLimit
         );
         uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc20Contract);
         registerMessages[messageId] = token;
+        _changeDailyLimit(token, dailyLimit);
         emit NewErc20TokenRegistered(messageId, token);
     }
 

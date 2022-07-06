@@ -84,7 +84,8 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         string memory bridgedChainName,
         string memory name,
         string memory symbol,
-        uint8 decimals
+        uint8 decimals,
+        uint256 dailyLimit
     ) public onlyMessageHandle whenNotPaused returns (address mappingToken) {
         require(tokenType == 0 || tokenType == 1, "MappingTokenFactory:token type cannot mapping to erc20 token");
         bytes32 salt = keccak256(abi.encodePacked(remoteBacking, originalToken));
@@ -96,6 +97,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             decimals);
 
         _addMappingToken(salt, originalToken, mappingToken);
+        _changeDailyLimit(mappingToken, dailyLimit);
         emit IssuingERC20Created(originalToken, mappingToken);
     }
 

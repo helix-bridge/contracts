@@ -103,7 +103,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       // 3. test failed and unlock failed, update daily limit
       // 3.1 unlock the successed remote message should be failed
-      await expect(mtf.handleFailedRemoteOperation(
+      await expect(mtf.withdrawFailedTransfer(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
@@ -126,7 +126,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       
       // mtf: nonce += 0
-      await mtf.handleFailedRemoteOperation(
+      await mtf.withdrawFailedTransfer(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
@@ -137,7 +137,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       // retry failed
       // mtf: nonce += 1
-      await mtf.handleFailedRemoteOperation(
+      await mtf.withdrawFailedTransfer(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
@@ -165,7 +165,7 @@ describe("sub<>sub mapping token tests", () => {
 
       // 2. unlock when failed
       // 2.1 can't unlock when success
-      await expect(backing.handleFailedRemoteOperation(
+      await expect(backing.withdrawFailedTransfer(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
@@ -184,7 +184,7 @@ describe("sub<>sub mapping token tests", () => {
           owner.address,
           100
       );
-      backing.handleFailedRemoteOperation(
+      backing.withdrawFailedTransfer(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
@@ -194,7 +194,7 @@ describe("sub<>sub mapping token tests", () => {
           100)
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // retry failed
-      backing.handleFailedRemoteOperation(
+      backing.withdrawFailedTransfer(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,

@@ -151,7 +151,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
      * @param origin_sender the origin_sender who will receive the unlocked token
      * @param amount amount of the unlocked token
      */
-    function unlockForFailedRemoteOperation(
+    function handleWithdrawFailedTransfer(
         uint256 messageId,
         address token,
         address origin_sender,
@@ -167,7 +167,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         emit TokenUnlockedForFailed(messageId, token, origin_sender, amount);
     }
 
-    function handleFailedRemoteOperation(
+    function withdrawFailedTransfer(
         uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
         uint64  remoteCallWeight,
@@ -182,7 +182,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         uint256 latestRecvMessageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId();
         require(messageId <= latestRecvMessageId, "Backing:the message is not checked by message layer");
         bytes memory unlockForFailed = abi.encodeWithSelector(
-            IHelixAppSupportUnlockFailed.unlockForFailedRemoteOperation.selector,
+            IHelixAppSupportWithdrawFailed.handleWithdrawFailedTransfer.selector,
             messageId,
             mappingToken,
             originalSender,

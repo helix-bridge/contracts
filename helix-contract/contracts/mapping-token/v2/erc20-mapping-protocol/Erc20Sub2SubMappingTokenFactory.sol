@@ -179,7 +179,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
      * @param originalSender the originalSender of the remote unlocked token, must be the same as msg.send of the failed message.
      * @param amount the amount of the failed issue token.
      */
-    function handleFailedRemoteOperation(
+    function withdrawFailedTransfer(
         uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
         uint64  remoteCallWeight,
@@ -194,7 +194,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         uint256 latestRecvMessageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId();
         require(messageId <= latestRecvMessageId, "MappingTokenFactory:the message is not checked by message layer");
         bytes memory unlockForFailed = abi.encodeWithSelector(
-            IHelixAppSupportUnlockFailed.unlockForFailedRemoteOperation.selector,
+            IHelixAppSupportWithdrawFailed.handleWithdrawFailedTransfer.selector,
             messageId,
             originalToken,
             originalSender,
@@ -214,7 +214,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
      * @param origin_sender the origin_sender who will receive the unlocked token
      * @param amount amount of the unlocked token
      */
-    function unlockForFailedRemoteOperation(
+    function handleWithdrawFailedTransfer(
         uint256 messageId,
         address token,
         address origin_sender,

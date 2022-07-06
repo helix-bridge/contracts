@@ -6,14 +6,8 @@ interface IHelixAppSupportConfirm {
     function onMessageDelivered(uint256 messageId, bool result) external;
 }
 
-interface IHelixAppSupportUnlockFailed {
-    function handleFailedRemoteOperation(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-    function unlockForFailedRemoteOperation(
+interface IHelixAppSupportWithdrawFailed {
+    function handleWithdrawFailedTransfer(
         uint256 messageId,
         address token,
         address sender,

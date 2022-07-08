@@ -157,6 +157,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
         expendDailyLimit(mappingToken, amount);
         uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
+        require(BitMaps.get(issueMessages, messageId) == false, "message has been accepted");
         BitMaps.set(issueMessages, messageId);
         if (guard != address(0)) {
             IERC20(mappingToken).mint(address(this), amount);

@@ -172,6 +172,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         expendDailyLimit(token, amount);
         // current message id is last message id + 1
         uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
+        require(BitMaps.get(unlockedMessages, messageId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedMessages, messageId);
         if (guard != address(0)) {
             require(IERC20(token).approve(guard, amount), "Backing:approve token transfer to guard failed");

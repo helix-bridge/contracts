@@ -223,6 +223,61 @@ describe("sub<>sub mapping token tests", () => {
           { value: ethers.utils.parseEther("1.0") }
       )
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
+
+      // mtf: nonce += 5
+      await mtf.burnAndRemoteUnlock(
+          remoteReceiveGasLimit,
+          remoteSpecVersion,
+          remoteCallWeight,
+          mappingWktonAddress,
+          owner.address,
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      );
+
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
+
+      // test update laneId
+      // 1. old message can be used to proof failed unlock
+      await backingMessageHandle.setInboundLane("0xffffffff");
+      await backingMessageHandle.setOutboundLane("0xffffffff");
+      await mtfMessageHandle.setInboundLane("0xffffffff");
+      await mtfMessageHandle.setOutboundLane("0xffffffff");
+      await backing.remoteIssuingFailure(
+          remoteReceiveGasLimit,
+          remoteSpecVersion,
+          remoteCallWeight,
+          mtfStartNonce + 5,
+          mappedToken.address,
+          owner.address,
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      )
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
+
+      // 2. new message can be proved by new transferId
+      // mtf: nonce == 1
+      await mtf.burnAndRemoteUnlock(
+          remoteReceiveGasLimit,
+          remoteSpecVersion,
+          remoteCallWeight,
+          mappingWktonAddress,
+          owner.address,
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      );
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
+      await backing.remoteIssuingFailure(
+          remoteReceiveGasLimit,
+          remoteSpecVersion,
+          remoteCallWeight,
+          "0xFFFFFFFF0000000000000001",
+          mappedToken.address,
+          owner.address,
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      )
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
   });
 });
 

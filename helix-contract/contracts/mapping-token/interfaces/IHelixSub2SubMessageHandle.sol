@@ -7,6 +7,7 @@ import "./IHelixMessageHandle.sol";
 interface IHelixSub2SubMessageHandle is IHelixMessageHandle {
     function fee() external view returns (uint256);
     function latestRecvMessageId() external view returns (uint256);
+    function isMessageTransfered(uint256 transferId) external view returns(bool);
     function sendMessage(
         uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,

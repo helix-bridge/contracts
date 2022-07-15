@@ -68,9 +68,9 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         dstStorageKeyForLastDeliveredNonce = _dstStorageKeyForLastDeliveredNonce;
     }
 
-    function derivedRemoteSender(bytes4 srcChainId, address sender) public view returns(address) {
+    function derivedRemoteSender(bytes4 srcSubstrateChainId, address sender) public view returns(address) {
         return SmartChainXLib.deriveSenderFromRemote(
-            srcChainId,
+            srcSubstrateChainId,
             sender
         );
     }
@@ -80,7 +80,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         uint32  remoteSpecVersion,
         uint64  remoteCallWeight,
         address receiver,
-        bytes calldata message) external onlyCaller payable returns(uint256) {
+        bytes calldata callPayload) external onlyCaller payable returns(uint256) {
         PalletEthereum.MessageTransactCall memory call = PalletEthereum.MessageTransactCall(
             remoteMessageTransactCallIndex,
             PalletEthereum.buildTransactionV2ForMessageTransact(
@@ -90,12 +90,12 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
                 abi.encodeWithSelector(
                     this.recvMessage.selector,
                     receiver,
-                    message 
+                    callPayload 
                 )
             )
         );
         bytes memory callEncoded = PalletEthereum.encodeMessageTransactCall(call);
-        bytes memory payload = SmartChainXLib.buildMessage(
+        bytes memory messagePayload = SmartChainXLib.buildMessage(
             remoteSpecVersion,
             remoteCallWeight,
             callEncoded
@@ -106,7 +106,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
             callIndexOfSendMessage,
             outboundLaneId,
             msg.value,
-            payload
+            messagePayload
         );
 
         uint64 nonce = SmartChainXLib.latestNonce(
@@ -114,13 +114,32 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
             srcStorageKeyForLatestNonce,
             outboundLaneId
         );
-        return uint256(nonce);
+
+        return encodeTransferId(outboundLaneId, nonce);
     }
 
-    function recvMessage(address receiver, bytes calldata message) external onlyRemoteHelix whenNotPaused {
+    function recvMessage(address receiver, bytes calldata callPayload) external onlyRemoteHelix whenNotPaused {
         require(hasRole(CALLER_ROLE, receiver), "DarwiniaSub2SubMessageHandle:receiver is not caller");
-        (bool result,) = receiver.call{value: 0}(message);
+        (bool result,) = receiver.call(callPayload);
         require(result, "DarwiniaSub2SubMessageHandle:call app failed");
+    }
+
+    function encodeTransferId(bytes4 laneId, uint64 nonce) public pure returns(uint256) {
+        return (uint256(uint32(laneId)) << 64) + uint256(nonce);
+    }
+
+    function decodeTransferId(uint256 transferId) public pure returns(bytes4, uint64) {
+        return (bytes4(uint32(transferId >> 64)), uint64(transferId & 0xffffffffffffffff));
+    }
+
+    function isMessageTransfered(uint256 transferId) public view returns(bool) {
+        (bytes4 laneId, uint64 nonce) = decodeTransferId(transferId);
+        uint64 latestNonce = SmartChainXLib.lastDeliveredNonce(
+            storageAddress,
+            dstStorageKeyForLastDeliveredNonce,
+            laneId
+        );
+        return nonce <= latestNonce;
     }
 
     function latestRecvMessageId() public view returns(uint256) {

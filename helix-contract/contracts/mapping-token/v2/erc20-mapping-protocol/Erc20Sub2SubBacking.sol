@@ -27,14 +27,14 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     string public chainName;
     uint256 public helixFee;
 
-    // (messageId => LockedInfo)
+    // (transferId => LockedInfo)
     mapping(uint256 => LockedInfo) lockedMessages;
     BitMaps.BitMap unlockedMessages;
 
-    event NewErc20TokenRegistered(uint256 messageId, address token);
-    event TokenLocked(uint256 messageId, bytes32 hash, address token, address sender, address recipient, uint256 amount);
+    event NewErc20TokenRegistered(uint256 transferId, address token);
+    event TokenLocked(uint256 transferId, bytes32 hash, address token, address sender, address recipient, uint256 amount);
     event TokenUnlocked(address token, address recipient, uint256 amount);
-    event TokenUnlockedForFailed(uint256 messageId, address token, address recipient, uint256 amount);
+    event TokenUnlockedForFailed(uint256 transferId, address token, address recipient, uint256 amount);
 
     function setMessageHandle(address _messageHandle) external onlyAdmin {
         _setMessageHandle(_messageHandle);
@@ -109,7 +109,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             decimals,
             dailyLimit
         );
-        uint256 messageId = _sendMessage(
+        uint256 transferId = _sendMessage(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
@@ -117,7 +117,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             newErc20Contract
         );
         _changeDailyLimit(token, dailyLimit);
-        emit NewErc20TokenRegistered(messageId, token);
+        emit NewErc20TokenRegistered(transferId, token);
     }
 
     /**
@@ -145,17 +145,17 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             recipient,
             amount
         );
-        uint256 messageId = _sendMessage(
+        uint256 transferId = _sendMessage(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
             remoteMappingTokenFactory,
             issueMappingToken
         );
-        require(lockedMessages[messageId].hash == bytes32(0), "backing: message exist");
-        bytes32 lockMessageHash = hash(abi.encodePacked(messageId, token, msg.sender, amount));
-        lockedMessages[messageId] = LockedInfo(lockMessageHash, false);
-        emit TokenLocked(messageId, lockMessageHash, token, msg.sender, recipient, amount);
+        require(lockedMessages[transferId].hash == bytes32(0), "backing: message exist");
+        bytes32 lockMessageHash = hash(abi.encodePacked(transferId, token, msg.sender, amount));
+        lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
+        emit TokenLocked(transferId, lockMessageHash, token, msg.sender, recipient, amount);
     }
 
     /**
@@ -171,12 +171,12 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     ) public onlyMessageHandle whenNotPaused {
         expendDailyLimit(token, amount);
         // current message id is last message id + 1
-        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
-        require(BitMaps.get(unlockedMessages, messageId) == false, "Backing:message has been accepted");
-        BitMaps.set(unlockedMessages, messageId);
+        uint256 transferId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
+        require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:message has been accepted");
+        BitMaps.set(unlockedMessages, transferId);
         if (guard != address(0)) {
             require(IERC20(token).approve(guard, amount), "Backing:approve token transfer to guard failed");
-            IGuard(guard).deposit(messageId, token, recipient, amount);
+            IGuard(guard).deposit(transferId, token, recipient, amount);
         } else {
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");
         }
@@ -189,39 +189,39 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
      * @param origin_sender the origin_sender who will receive the unlocked token
      * @param amount amount of the unlocked token
      */
-    function handleWithdrawFailedTransfer(
-        uint256 messageId,
+    function handleUnlockFailureFromRemote(
+        uint256 transferId,
         address token,
         address origin_sender,
         uint256 amount
     ) external onlyMessageHandle whenNotPaused {
-        LockedInfo memory lockedMessage = lockedMessages[messageId];
+        LockedInfo memory lockedMessage = lockedMessages[transferId];
         require(lockedMessage.hasRefundForFailed == false, "Backing: the locked message has been refund");
-        bytes32 messageHash = hash(abi.encodePacked(messageId, token, origin_sender, amount));
+        bytes32 messageHash = hash(abi.encodePacked(transferId, token, origin_sender, amount));
         require(lockedMessage.hash == messageHash, "Backing: message is not matched");
-        lockedMessages[messageId].hasRefundForFailed = true;
+        lockedMessages[transferId].hasRefundForFailed = true;
         // send token
         require(IERC20(token).transfer(origin_sender, amount), "Backing:unlock transfer failed");
-        emit TokenUnlockedForFailed(messageId, token, origin_sender, amount);
+        emit TokenUnlockedForFailed(transferId, token, origin_sender, amount);
     }
 
-    function withdrawFailedTransfer(
+    function remoteIssuingFailure(
         uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
         uint64  remoteCallWeight,
-        uint256 messageId,
+        uint256 transferId,
         address mappingToken,
         address originalSender,
         uint256 amount
     ) external payable whenNotPaused {
         // must not exist in successful issue list
-        require(BitMaps.get(unlockedMessages, messageId) == false, "Backing:success message can't refund for failed");
+        require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:success message can't refund for failed");
         // must has been checked by message layer
-        uint256 latestRecvMessageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId();
-        require(messageId <= latestRecvMessageId, "Backing:the message is not checked by message layer");
+        bool messageChecked = IHelixSub2SubMessageHandle(messageHandle).isMessageTransfered(transferId);
+        require(messageChecked, "Backing:the message is not checked by message layer");
         bytes memory unlockForFailed = abi.encodeWithSelector(
-            IHelixAppSupportWithdrawFailed.handleWithdrawFailedTransfer.selector,
-            messageId,
+            IHelixAppSupportWithdrawFailed.handleIssuingFailureFromRemote.selector,
+            transferId,
             mappingToken,
             originalSender,
             amount

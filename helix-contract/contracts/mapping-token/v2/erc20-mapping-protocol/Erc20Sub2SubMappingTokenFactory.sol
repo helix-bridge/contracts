@@ -37,8 +37,8 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
 
     event NewLogicSetted(uint32 tokenType, address addr);
     event IssuingERC20Created(address originalToken, address mappingToken);
-    event BurnAndRemoteUnlocked(uint256 messageId, bytes32 messageHash, address sender, address recipient, address token, uint256 amount);
-    event TokenRemintForFailed(uint256 messageId, address token, address recipient, uint256 amount);
+    event BurnAndRemoteUnlocked(uint256 transferId, bytes32 messageHash, address sender, address recipient, address token, uint256 amount);
+    event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
 
     function setMessageHandle(address _messageHandle) external onlyAdmin {
         _setMessageHandle(_messageHandle);
@@ -156,13 +156,13 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         require(mappingToken != address(0), "MappingTokenFactory:mapping token has not created");
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
         expendDailyLimit(mappingToken, amount);
-        uint256 messageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
-        require(BitMaps.get(issueMessages, messageId) == false, "message has been accepted");
-        BitMaps.set(issueMessages, messageId);
+        uint256 transferId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
+        require(BitMaps.get(issueMessages, transferId) == false, "message has been accepted");
+        BitMaps.set(issueMessages, transferId);
         if (guard != address(0)) {
             IERC20(mappingToken).mint(address(this), amount);
             require(IERC20(mappingToken).approve(guard, amount), "MappingTokenFactory:approve token transfer to guard failed");
-            IGuard(guard).deposit(messageId, mappingToken, recipient, amount);
+            IGuard(guard).deposit(transferId, mappingToken, recipient, amount);
         } else {
             IERC20(mappingToken).mint(recipient, amount);
         }
@@ -196,17 +196,17 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             amount
         );
 
-        uint256 messageId = _sendMessage(
+        uint256 transferId = _sendMessage(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
             remoteBacking,
             unlockFromRemote
         );
-        require(burnMessages[messageId].hash == bytes32(0), "MappingTokenFactory: message exist");
-        bytes32 messageHash = hash(abi.encodePacked(messageId, mappingToken, msg.sender, amount));
-        burnMessages[messageId] = BurnInfo(messageHash, false);
-        emit BurnAndRemoteUnlocked(messageId, messageHash, msg.sender, recipient, mappingToken, amount);
+        require(burnMessages[transferId].hash == bytes32(0), "MappingTokenFactory: message exist");
+        bytes32 messageHash = hash(abi.encodePacked(transferId, mappingToken, msg.sender, amount));
+        burnMessages[transferId] = BurnInfo(messageHash, false);
+        emit BurnAndRemoteUnlocked(transferId, messageHash, msg.sender, recipient, mappingToken, amount);
     }
 
     /**
@@ -215,23 +215,23 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
      * @param originalSender the originalSender of the remote unlocked token, must be the same as msg.send of the failed message.
      * @param amount the amount of the failed issue token.
      */
-    function withdrawFailedTransfer(
+    function remoteHandleUnlockFailure(
         uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
         uint64  remoteCallWeight,
-        uint256 messageId,
+        uint256 transferId,
         address originalToken,
         address originalSender,
         uint256 amount
     ) external payable whenNotPaused {
         // must not exist in successful issue list
-        require(BitMaps.get(issueMessages, messageId) == false, "MappingTokenFactory:success message can't refund for failed");
+        require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
         // must has been checked by message layer
-        uint256 latestRecvMessageId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId();
-        require(messageId <= latestRecvMessageId, "MappingTokenFactory:the message is not checked by message layer");
-        bytes memory unlockForFailed = abi.encodeWithSelector(
-            IHelixAppSupportWithdrawFailed.handleWithdrawFailedTransfer.selector,
-            messageId,
+        bool messageChecked = IHelixSub2SubMessageHandle(messageHandle).isMessageTransfered(transferId);
+        require(messageChecked, "MappingTokenFactory:the message is not checked by message layer");
+        bytes memory handleUnlockForFailed = abi.encodeWithSelector(
+            IHelixAppSupportWithdrawFailed.handleUnlockFailureFromRemote.selector,
+            transferId,
             originalToken,
             originalSender,
             amount
@@ -241,7 +241,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             remoteSpecVersion,
             remoteCallWeight,
             remoteBacking,
-            unlockForFailed
+            handleUnlockForFailed
         );
     }
 
@@ -251,20 +251,20 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
      * @param origin_sender the origin_sender who will receive the unlocked token
      * @param amount amount of the unlocked token
      */
-    function handleWithdrawFailedTransfer(
-        uint256 messageId,
+    function handleIssuingFailureFromRemote(
+        uint256 transferId,
         address token,
         address origin_sender,
         uint256 amount
     ) external onlyMessageHandle whenNotPaused {
-        BurnInfo memory burnInfo = burnMessages[messageId];
+        BurnInfo memory burnInfo = burnMessages[transferId];
         require(burnInfo.hasRefundForFailed == false, "Backing:the burn message has been refund");
-        bytes32 messageHash = hash(abi.encodePacked(messageId, token, origin_sender, amount));
+        bytes32 messageHash = hash(abi.encodePacked(transferId, token, origin_sender, amount));
         require(burnInfo.hash == messageHash, "Backing:message is not matched");
-        burnMessages[messageId].hasRefundForFailed = true;
+        burnMessages[transferId].hasRefundForFailed = true;
         // remint token
         IERC20(token).mint(origin_sender, amount);
-        emit TokenRemintForFailed(messageId, token, origin_sender, amount);
+        emit TokenRemintForFailed(transferId, token, origin_sender, amount);
     }
 
     function hash(bytes memory value) public pure returns (bytes32) {

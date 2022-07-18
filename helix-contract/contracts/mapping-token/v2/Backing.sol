@@ -5,7 +5,7 @@ import "@zeppelin-solidity-4.4.0/contracts/proxy/utils/Initializable.sol";
 import "./AccessController.sol";
 
 contract Backing is AccessController, Initializable {
-    address public messageHandle;
+    address public messageEndpoint;
     address public remoteMappingTokenFactory;
     
     uint256 internal locked;
@@ -16,18 +16,18 @@ contract Backing is AccessController, Initializable {
         locked = 0;
     }
 
-    modifier onlyMessageHandle() {
-        require(messageHandle == msg.sender, "Backing:Bad message handle");
+    modifier onlyMessageEndpoint() {
+        require(messageEndpoint == msg.sender, "Backing:Bad message handle");
         _;
     }
 
-    function initialize(address _messageHandle) public initializer {
-        messageHandle = _messageHandle;
+    function initialize(address _messageEndpoint) public initializer {
+        messageEndpoint = _messageEndpoint;
         _initialize(msg.sender);
     }
 
-    function _setMessageHandle(address _messageHandle) internal {
-        messageHandle = _messageHandle;
+    function _setMessageEndpoint(address _messageEndpoint) internal {
+        messageEndpoint = _messageEndpoint;
     }
 
     function setRemoteMappingTokenFactory(address _remoteMappingTokenFactory) external onlyAdmin {

@@ -30,7 +30,7 @@ describe("sub<>sub mapping token tests", () => {
       const backingStartNonce = 100;
       // mtf -> backing message nonce
       const mtfStartNonce = 0;
-      const messageHandleContract = await ethers.getContractFactory("MockSub2SubMessageHandle");
+      const messageHandleContract = await ethers.getContractFactory("MockSub2SubMessageEndpoint");
       const backingMessageHandle = await messageHandleContract.deploy(backingStartNonce, mtfStartNonce);
       await backingMessageHandle.deployed();
       const mtfMessageHandle = await messageHandleContract.deploy(mtfStartNonce, 100);
@@ -108,7 +108,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       // 3. test failed and unlock failed, update daily limit
       // 3.1 unlock the successed remote message should be failed
-      await expect(mtf.remoteHandleUnlockFailure(
+      await expect(mtf.remoteUnlockFailure(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
@@ -135,7 +135,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
       
       // mtf: nonce += 0
-      await mtf.remoteHandleUnlockFailure(
+      await mtf.remoteUnlockFailure(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,
@@ -148,7 +148,7 @@ describe("sub<>sub mapping token tests", () => {
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
       // retry failed
       // mtf: nonce += 1
-      await mtf.remoteHandleUnlockFailure(
+      await mtf.remoteUnlockFailure(
           remoteReceiveGasLimit,
           remoteSpecVersion,
           remoteCallWeight,

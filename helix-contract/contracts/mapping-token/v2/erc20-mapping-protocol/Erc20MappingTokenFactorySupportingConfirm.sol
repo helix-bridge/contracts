@@ -10,8 +10,8 @@ import "../MappingTokenFactory.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IGuard.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
-import "../../interfaces/IHelixMessageHandleSupportingConfirm.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
+import "../../interfaces/IHelixMessageEndpointSupportingConfirm.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../interfaces/IMessageCommitment.sol";
 import "../../../utils/DailyLimit.sol";
@@ -36,8 +36,8 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
     event BurnAndWaitingConfirm(uint256 messageId, address sender, address recipient, address token, uint256 amount);
     event RemoteUnlockConfirmed(uint256 messageId, bool result);
 
-    function setMessageHandle(address _messageHandle) external onlyAdmin {
-        _setMessageHandle(_messageHandle);
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
     }
 
     receive() external payable {
@@ -83,7 +83,7 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
         string memory symbol,
         uint8 decimals,
         uint256 dailyLimit
-    ) public onlyMessageHandle whenNotPaused returns (address mappingToken) {
+    ) public onlyMessageEndpoint whenNotPaused returns (address mappingToken) {
         require(tokenType == 0 || tokenType == 1, "MappingTokenFactory:token type cannot mapping to erc20 token");
         bytes32 salt = keccak256(abi.encodePacked(remoteBacking, originalToken));
         require(salt2MappingToken[salt] == address(0), "MappingTokenFactory:contract has been deployed");
@@ -117,7 +117,7 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
         address originalToken,
         address recipient,
         uint256 amount
-    ) public onlyMessageHandle whenNotPaused {
+    ) public onlyMessageEndpoint whenNotPaused {
         address mappingToken = getMappingToken(remoteBacking, originalToken);
         require(mappingToken != address(0), "MappingTokenFactory:mapping token has not created");
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
@@ -125,7 +125,7 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
         if (guard != address(0)) {
             IERC20(mappingToken).mint(address(this), amount);
             require(IERC20(mappingToken).approve(guard, amount), "MappingTokenFactory:approve token transfer to guard failed");
-            uint256 messageId = IHelixMessageHandleSupportingConfirm(messageHandle).latestRecvMessageId();
+            uint256 messageId = IHelixMessageEndpointSupportingConfirm(messageEndpoint).lastDeliveredMessageId();
             IGuard(guard).deposit(messageId, mappingToken, recipient, amount);
         } else {
             IERC20(mappingToken).mint(recipient, amount);
@@ -158,7 +158,7 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
             amount
         );
 
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
+        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
         unlockRemoteUnconfirmed[messageId] = UnconfirmedInfo(msg.sender, mappingToken, amount);
         emit BurnAndWaitingConfirm(messageId, msg.sender, recipient, mappingToken, amount);
     }
@@ -171,7 +171,7 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
     function onMessageDelivered(
         uint256 messageId,
         bool result
-    ) external onlyMessageHandle {
+    ) external onlyMessageEndpoint {
         UnconfirmedInfo memory info = unlockRemoteUnconfirmed[messageId];
         require(info.amount > 0 && info.sender != address(0) && info.mappingToken != address(0), "MappingTokenFactory:invalid unconfirmed message");
         if (result) {

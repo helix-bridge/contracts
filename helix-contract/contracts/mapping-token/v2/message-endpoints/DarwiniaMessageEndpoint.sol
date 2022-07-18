@@ -5,12 +5,12 @@ import "../AccessController.sol";
 import "../../interfaces/ICrossChainFilter.sol";
 import "../../interfaces/IFeeMarket.sol";
 import "../../interfaces/IHelixApp.sol";
-import "../../interfaces/IHelixMessageHandleSupportingConfirm.sol";
+import "../../interfaces/IHelixMessageEndpointSupportingConfirm.sol";
 import "../../interfaces/IInboundLane.sol";
 import "../../interfaces/IMessageCommitment.sol";
 import "../../interfaces/IOutboundLane.sol";
 
-contract DarwiniaMessageHandle is IHelixMessageHandleSupportingConfirm, ICrossChainFilter, AccessController {
+contract DarwiniaMessageEndpoint is IHelixMessageEndpointSupportingConfirm, ICrossChainFilter, AccessController {
     address public feeMarket;
     uint32  public remoteChainPosition;
     address public remoteHelix;
@@ -29,16 +29,16 @@ contract DarwiniaMessageHandle is IHelixMessageHandleSupportingConfirm, ICrossCh
 
     modifier onlyRemoteHelix(address _remoteHelix) {
         (,,uint32 bridgedChainPosition, uint32 bridgedLanePosition) = IMessageCommitment(msg.sender).getLaneInfo();
-        require(remoteChainPosition == bridgedChainPosition, "DarwiniaMessageHandle:Invalid bridged chain position");
-        require(remoteHelix == _remoteHelix, "DarwiniaMessageHandle:remote caller is not helix sender allowed");
-        require(inboundLane == msg.sender, "DarwiniaMessageHandle:caller is not the inboundLane account");
+        require(remoteChainPosition == bridgedChainPosition, "DarwiniaMessageEndpoint:Invalid bridged chain position");
+        require(remoteHelix == _remoteHelix, "DarwiniaMessageEndpoint:remote caller is not helix sender allowed");
+        require(inboundLane == msg.sender, "DarwiniaMessageEndpoint:caller is not the inboundLane account");
         _;
     }
 
     modifier onlyOutBoundLane() {
         (,,uint32 bridgedChainPosition, uint32 bridgedLanePosition) = IMessageCommitment(msg.sender).getLaneInfo();
-        require(remoteChainPosition == bridgedChainPosition, "DarwiniaMessageHandle:Invalid bridged chain position");
-        require(outboundLane == msg.sender, "DarwiniaMessageHandle:caller is not the outboundLane account");
+        require(remoteChainPosition == bridgedChainPosition, "DarwiniaMessageEndpoint:Invalid bridged chain position");
+        require(outboundLane == msg.sender, "DarwiniaMessageEndpoint:caller is not the outboundLane account");
         _;
     }
 
@@ -55,7 +55,7 @@ contract DarwiniaMessageHandle is IHelixMessageHandleSupportingConfirm, ICrossCh
     function setInboundLane(address _inboundLane) external onlyAdmin {
         inboundLane = _inboundLane;
         (,,uint32 bridgedChainPosition, uint32 bridgedLanePosition) = IMessageCommitment(inboundLane).getLaneInfo();
-        require(remoteChainPosition == bridgedChainPosition, "DarwiniaMessageHandle:Invalid bridged chain position");
+        require(remoteChainPosition == bridgedChainPosition, "DarwiniaMessageEndpoint:Invalid bridged chain position");
         emit NewInBoundLaneAdded(bridgedLanePosition, inboundLane);
     }
 
@@ -63,7 +63,7 @@ contract DarwiniaMessageHandle is IHelixMessageHandleSupportingConfirm, ICrossCh
     function setOutboundLane(address _outboundLane) external onlyAdmin {
         outboundLane = _outboundLane;
         (,,uint32 bridgedChainPosition, uint32 bridgedLanePosition) = IMessageCommitment(outboundLane).getLaneInfo();
-        require(remoteChainPosition == bridgedChainPosition, "DarwiniaMessageHandle:Invalid bridged chain position");
+        require(remoteChainPosition == bridgedChainPosition, "DarwiniaMessageEndpoint:Invalid bridged chain position");
         emit NewOutBoundLaneAdded(bridgedLanePosition, outboundLane);
     }
 
@@ -78,13 +78,13 @@ contract DarwiniaMessageHandle is IHelixMessageHandleSupportingConfirm, ICrossCh
 
     function sendMessage(address receiver, bytes calldata message) external onlyCaller payable returns (uint256) {
         bytes memory messageWithCaller = abi.encodeWithSelector(
-            DarwiniaMessageHandle.recvMessage.selector,
+            DarwiniaMessageEndpoint.recvMessage.selector,
             address(this),
             receiver,
             message
         );
         uint256 fee = IFeeMarket(feeMarket).market_fee();
-        require(msg.value >= fee, "DarwiniaMessageHandle:not enough fee to pay");
+        require(msg.value >= fee, "DarwiniaMessageEndpoint:not enough fee to pay");
         uint256 messageId = IOutboundLane(outboundLane).send_message{value: fee}(remoteHelix, messageWithCaller);
         if (msg.value > fee) {
             payable(msg.sender).transfer(msg.value - fee);
@@ -98,12 +98,12 @@ contract DarwiniaMessageHandle is IHelixMessageHandleSupportingConfirm, ICrossCh
         address receiver,
         bytes calldata message
     ) external onlyRemoteHelix(sender) whenNotPaused {
-        require(hasRole(CALLER_ROLE, receiver), "DarwiniaMessageHandle:receiver is not caller");
+        require(hasRole(CALLER_ROLE, receiver), "DarwiniaMessageEndpoint:receiver is not caller");
         (bool result,) = receiver.call{value: 0}(message);
-        require(result, "DarwiniaMessageHandle:call app failed");
+        require(result, "DarwiniaMessageEndpoint:call app failed");
     }
 
-    function latestRecvMessageId() external view returns(uint256) {
+    function lastDeliveredMessageId() external view returns(uint256) {
         IInboundLane.InboundLaneNonce memory inboundLaneNonce = IInboundLane(inboundLane).inboundLaneNonce();
         // todo we should transform this messageId to bridged outboundLane messageId
         uint256 messageId = IInboundLane(inboundLane).encodeMessageKey(inboundLaneNonce.last_delivered_nonce);

@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.0;
 
-import "./IHelixMessageHandle.sol";
+import "./IHelixMessageEndpoint.sol";
 
-interface IHelixSub2SubMessageHandle is IHelixMessageHandle {
+interface IHelixSub2SubMessageEndpoint is IHelixMessageEndpoint {
     function fee() external view returns (uint256);
-    function lastRecvMessageId() external view returns (uint256);
+    function lastDeliveredMessageId() external view returns (uint256);
     function isMessageDelivered(uint256 messageId) external view returns(bool);
     function sendMessage(
         uint256 remoteReceiveGasLimit,

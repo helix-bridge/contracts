@@ -5,7 +5,7 @@ import "../AccessController.sol";
 import "@darwinia/contracts-periphery/contracts/s2s/SmartChainXLib.sol";
 import "@darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol";
 
-contract DarwiniaSub2SubMessageHandle is AccessController {
+contract DarwiniaSub2SubMessageEndpoint is AccessController {
     // remote address
     uint64 public remoteSmartChainId;
     address public remoteHelix;
@@ -33,7 +33,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
     }
 
     modifier onlyRemoteHelix() {
-        require(derivedRemoteHelix == msg.sender, "DarwiniaSub2SubMessageHandle: Invalid Derived Remote Sender");
+        require(derivedRemoteHelix == msg.sender, "DarwiniaSub2SubMessageEndpoint: Invalid Derived Remote Sender");
         _;
     }
 
@@ -119,9 +119,9 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
     }
 
     function recvMessage(address receiver, bytes calldata callPayload) external onlyRemoteHelix whenNotPaused {
-        require(hasRole(CALLER_ROLE, receiver), "DarwiniaSub2SubMessageHandle:receiver is not caller");
+        require(hasRole(CALLER_ROLE, receiver), "DarwiniaSub2SubMessageEndpoint:receiver is not caller");
         (bool result,) = receiver.call(callPayload);
-        require(result, "DarwiniaSub2SubMessageHandle:call app failed");
+        require(result, "DarwiniaSub2SubMessageEndpoint:call app failed");
     }
 
     function encodeMessageId(bytes4 laneId, uint64 nonce) public pure returns(uint256) {

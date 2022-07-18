@@ -6,8 +6,8 @@ import "../Backing.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IGuard.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
-import "../../interfaces/IHelixMessageHandleSupportingConfirm.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
+import "../../interfaces/IHelixMessageEndpointSupportingConfirm.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../../utils/DailyLimit.sol";
 
@@ -41,8 +41,8 @@ contract Erc20BackingSupportingConfirm is Backing, DailyLimit, IBacking {
     receive() external payable {
     }
 
-    function setMessageHandle(address _messageHandle) external onlyAdmin {
-        _setMessageHandle(_messageHandle);
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
     }
 
     function setChainName(string memory _chainName) external onlyAdmin {
@@ -83,7 +83,7 @@ contract Erc20BackingSupportingConfirm is Backing, DailyLimit, IBacking {
             decimals,
             dailyLimit
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc20Contract);
+        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc20Contract);
         registerMessages[messageId] = token;
         _changeDailyLimit(token, dailyLimit);
         emit NewErc20TokenRegistered(messageId, token);
@@ -113,7 +113,7 @@ contract Erc20BackingSupportingConfirm is Backing, DailyLimit, IBacking {
             recipient,
             amount
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
+        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
         lockMessages[messageId] = LockedInfo(token, msg.sender, amount);
         emit TokenLocked(messageId, token, recipient, amount);
     }
@@ -126,7 +126,7 @@ contract Erc20BackingSupportingConfirm is Backing, DailyLimit, IBacking {
     function onMessageDelivered(
         uint256 messageId,
         bool result
-    ) external onlyMessageHandle {
+    ) external onlyMessageEndpoint {
         LockedInfo memory lockedInfo = lockMessages[messageId];
         // it is lock message, if result is false, need to transfer back to the user, otherwise will be locked here
         if (lockedInfo.token != address(0)) {
@@ -158,11 +158,11 @@ contract Erc20BackingSupportingConfirm is Backing, DailyLimit, IBacking {
         address token,
         address recipient,
         uint256 amount
-    ) public onlyMessageHandle whenNotPaused {
+    ) public onlyMessageEndpoint whenNotPaused {
         expendDailyLimit(token, amount);
         if (guard != address(0)) {
             require(IERC20(token).approve(guard, amount), "Backing:approve token transfer to guard failed");
-            uint256 messageId = IHelixMessageHandleSupportingConfirm(messageHandle).latestRecvMessageId();
+            uint256 messageId = IHelixMessageEndpointSupportingConfirm(messageEndpoint).lastDeliveredMessageId();
             IGuard(guard).deposit(messageId, token, recipient, amount);
         } else {
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");

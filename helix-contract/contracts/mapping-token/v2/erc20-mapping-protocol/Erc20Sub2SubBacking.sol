@@ -8,8 +8,8 @@ import "../../interfaces/IBacking.sol";
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
-import "../../interfaces/IHelixSub2SubMessageHandle.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
+import "../../interfaces/IHelixSub2SubMessageEndpoint.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../../utils/DailyLimit.sol";
 
@@ -36,8 +36,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     event TokenUnlocked(address token, address recipient, uint256 amount);
     event TokenUnlockedForFailed(uint256 transferId, address token, address recipient, uint256 amount);
 
-    function setMessageHandle(address _messageHandle) external onlyAdmin {
-        _setMessageHandle(_messageHandle);
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
     }
 
     function setChainName(string memory _chainName) external onlyAdmin {
@@ -57,7 +57,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     }
 
     function fee() external view returns(uint256) {
-        return IHelixSub2SubMessageHandle(messageHandle).fee() + helixFee;
+        return IHelixSub2SubMessageEndpoint(messageEndpoint).fee() + helixFee;
     }
 
     function _sendMessage(
@@ -67,14 +67,14 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         address receiver,
         bytes memory message
     ) internal nonReentrant returns(uint256) {
-        uint256 bridgeFee = IHelixSub2SubMessageHandle(messageHandle).fee();
+        uint256 bridgeFee = IHelixSub2SubMessageEndpoint(messageEndpoint).fee();
         uint256 totalFee = bridgeFee + helixFee;
         require(msg.value >= totalFee, "backing:the fee is not enough");
         if (msg.value > totalFee) {
             // refund fee to msgSender
             payable(msg.sender).transfer(msg.value - totalFee);
         }
-        return IHelixSub2SubMessageHandle(messageHandle).sendMessage{value: bridgeFee}(
+        return IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
             remoteReceiveGasLimit,
             remoteSpecVersion,
             remoteCallWeight,
@@ -168,10 +168,10 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         address token,
         address recipient,
         uint256 amount
-    ) public onlyMessageHandle whenNotPaused {
+    ) public onlyMessageEndpoint whenNotPaused {
         expendDailyLimit(token, amount);
         // current message id is last message id + 1
-        uint256 transferId = IHelixSub2SubMessageHandle(messageHandle).lastRecvMessageId() + 1;
+        uint256 transferId = IHelixSub2SubMessageEndpoint(messageEndpoint).lastDeliveredMessageId() + 1;
         require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedMessages, transferId);
         if (guard != address(0)) {
@@ -184,7 +184,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     }
 
     /**
-     * @notice this will be called by messageHandle when the remote issue failed and want to unlock the original token
+     * @notice this will be called by messageEndpoint when the remote issue failed and want to unlock the original token
      * @param token the original token address
      * @param origin_sender the origin_sender who will receive the unlocked token
      * @param amount amount of the unlocked token
@@ -194,7 +194,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         address token,
         address origin_sender,
         uint256 amount
-    ) external onlyMessageHandle whenNotPaused {
+    ) external onlyMessageEndpoint whenNotPaused {
         LockedInfo memory lockedMessage = lockedMessages[transferId];
         require(lockedMessage.hasRefundForFailed == false, "Backing: the locked message has been refund");
         bytes32 messageHash = hash(abi.encodePacked(transferId, token, origin_sender, amount));
@@ -217,7 +217,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         // must not exist in successful issue list
         require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:success message can't refund for failed");
         // must has been checked by message layer
-        bool messageChecked = IHelixSub2SubMessageHandle(messageHandle).isMessageDelivered(transferId);
+        bool messageChecked = IHelixSub2SubMessageEndpoint(messageEndpoint).isMessageDelivered(transferId);
         require(messageChecked, "Backing:the message is not checked by message layer");
         bytes memory unlockForFailed = abi.encodeWithSelector(
             IHelixAppSupportWithdrawFailed.handleIssuingFailureFromRemote.selector,

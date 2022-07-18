@@ -3,7 +3,7 @@ pragma solidity ^0.8.10;
 
 import "../v2/AccessController.sol";
 
-contract MockSub2SubMessageHandle is AccessController {
+contract MockSub2SubMessageEndpoint is AccessController {
     address remoteHelix;
     mapping(bytes4=>uint64) outboundMessages;
     mapping(bytes4=>uint64) inboundMessages;
@@ -16,7 +16,7 @@ contract MockSub2SubMessageHandle is AccessController {
     }
 
     modifier onlyRemoteHelix() {
-        require(remoteHelix == msg.sender, "DarwiniaSub2SubMessageHandle: Invalid Derived Remote Sender");
+        require(remoteHelix == msg.sender, "DarwiniaSub2SubMessageEndpoint: Invalid Derived Remote Sender");
         _;
     }
 
@@ -40,7 +40,7 @@ contract MockSub2SubMessageHandle is AccessController {
         bytes calldata message) external onlyCaller payable returns(uint256) {
         require(msg.value == fee(), "fee is not matched");
         bytes memory recv = abi.encodeWithSelector(
-            MockSub2SubMessageHandle.recvMessage.selector,
+            MockSub2SubMessageEndpoint.recvMessage.selector,
             receiver,
             message
         );
@@ -51,13 +51,13 @@ contract MockSub2SubMessageHandle is AccessController {
     }
 
     function recvMessage(address receiver, bytes calldata message) external onlyRemoteHelix {
-        require(hasRole(CALLER_ROLE, receiver), "MockS2sMessageHandle:receiver is not caller");
+        require(hasRole(CALLER_ROLE, receiver), "MockS2sMessageEndpoint:receiver is not caller");
         // don't make sure this success to simulate the failed case.
         receiver.call(message);
         inboundMessages[inboundLaneId] = inboundMessages[inboundLaneId] + 1;
     }
 
-    function lastRecvMessageId() public view returns(uint256) {
+    function lastDeliveredMessageId() public view returns(uint256) {
         return encodeMessageId(inboundLaneId, inboundMessages[inboundLaneId]);
     }
 

@@ -29,11 +29,11 @@ describe("sub<>sub mapping token tests", () => {
       // backing -> mtf message nonce
       const backingStartNonce = 100;
       // mtf -> backing message nonce
-      const mtfStartNonce = 200;
+      const mtfStartNonce = 0;
       const messageHandleContract = await ethers.getContractFactory("MockSub2SubMessageHandle");
       const backingMessageHandle = await messageHandleContract.deploy(backingStartNonce, mtfStartNonce);
       await backingMessageHandle.deployed();
-      const mtfMessageHandle = await messageHandleContract.deploy(200, 100);
+      const mtfMessageHandle = await messageHandleContract.deploy(mtfStartNonce, 100);
       await mtfMessageHandle.deployed();
       await backingMessageHandle.setRemoteHelix(mtfMessageHandle.address);
       await mtfMessageHandle.setRemoteHelix(backingMessageHandle.address);
@@ -210,6 +210,7 @@ describe("sub<>sub mapping token tests", () => {
           100,
           { value: ethers.utils.parseEther("1.0") }
       )
+      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // retry failed
       backing.remoteIssuingFailure(
@@ -222,6 +223,7 @@ describe("sub<>sub mapping token tests", () => {
           100,
           { value: ethers.utils.parseEther("1.0") }
       )
+      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
 
       // mtf: nonce += 5
@@ -235,6 +237,7 @@ describe("sub<>sub mapping token tests", () => {
           { value: ethers.utils.parseEther("1.0") }
       );
 
+      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
 
       // test update laneId
@@ -253,6 +256,7 @@ describe("sub<>sub mapping token tests", () => {
           100,
           { value: ethers.utils.parseEther("1.0") }
       )
+      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
 
       // 2. new message can be proved by new transferId
@@ -266,6 +270,7 @@ describe("sub<>sub mapping token tests", () => {
           100,
           { value: ethers.utils.parseEther("1.0") }
       );
+      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
       await backing.remoteIssuingFailure(
           remoteReceiveGasLimit,
@@ -277,7 +282,37 @@ describe("sub<>sub mapping token tests", () => {
           100,
           { value: ethers.utils.parseEther("1.0") }
       )
+      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
+
+      // 3. new message can be accepted
+      await backing.changeDailyLimit(wkton.address, 1000);
+      await mtf.burnAndRemoteUnlock(
+          remoteReceiveGasLimit,
+          remoteSpecVersion,
+          remoteCallWeight,
+          mappingWktonAddress,
+          owner.address,
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      );
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
+      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 200);
+
+      // collision test
+      // new laneId nonce = 3
+      // the old laneId receive a message(nonce=3) successed
+      await mtf.burnAndRemoteUnlock(
+          remoteReceiveGasLimit,
+          remoteSpecVersion,
+          remoteCallWeight,
+          mappingWktonAddress,
+          owner.address,
+          100,
+          { value: ethers.utils.parseEther("1.0") }
+      );
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 300);
+      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 300);
   });
 });
 

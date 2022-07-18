@@ -156,7 +156,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         require(mappingToken != address(0), "MappingTokenFactory:mapping token has not created");
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
         expendDailyLimit(mappingToken, amount);
-        uint256 transferId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
+        uint256 transferId = IHelixSub2SubMessageHandle(messageHandle).lastRecvMessageId() + 1;
         require(BitMaps.get(issueMessages, transferId) == false, "message has been accepted");
         BitMaps.set(issueMessages, transferId);
         if (guard != address(0)) {
@@ -227,7 +227,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         // must not exist in successful issue list
         require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
         // must has been checked by message layer
-        bool messageChecked = IHelixSub2SubMessageHandle(messageHandle).isMessageTransfered(transferId);
+        bool messageChecked = IHelixSub2SubMessageHandle(messageHandle).isMessageDelivered(transferId);
         require(messageChecked, "MappingTokenFactory:the message is not checked by message layer");
         bytes memory handleUnlockForFailed = abi.encodeWithSelector(
             IHelixAppSupportWithdrawFailed.handleUnlockFailureFromRemote.selector,

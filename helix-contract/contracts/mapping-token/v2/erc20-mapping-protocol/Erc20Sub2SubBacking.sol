@@ -171,7 +171,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     ) public onlyMessageHandle whenNotPaused {
         expendDailyLimit(token, amount);
         // current message id is last message id + 1
-        uint256 transferId = IHelixSub2SubMessageHandle(messageHandle).latestRecvMessageId() + 1;
+        uint256 transferId = IHelixSub2SubMessageHandle(messageHandle).lastRecvMessageId() + 1;
         require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedMessages, transferId);
         if (guard != address(0)) {
@@ -217,7 +217,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         // must not exist in successful issue list
         require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:success message can't refund for failed");
         // must has been checked by message layer
-        bool messageChecked = IHelixSub2SubMessageHandle(messageHandle).isMessageTransfered(transferId);
+        bool messageChecked = IHelixSub2SubMessageHandle(messageHandle).isMessageDelivered(transferId);
         require(messageChecked, "Backing:the message is not checked by message layer");
         bytes memory unlockForFailed = abi.encodeWithSelector(
             IHelixAppSupportWithdrawFailed.handleIssuingFailureFromRemote.selector,

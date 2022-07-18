@@ -115,7 +115,7 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
             outboundLaneId
         );
 
-        return encodeTransferId(outboundLaneId, nonce);
+        return encodeMessageId(outboundLaneId, nonce);
     }
 
     function recvMessage(address receiver, bytes calldata callPayload) external onlyRemoteHelix whenNotPaused {
@@ -124,16 +124,16 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         require(result, "DarwiniaSub2SubMessageHandle:call app failed");
     }
 
-    function encodeTransferId(bytes4 laneId, uint64 nonce) public pure returns(uint256) {
+    function encodeMessageId(bytes4 laneId, uint64 nonce) public pure returns(uint256) {
         return (uint256(uint32(laneId)) << 64) + uint256(nonce);
     }
 
-    function decodeTransferId(uint256 transferId) public pure returns(bytes4, uint64) {
-        return (bytes4(uint32(transferId >> 64)), uint64(transferId & 0xffffffffffffffff));
+    function decodeMessageId(uint256 messageId) public pure returns(bytes4, uint64) {
+        return (bytes4(uint32(messageId >> 64)), uint64(messageId & 0xffffffffffffffff));
     }
 
-    function isMessageTransfered(uint256 transferId) public view returns(bool) {
-        (bytes4 laneId, uint64 nonce) = decodeTransferId(transferId);
+    function isMessageDelivered(uint256 messageId) public view returns(bool) {
+        (bytes4 laneId, uint64 nonce) = decodeMessageId(messageId);
         uint64 latestNonce = SmartChainXLib.lastDeliveredNonce(
             storageAddress,
             dstStorageKeyForLastDeliveredNonce,
@@ -142,12 +142,13 @@ contract DarwiniaSub2SubMessageHandle is AccessController {
         return nonce <= latestNonce;
     }
 
-    function latestRecvMessageId() public view returns(uint256) {
-        return SmartChainXLib.lastDeliveredNonce(
+    function lastDeliveredMessageId() public view returns(uint256) {
+        uint64 lastDeliveredNonce = SmartChainXLib.lastDeliveredNonce(
             storageAddress,
             dstStorageKeyForLastDeliveredNonce,
             inboundLaneId
         );
+        return encodeMessageId(inboundLaneId, lastDeliveredNonce);
     }
 
     function fee() public view returns(uint256) {

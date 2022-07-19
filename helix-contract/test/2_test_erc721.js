@@ -42,22 +42,22 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       await feeMarket.deployed();
       //****** deploy fee market *****
 
-      // deploy darwiniaMessageHandle
-      const messageHandleContract = await ethers.getContractFactory("DarwiniaMessageHandle");
-      const darwiniaMessageHandle = await messageHandleContract.deploy();
-      await darwiniaMessageHandle.deployed();
-      const bscMessageHandle = await messageHandleContract.deploy();
-      await bscMessageHandle.deployed();
-      //******* deploy darwiniaMessageHandle ******
-      // configure darwiniaMessageHandle
-      await darwiniaMessageHandle.setBridgeInfo(2, bscMessageHandle.address);
-      await darwiniaMessageHandle.setFeeMarket(feeMarket.address);
-      await darwiniaMessageHandle.setInboundLane(darwiniaInboundLane.address);
-      await darwiniaMessageHandle.setOutboundLane(darwiniaOutboundLane.address);
-      await bscMessageHandle.setBridgeInfo(1, darwiniaMessageHandle.address);
-      await bscMessageHandle.setFeeMarket(feeMarket.address);
-      await bscMessageHandle.setInboundLane(bscInboundLane.address);
-      await bscMessageHandle.setOutboundLane(bscOutboundLane.address);
+      // deploy darwiniaMessageEndpoint
+      const messageEndpointContract = await ethers.getContractFactory("DarwiniaMessageEndpoint");
+      const darwiniaMessageEndpoint = await messageEndpointContract.deploy();
+      await darwiniaMessageEndpoint.deployed();
+      const bscMessageEndpoint = await messageEndpointContract.deploy();
+      await bscMessageEndpoint.deployed();
+      //******* deploy darwiniaMessageEndpoint ******
+      // configure darwiniaMessageEndpoint
+      await darwiniaMessageEndpoint.setBridgeInfo(2, bscMessageEndpoint.address);
+      await darwiniaMessageEndpoint.setFeeMarket(feeMarket.address);
+      await darwiniaMessageEndpoint.setInboundLane(darwiniaInboundLane.address);
+      await darwiniaMessageEndpoint.setOutboundLane(darwiniaOutboundLane.address);
+      await bscMessageEndpoint.setBridgeInfo(1, darwiniaMessageEndpoint.address);
+      await bscMessageEndpoint.setFeeMarket(feeMarket.address);
+      await bscMessageEndpoint.setInboundLane(bscInboundLane.address);
+      await bscMessageEndpoint.setOutboundLane(bscOutboundLane.address);
       // end configure
 
       // deploy erc721 serializer, local and remote
@@ -74,7 +74,7 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       await mtf.deployed();
       console.log("mapping-token-factory address", mtf.address);
       // init owner
-      await mtf.initialize(bscMessageHandle.address);
+      await mtf.initialize(bscMessageEndpoint.address);
       //******* deploy mapping token factory  end *******
 
       //******* deploy backing at darwinia ********
@@ -83,19 +83,19 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       await backing.deployed();
       console.log("backing address", backing.address);
       // init owner
-      await backing.initialize(darwiniaMessageHandle.address);
+      await backing.initialize(darwiniaMessageEndpoint.address);
       //******* deploy backing end ***************
 
       //********** configure mapping-token-factory ***********
       await mtf.setRemoteBacking(backing.address);
-      await bscMessageHandle.grantRole(bscMessageHandle.CALLER_ROLE(), mtf.address);
+      await bscMessageEndpoint.grantRole(bscMessageEndpoint.CALLER_ROLE(), mtf.address);
       //************ configure mapping-token end *************
 
       //********* configure backing **************************
       await backing.setRemoteMappingTokenFactory(mtf.address);
       const [owner] = await ethers.getSigners();
       await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
-      await darwiniaMessageHandle.grantRole(darwiniaMessageHandle.CALLER_ROLE(), backing.address);
+      await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLER_ROLE(), backing.address);
       //********* configure backing end   ********************
 
       // this contract can be any erc721 contract. We use MappingToken as an example
@@ -112,7 +112,7 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
           monkeyAttrContractOnDarwinia.address,
           monkeyAttrContractOnBsc.address,
           {value: ethers.utils.parseEther("9.9999999999")}
-      )).to.be.revertedWith("DarwiniaMessageHandle:not enough fee to pay");
+      )).to.be.revertedWith("DarwiniaMessageEndpoint:not enough fee to pay");
       // test register successed
       await backing.registerErc721Token(
           originalToken.address,
@@ -190,21 +190,21 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       await ethMsgBus.setRemoteChainId(97);
       await bscMsgBus.setRemoteChainId(5);
 
-      // deploy cBridgeMessageHandle
-      const messageHandleContract = await ethers.getContractFactory("cBridgeMessageHandle");
-      const ethMessageHandle = await messageHandleContract.deploy();
-      await ethMessageHandle.deployed();
-      const bscMessageHandle = await messageHandleContract.deploy();
-      await bscMessageHandle.deployed();
-      /******* deploy darwiniaMessageHandle ******/
+      // deploy cBridgeMessageEndpoint
+      const messageEndpointContract = await ethers.getContractFactory("cBridgeMessageEndpoint");
+      const ethMessageEndpoint = await messageEndpointContract.deploy();
+      await ethMessageEndpoint.deployed();
+      const bscMessageEndpoint = await messageEndpointContract.deploy();
+      await bscMessageEndpoint.deployed();
+      /******* deploy darwiniaMessageEndpoint ******/
 
-      // configure cBridgeMessageHandle
-      await ethMessageHandle.setMessageBus(ethMsgBus.address);
-      await ethMsgBus.setReceiver(ethMessageHandle.address);
-      await bscMessageHandle.setMessageBus(bscMsgBus.address);
-      await bscMsgBus.setReceiver(bscMessageHandle.address);
-      await ethMessageHandle.setBridgeInfo(5, bscMessageHandle.address);
-      await bscMessageHandle.setBridgeInfo(97, ethMessageHandle.address);
+      // configure cBridgeMessageEndpoint
+      await ethMessageEndpoint.setMessageBus(ethMsgBus.address);
+      await ethMsgBus.setReceiver(ethMessageEndpoint.address);
+      await bscMessageEndpoint.setMessageBus(bscMsgBus.address);
+      await bscMsgBus.setReceiver(bscMessageEndpoint.address);
+      await ethMessageEndpoint.setBridgeInfo(5, bscMessageEndpoint.address);
+      await bscMessageEndpoint.setBridgeInfo(97, ethMessageEndpoint.address);
       // end configure
 
       // deploy erc721 serializer, local and remote
@@ -221,7 +221,7 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       await mtf.deployed();
       console.log("mapping-token-factory address", mtf.address);
       // init owner
-      await mtf.initialize(bscMessageHandle.address);
+      await mtf.initialize(bscMessageEndpoint.address);
       /******* deploy mapping token factory  end *******/
 
       /******* deploy backing at darwinia ********/
@@ -230,19 +230,19 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       await backing.deployed();
       console.log("backing address", backing.address);
       // init owner
-      await backing.initialize(ethMessageHandle.address);
+      await backing.initialize(ethMessageEndpoint.address);
       /******* deploy backing end ***************/
 
       //********** configure mapping-token-factory ***********
       await mtf.setRemoteBacking(backing.address);
-      await bscMessageHandle.grantRole(bscMessageHandle.CALLER_ROLE(), mtf.address);
+      await bscMessageEndpoint.grantRole(bscMessageEndpoint.CALLER_ROLE(), mtf.address);
       //************ configure mapping-token end *************
 
       //********* configure backing **************************
       await backing.setRemoteMappingTokenFactory(mtf.address);
       const [owner] = await ethers.getSigners();
       await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
-      await ethMessageHandle.grantRole(ethMessageHandle.CALLER_ROLE(), backing.address);
+      await ethMessageEndpoint.grantRole(ethMessageEndpoint.CALLER_ROLE(), backing.address);
       //********* configure backing end   ********************
 
       // this contract can be any erc721 contract. We use MappingToken as an example

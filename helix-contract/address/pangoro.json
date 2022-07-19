@@ -1,0 +1,7 @@
+{
+    "S2sToPangolinEndpoint": "0xc7250b6623074C93c4a441eD088d9380C7642009",
+    "S2sFromPangolinIssuingLogic": "0xbd806085536B2391caE0af3E4c20FDF0FF71C0F3",
+    "S2sFromPangolinIssuingAdmin": "0x25273A94383999348EDC872F5d84d248735F92A2",
+    "S2sFromPangolinIssuingProxy": "0xa98dec9D84eA438b8BcD5b47A53423c825bdAd84",
+    "xWETH": "0x196c3BCA2a3BCb051cb87A723dC109699ec09bD9"
+}

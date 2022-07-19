@@ -2,8 +2,6 @@
 pragma solidity ^0.8.10;
 
 import "../AccessController.sol";
-//import "@darwinia/contracts-periphery/contracts/s2s/SmartChainXLib.sol";
-//import "@darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol";
 import "@darwinia/contracts-periphery/contracts/s2s/MessageEndpoint.sol";
 
 contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {

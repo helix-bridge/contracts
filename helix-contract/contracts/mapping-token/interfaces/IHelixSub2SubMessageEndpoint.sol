@@ -9,9 +9,8 @@ interface IHelixSub2SubMessageEndpoint is IHelixMessageEndpoint {
     function lastDeliveredMessageId() external view returns (uint256);
     function isMessageDelivered(uint256 messageId) external view returns(bool);
     function sendMessage(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         address receiver,
         bytes calldata encoded) external payable returns (uint256);
 }

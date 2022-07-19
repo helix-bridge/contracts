@@ -33,9 +33,8 @@ contract MockSub2SubMessageEndpoint is AccessController {
     }
 
     function sendMessage(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         address receiver,
         bytes calldata message) external onlyCaller payable returns(uint256) {
         require(msg.value == fee(), "fee is not matched");

@@ -80,9 +80,8 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
     }
 
     function _sendMessage(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         address receiver,
         bytes memory message
     ) internal nonReentrant returns(uint256) {
@@ -94,9 +93,8 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             payable(msg.sender).transfer(msg.value - totalFee);
         }
         return IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
-            remoteReceiveGasLimit,
             remoteSpecVersion,
-            remoteCallWeight,
+            remoteReceiveGasLimit,
             remoteBacking,
             message);
     }
@@ -175,9 +173,8 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
      * @param amount the amount of the burn and unlock
      */
     function burnAndRemoteUnlock(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         address mappingToken,
         address recipient,
         uint256 amount
@@ -197,9 +194,8 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         );
 
         uint256 transferId = _sendMessage(
-            remoteReceiveGasLimit,
             remoteSpecVersion,
-            remoteCallWeight,
+            remoteReceiveGasLimit,
             remoteBacking,
             unlockFromRemote
         );
@@ -216,9 +212,8 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
      * @param amount the amount of the failed issue token.
      */
     function remoteUnlockFailure(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         uint256 transferId,
         address originalToken,
         address originalSender,
@@ -237,9 +232,8 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             amount
         );
         _sendMessage(
-            remoteReceiveGasLimit,
             remoteSpecVersion,
-            remoteCallWeight,
+            remoteReceiveGasLimit,
             remoteBacking,
             handleUnlockForFailed
         );

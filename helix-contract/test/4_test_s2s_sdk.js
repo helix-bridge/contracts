@@ -11,7 +11,6 @@ describe("sub<>sub mapping token tests", () => {
   it("test_s2s_with_sdk_erc20", async function () {
       const remoteReceiveGasLimit = 1000000;
       const remoteSpecVersion = 1902;
-      const remoteCallWeight = 800000000;
 
       // deploy kton contract
       const erc20Contract = await ethers.getContractFactory("MappingERC20");
@@ -64,9 +63,8 @@ describe("sub<>sub mapping token tests", () => {
       // register
       // backing: nonce += 1
       await backing.register(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           wkton.address,
           await wkton.name(),
           await wkton.symbol(),
@@ -82,9 +80,8 @@ describe("sub<>sub mapping token tests", () => {
       // 1. failed on source chain
       const receiver = owner.address;
       await expect(backing.lockAndRemoteIssuing(
-        remoteReceiveGasLimit,
         remoteSpecVersion,
-        remoteCallWeight,
+        remoteReceiveGasLimit,
         wkton.address,
         receiver,
         1000,
@@ -96,9 +93,8 @@ describe("sub<>sub mapping token tests", () => {
       // change daily limit
       // backing: nonce += 2
       await backing.lockAndRemoteIssuing(
-        remoteReceiveGasLimit,
         remoteSpecVersion,
-        remoteCallWeight,
+        remoteReceiveGasLimit,
         wkton.address,
         receiver,
         1000,
@@ -109,9 +105,8 @@ describe("sub<>sub mapping token tests", () => {
       // 3. test failed and unlock failed, update daily limit
       // 3.1 unlock the successed remote message should be failed
       await expect(mtf.remoteUnlockFailure(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           backingStartNonce + 2,
           wkton.address,
           owner.address,
@@ -123,9 +118,8 @@ describe("sub<>sub mapping token tests", () => {
       await mtf.changeDailyLimit(mappingWktonAddress, 0);
       // backing: nonce += 2
       await backing.lockAndRemoteIssuing(
-        remoteReceiveGasLimit,
         remoteSpecVersion,
-        remoteCallWeight,
+        remoteReceiveGasLimit,
         wkton.address,
         receiver,
         1000,
@@ -136,9 +130,8 @@ describe("sub<>sub mapping token tests", () => {
       
       // mtf: nonce += 0
       await mtf.remoteUnlockFailure(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           backingStartNonce + 3,
           wkton.address,
           owner.address,
@@ -149,9 +142,8 @@ describe("sub<>sub mapping token tests", () => {
       // retry failed
       // mtf: nonce += 1
       await mtf.remoteUnlockFailure(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           backingStartNonce + 3,
           wkton.address,
           owner.address,
@@ -165,9 +157,8 @@ describe("sub<>sub mapping token tests", () => {
       await mappedToken.approve(mtf.address, 100000);
       // mtf: nonce += 2
       await mtf.burnAndRemoteUnlock(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mappingWktonAddress,
           owner.address,
           100,
@@ -179,9 +170,8 @@ describe("sub<>sub mapping token tests", () => {
       // 2. unlock when failed
       // 2.1 can't unlock when success
       await expect(backing.remoteIssuingFailure(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mtfStartNonce + 3,
           mappedToken.address,
           owner.address,
@@ -192,18 +182,16 @@ describe("sub<>sub mapping token tests", () => {
       await backing.changeDailyLimit(wkton.address, 0);
       // mtf: nonce += 3
       await mtf.burnAndRemoteUnlock(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mappingWktonAddress,
           owner.address,
           100,
           { value: ethers.utils.parseEther("1.0") }
       );
       backing.remoteIssuingFailure(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mtfStartNonce + 4,
           mappedToken.address,
           owner.address,
@@ -214,9 +202,8 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // retry failed
       backing.remoteIssuingFailure(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mtfStartNonce + 4,
           mappedToken.address,
           owner.address,
@@ -228,9 +215,8 @@ describe("sub<>sub mapping token tests", () => {
 
       // mtf: nonce += 5
       await mtf.burnAndRemoteUnlock(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mappingWktonAddress,
           owner.address,
           100,
@@ -247,9 +233,8 @@ describe("sub<>sub mapping token tests", () => {
       await mtfMessageHandle.setInboundLane("0xffffffff");
       await mtfMessageHandle.setOutboundLane("0xffffffff");
       await backing.remoteIssuingFailure(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mtfStartNonce + 5,
           mappedToken.address,
           owner.address,
@@ -262,9 +247,8 @@ describe("sub<>sub mapping token tests", () => {
       // 2. new message can be proved by new transferId
       // mtf: nonce == 1
       await mtf.burnAndRemoteUnlock(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mappingWktonAddress,
           owner.address,
           100,
@@ -273,9 +257,8 @@ describe("sub<>sub mapping token tests", () => {
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
       await backing.remoteIssuingFailure(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           "0xFFFFFFFF0000000000000001",
           mappedToken.address,
           owner.address,
@@ -288,9 +271,8 @@ describe("sub<>sub mapping token tests", () => {
       // 3. new message can be accepted
       await backing.changeDailyLimit(wkton.address, 1000);
       await mtf.burnAndRemoteUnlock(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mappingWktonAddress,
           owner.address,
           100,
@@ -303,9 +285,8 @@ describe("sub<>sub mapping token tests", () => {
       // new laneId nonce = 3
       // the old laneId receive a message(nonce=3) successed
       await mtf.burnAndRemoteUnlock(
-          remoteReceiveGasLimit,
           remoteSpecVersion,
-          remoteCallWeight,
+          remoteReceiveGasLimit,
           mappingWktonAddress,
           owner.address,
           100,

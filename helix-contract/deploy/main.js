@@ -13,9 +13,8 @@ async function lockAndRemoteIssueNative(wethAddress, backingAddress, amount, wal
     await weth.approve(backingAddress, amount);
     const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, wallet);
     await backing.lockAndRemoteIssuing(
+        28160,
         1000000,
-        28140,
-        100000000000,
         wethAddress,
         "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
         amount,
@@ -27,9 +26,8 @@ async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWa
     await xweth.approve(mtfAddress, amount);
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
     return await mtf.burnAndRemoteUnlock(
-        1000000,
         28140,
-        100000000000,
+        1000000,
         xwethAddress,
         "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
         amount,
@@ -155,14 +153,12 @@ async function main() {
 
     // register
     const gasLimit = 5000000;
-    const specVersion = 28140;
-    const callWeight = 200000000000;
+    const specVersion = 28160;
     const dailyLimit = ethers.utils.parseEther("10000");
     //const tx = await backing.callStatic.register(
     const tx = await backing.register(
-        gasLimit,
         specVersion,
-        callWeight,
+        gasLimit,
         weth.address,
         "wrapped eth",
         "weth",

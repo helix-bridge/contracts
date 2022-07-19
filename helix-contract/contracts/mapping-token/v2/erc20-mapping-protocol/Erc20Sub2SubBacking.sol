@@ -61,9 +61,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     }
 
     function _sendMessage(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         address receiver,
         bytes memory message
     ) internal nonReentrant returns(uint256) {
@@ -75,9 +74,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             payable(msg.sender).transfer(msg.value - totalFee);
         }
         return IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
-            remoteReceiveGasLimit,
             remoteSpecVersion,
-            remoteCallWeight,
+            remoteReceiveGasLimit,
             remoteMappingTokenFactory,
             message);
     }
@@ -90,9 +88,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
      * @param decimals the decimals of the original token
      */
     function register(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         address token,
         string memory name,
         string memory symbol,
@@ -110,9 +107,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             dailyLimit
         );
         uint256 transferId = _sendMessage(
-            remoteReceiveGasLimit,
             remoteSpecVersion,
-            remoteCallWeight,
+            remoteReceiveGasLimit,
             remoteMappingTokenFactory,
             newErc20Contract
         );
@@ -128,9 +124,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
      * @param amount amount of the locked token
      */
     function lockAndRemoteIssuing(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         address token,
         address recipient,
         uint256 amount
@@ -146,9 +141,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             amount
         );
         uint256 transferId = _sendMessage(
-            remoteReceiveGasLimit,
             remoteSpecVersion,
-            remoteCallWeight,
+            remoteReceiveGasLimit,
             remoteMappingTokenFactory,
             issueMappingToken
         );
@@ -206,9 +200,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     }
 
     function remoteIssuingFailure(
-        uint256 remoteReceiveGasLimit,
         uint32  remoteSpecVersion,
-        uint64  remoteCallWeight,
+        uint256 remoteReceiveGasLimit,
         uint256 transferId,
         address mappingToken,
         address originalSender,
@@ -227,9 +220,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             amount
         );
         _sendMessage(
-            remoteReceiveGasLimit,
             remoteSpecVersion,
-            remoteCallWeight,
+            remoteReceiveGasLimit,
             remoteMappingTokenFactory,
             unlockForFailed
         );

@@ -295,5 +295,43 @@ describe("sub<>sub mapping token tests", () => {
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 300);
       expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 300);
   });
+
+  it("test_s2s_migration", async function () {
+      const erc20Contract = await ethers.getContractFactory("MappingERC20");
+      const deprecatedToken = await erc20Contract.deploy();
+      await deprecatedToken.deployed();
+      await deprecatedToken.initialize("Darwinia xRing Deprecated Token", "xRing", 9);
+
+      const migrationToken = await erc20Contract.deploy();
+      await migrationToken.deployed();
+      await migrationToken.initialize("Darwinia xRing Deprecated Token", "xRing", 18);
+
+      const migrationContract = await ethers.getContractFactory("Erc20Sub2SubMigration");
+      const migration = await migrationContract.deploy(deprecatedToken.address, migrationToken.address);
+      await migration.deployed();
+
+      const [owner] = await ethers.getSigners();
+      await deprecatedToken.mint(owner.address, 1000e9);
+      expect(await deprecatedToken.balanceOf(owner.address)).to.equal(1000e9);
+      await migrationToken.mint(migration.address, ethers.utils.parseEther("10000"));
+      expect(await migrationToken.balanceOf(migration.address)).to.equal(ethers.utils.parseEther("10000"));
+
+      await deprecatedToken.approve(migration.address, 1000e9);
+      await migration.migrateAll();
+      expect(await deprecatedToken.balanceOf(owner.address)).to.equal(0);
+      expect(await deprecatedToken.balanceOf(migration.address)).to.equal(1000e9);
+      expect(await migrationToken.balanceOf(owner.address)).to.equal(ethers.utils.parseEther("1000"));
+      expect(await migrationToken.balanceOf(migration.address)).to.equal(ethers.utils.parseEther("9000"));
+
+      const migrationToLowDecimals = await migrationContract.deploy(migrationToken.address, deprecatedToken.address);
+      await migrationToLowDecimals.deployed();
+      await migrationToken.approve(migrationToLowDecimals.address, ethers.utils.parseEther("10000"));
+      await deprecatedToken.mint(migrationToLowDecimals.address, 10000e9);
+      await migrationToLowDecimals.migrateAll();
+      expect(await migrationToken.balanceOf(owner.address)).to.equal(0);
+      expect(await deprecatedToken.balanceOf(owner.address)).to.equal(1000e9);
+      expect(await migrationToken.balanceOf(migrationToLowDecimals.address)).to.equal(ethers.utils.parseEther("1000"));
+      expect(await deprecatedToken.balanceOf(migrationToLowDecimals.address)).to.equal(9000e9);
+  });
 });
 

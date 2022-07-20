@@ -13,7 +13,7 @@ async function lockAndRemoteIssueNative(wethAddress, backingAddress, amount, wal
     await weth.approve(backingAddress, amount);
     const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, wallet);
     await backing.lockAndRemoteIssuing(
-        28160,
+        28140,
         1000000,
         wethAddress,
         "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
@@ -26,7 +26,7 @@ async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWa
     await xweth.approve(mtfAddress, amount);
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
     return await mtf.burnAndRemoteUnlock(
-        28140,
+        28160,
         1000000,
         xwethAddress,
         "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
@@ -44,24 +44,26 @@ async function main() {
     const precompileStorageAddress = "0x0000000000000000000000000000000000000400";
     const precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
 
-    const backingUrl = "https://pangolin-rpc.darwinia.network";
-    const backingNetworkId = "0x0000002b"; //43
-    const backingBridgeNetworkId = "0x7061676c";
-    const backingTransactCallIndex = 10497;//0x2901
-    const backingSendmsgIndex = 11011;//0x2b03
-    const backingOutboundLaneId = "0x726f6c69";//726f6c69
-    const backingStorageKeyForMarketFee = "0x7621b367d09b75f6876b13089ee0ded52edb70953213f33a6ef6b8a5e3ffcab2";
-    const backingStorageKeyForLatestNonce = "0xc9b76e645ba80b6ca47619d64cb5e58d96c246acb9b55077390e3ca723a0ca1f";
-    const backingStorageKeyForLastDeliveredNonce = "0xc9b76e645ba80b6ca47619d64cb5e58de5f83cf83f2127eb47afdc35d6e43fab";
-    const mtfUrl = "https://pangoro-rpc.darwinia.network";
-    const mtfNetworkId = "0x0000002d"; //45
-    const mtfBridgeNetworkId = "0x70616772";
-    const mtfTransactCallIndex = 6657;//1a01
-    const mtfSendmsgIndex = 4355;//0x1103
-    const mtfOutboundLaneId = "0x726f6c69";
-    const mtfStorageKeyForMarketFee = "0x30d35416864cf657db51d3bc8505602f2edb70953213f33a6ef6b8a5e3ffcab2";
-    const mtfStorageKeyForLatestNonce = "0xd86d7f611f4d004e041fda08f633f10196c246acb9b55077390e3ca723a0ca1f";
-    const mtfStorageKeyForLastDeliveredNonce = "0xd86d7f611f4d004e041fda08f633f101e5f83cf83f2127eb47afdc35d6e43fab";
+    const backingUrl = "https://pangoro-rpc.darwinia.network";
+    const backingNetworkId = "0x0000002d"; //45
+    const backingBridgeNetworkId = "0x70616772";
+    const backingTransactCallIndex = 6657;//1a01
+    const backingSendmsgIndex = 4355;//0x1103
+    const backingOutboundLaneId = "0x726f6c69";
+    const backingStorageKeyForMarketFee = "0x30d35416864cf657db51d3bc8505602f2edb70953213f33a6ef6b8a5e3ffcab2";
+    const backingStorageKeyForLatestNonce = "0xd86d7f611f4d004e041fda08f633f10196c246acb9b55077390e3ca723a0ca1f";
+    const backingStorageKeyForLastDeliveredNonce = "0xd86d7f611f4d004e041fda08f633f101e5f83cf83f2127eb47afdc35d6e43fab";
+
+    const mtfUrl = "https://pangolin-rpc.darwinia.network";
+    const mtfNetworkId = "0x0000002b"; //43
+    const mtfBridgeNetworkId = "0x7061676c";
+    const mtfTransactCallIndex = 10497;//0x2901
+    const mtfSendmsgIndex = 11011;//0x2b03
+    const mtfOutboundLaneId = "0x726f6c69";//726f6c69
+    const mtfStorageKeyForMarketFee = "0x7621b367d09b75f6876b13089ee0ded52edb70953213f33a6ef6b8a5e3ffcab2";
+    const mtfStorageKeyForLatestNonce = "0xc9b76e645ba80b6ca47619d64cb5e58d96c246acb9b55077390e3ca723a0ca1f";
+    const mtfStorageKeyForLastDeliveredNonce = "0xc9b76e645ba80b6ca47619d64cb5e58de5f83cf83f2127eb47afdc35d6e43fab";
+
     // backing
     const backingProvider = new ethers.providers.JsonRpcProvider(backingUrl);
     const backingWallet = new ethers.Wallet(privateKey, backingProvider);
@@ -153,7 +155,7 @@ async function main() {
 
     // register
     const gasLimit = 5000000;
-    const specVersion = 28160;
+    const specVersion = 28140;
     const dailyLimit = ethers.utils.parseEther("10000");
     //const tx = await backing.callStatic.register(
     const tx = await backing.register(

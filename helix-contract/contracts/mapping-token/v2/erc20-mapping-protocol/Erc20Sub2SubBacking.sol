@@ -33,7 +33,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
 
     event NewErc20TokenRegistered(uint256 transferId, address token);
     event TokenLocked(uint256 transferId, bytes32 hash, address token, address sender, address recipient, uint256 amount);
-    event TokenUnlocked(address token, address recipient, uint256 amount);
+    event TokenUnlocked(uint256 transferId, address token, address recipient, uint256 amount);
     event TokenUnlockedForFailed(uint256 transferId, address token, address recipient, uint256 amount);
 
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
@@ -174,7 +174,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         } else {
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");
         }
-        emit TokenUnlocked(token, recipient, amount);
+        emit TokenUnlocked(transferId, token, recipient, amount);
     }
 
     /**

@@ -38,6 +38,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
     event NewLogicSetted(uint32 tokenType, address addr);
     event IssuingERC20Created(address originalToken, address mappingToken);
     event BurnAndRemoteUnlocked(uint256 transferId, bytes32 messageHash, address sender, address recipient, address token, uint256 amount);
+    event TokenIssued(uint256 transferId, address token, address recipient, uint256 amount);
     event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
 
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
@@ -164,6 +165,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         } else {
             IERC20(mappingToken).mint(recipient, amount);
         }
+        emit TokenIssued(transferId, mappingToken, recipient, amount);
     }
 
     /**

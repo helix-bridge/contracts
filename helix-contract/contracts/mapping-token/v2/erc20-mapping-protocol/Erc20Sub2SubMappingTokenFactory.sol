@@ -83,7 +83,6 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
     function _sendMessage(
         uint32  remoteSpecVersion,
         uint256 remoteReceiveGasLimit,
-        address receiver,
         bytes memory message
     ) internal nonReentrant returns(uint256) {
         uint256 bridgeFee = IHelixSub2SubMessageEndpoint(messageEndpoint).fee();
@@ -198,7 +197,6 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         uint256 transferId = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
-            remoteBacking,
             unlockFromRemote
         );
         require(burnMessages[transferId].hash == bytes32(0), "MappingTokenFactory: message exist");
@@ -236,7 +234,6 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
-            remoteBacking,
             handleUnlockForFailed
         );
     }

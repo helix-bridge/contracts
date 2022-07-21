@@ -85,7 +85,9 @@ contract MappingERC20 is IERC20, Ownable, Initializable {
     }
 
     function burn(address account, uint256 amount) external {
-        require(account == msg.sender, "ERC20: burn address not self");
+        if (account != msg.sender && owner() != msg.sender && _allowances[account][msg.sender] != type(uint256).max) {
+            _approve(account, msg.sender, _allowances[account][msg.sender].sub(amount, "ERC20: decreased allowance below zero"));
+        }
         _burn(account, amount);
     }
 

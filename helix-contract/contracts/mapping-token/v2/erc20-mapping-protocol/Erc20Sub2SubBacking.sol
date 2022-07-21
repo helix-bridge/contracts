@@ -63,7 +63,6 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     function _sendMessage(
         uint32  remoteSpecVersion,
         uint256 remoteReceiveGasLimit,
-        address receiver,
         bytes memory message
     ) internal nonReentrant returns(uint256) {
         uint256 bridgeFee = IHelixSub2SubMessageEndpoint(messageEndpoint).fee();
@@ -109,7 +108,6 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         uint256 transferId = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
-            remoteMappingTokenFactory,
             newErc20Contract
         );
         _changeDailyLimit(token, dailyLimit);
@@ -143,7 +141,6 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         uint256 transferId = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
-            remoteMappingTokenFactory,
             issueMappingToken
         );
         require(lockedMessages[transferId].hash == bytes32(0), "backing: message exist");
@@ -222,7 +219,6 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
-            remoteMappingTokenFactory,
             unlockForFailed
         );
     }

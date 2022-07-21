@@ -48,7 +48,7 @@ contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
         return _remoteExecute(remoteSpecVersion, receiver, callPayload, remoteReceiveGasLimit);
     }
 
-    function _canBeExecuted(address callReceiver, bytes calldata callPayload) internal view override whenNotPaused returns (bool) {
+    function _canBeExecuted(address callReceiver, bytes calldata) internal view override whenNotPaused returns (bool) {
         return hasRole(CALLER_ROLE, callReceiver);
     }
 }

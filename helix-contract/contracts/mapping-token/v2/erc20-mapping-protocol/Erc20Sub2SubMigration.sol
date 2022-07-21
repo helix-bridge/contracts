@@ -32,5 +32,10 @@ contract Erc20Sub2SubMigration {
         uint256 balance = IERC20(deprecatedToken).balanceOf(msg.sender);
         migrate(balance);
     }
+
+    function burnDeprecatedTokens() external {
+        uint256 balance = IERC20(deprecatedToken).balanceOf(address(this));
+        IERC20(deprecatedToken).burn(address(this), balance);
+    }
 }
 

@@ -84,8 +84,8 @@ contract MappingERC20 is IERC20, Ownable, Initializable {
         _mint(account, amount);
     }
 
-    // only factory contract can burn with the authority from users
-    function burn(address account, uint256 amount) external onlyOwner {
+    function burn(address account, uint256 amount) external {
+        require(account == msg.sender, "ERC20: burn address not self");
         _burn(account, amount);
     }
 

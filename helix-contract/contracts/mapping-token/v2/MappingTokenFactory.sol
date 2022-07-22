@@ -18,22 +18,29 @@ contract MappingTokenFactory is AccessController, Initializable {
     // so this is a mapping from mappingToken to original token
     mapping(address => address) public mappingToken2OriginalToken;
 
-
-    address public messageHandle;
+    address public messageEndpoint;
     address public remoteBacking;
 
-    modifier onlyMessageHandle() {
-        require(messageHandle == msg.sender, "MappingTokenFactory:Bad message handle");
+    uint256 internal locked;
+    modifier nonReentrant {
+        require(locked == 0, "MappingTokenFactory: locked");
+        locked = 1;
+        _;
+        locked = 0;
+    }
+
+    modifier onlyMessageEndpoint() {
+        require(messageEndpoint == msg.sender, "MappingTokenFactory:Bad message handle");
         _;
     }
 
-    function initialize(address _messageHandle) public initializer {
-        _setMessageHandle(_messageHandle);
+    function initialize(address _messageEndpoint) public initializer {
+        _setMessageEndpoint(_messageEndpoint);
         _initialize(msg.sender);
     }
 
-    function _setMessageHandle(address _messageHandle) internal {
-        messageHandle = _messageHandle;
+    function _setMessageEndpoint(address _messageEndpoint) internal {
+        messageEndpoint = _messageEndpoint;
     }
 
     function setRemoteBacking(address _remoteBacking) external onlyAdmin {

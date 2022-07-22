@@ -4,20 +4,20 @@ pragma solidity ^0.8.10;
 import "sgn-v2-contracts/contracts/message/interfaces/IMessageBus.sol";
 import "sgn-v2-contracts/contracts/message/interfaces/IMessageReceiverApp.sol";
 import "../AccessController.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
 
-contract cBridgeMessageHandle is IHelixMessageHandle, AccessController {
+contract cBridgeMessageEndpoint is IHelixMessageEndpoint, AccessController {
     address public messageBus;
     uint64  public remoteChainId;
     address public remoteHelix;
 
     modifier onlyMessageBus() {
-        require(msg.sender == messageBus, "cBridgeMessageHandle:caller is not message bus");
+        require(msg.sender == messageBus, "cBridgeMessageEndpoint:caller is not message bus");
         _;
     }
 
-    modifier onlyBridgeMessageHandle(address sender) {
-        require(sender == remoteHelix, "cBridgeMessageHandle:invalid remote sender");
+    modifier onlyBridgeMessageEndpoint(address sender) {
+        require(sender == remoteHelix, "cBridgeMessageEndpoint:invalid remote sender");
         _;
     }
 
@@ -46,10 +46,10 @@ contract cBridgeMessageHandle is IHelixMessageHandle, AccessController {
         uint64 srcChainId,
         bytes memory message,
         address executor
-    ) external payable onlyMessageBus onlyBridgeMessageHandle(sender) returns (IMessageReceiverApp.ExecutionStatus) {
+    ) external payable onlyMessageBus onlyBridgeMessageEndpoint(sender) returns (IMessageReceiverApp.ExecutionStatus) {
         require(remoteChainId == srcChainId, "invalid srcChainId");
         (address receiver, bytes memory payload) = abi.decode(message, (address, bytes));
-        require(hasRole(CALLER_ROLE, receiver), "cBridgeMessageHandle:receiver is not caller");
+        require(hasRole(CALLER_ROLE, receiver), "cBridgeMessageEndpoint:receiver is not caller");
         (bool result,) = receiver.call{value: 0}(payload);
         if (result) {
             return IMessageReceiverApp.ExecutionStatus.Success;

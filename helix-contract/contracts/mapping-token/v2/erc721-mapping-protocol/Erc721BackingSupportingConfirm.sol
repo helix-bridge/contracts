@@ -14,7 +14,7 @@ import "../Backing.sol";
 import "../../interfaces/IErc721AttrSerializer.sol";
 import "../../interfaces/IErc721Backing.sol";
 import "../../interfaces/IErc721MappingTokenFactory.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
 
 contract Erc721BackingSupportingConfirm is Backing, IErc721Backing {
     struct LockedInfo {
@@ -43,8 +43,8 @@ contract Erc721BackingSupportingConfirm is Backing, IErc721Backing {
     event TokenRegisterFinished(uint256 messageId, bool result);
     event TokenUnlocked(address token, address recipient, uint256[] ids);
 
-    function setMessageHandle(address _messageHandle) external onlyAdmin {
-        _setMessageHandle(_messageHandle);
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
     }
 
     /**
@@ -64,7 +64,7 @@ contract Erc721BackingSupportingConfirm is Backing, IErc721Backing {
             token,
             remoteAttributesSerializer
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc721Contract);
+        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc721Contract);
         // save register info waiting for confirm
         registerMessages[messageId] = TokenInfo(token, attributesSerializer);
         emit NewErc721TokenRegistered(messageId, token);
@@ -100,7 +100,7 @@ contract Erc721BackingSupportingConfirm is Backing, IErc721Backing {
             ids,
             attrs
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
+        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
         lockMessages[messageId] = LockedInfo(token, msg.sender, ids);
         emit TokenLocked(messageId, token, recipient, ids);
     }
@@ -113,7 +113,7 @@ contract Erc721BackingSupportingConfirm is Backing, IErc721Backing {
     function onMessageDelivered(
         uint256 messageId,
         bool result
-    ) external onlyMessageHandle {
+    ) external onlyMessageEndpoint {
         LockedInfo memory lockedInfo = lockMessages[messageId];
         // it is lock message, if result is false, need to transfer back to the user, otherwise will be locked here
         if (lockedInfo.token != address(0)) {
@@ -149,7 +149,7 @@ contract Erc721BackingSupportingConfirm is Backing, IErc721Backing {
         address recipient,
         uint256[] calldata ids,
         bytes[] calldata attrs
-    ) public onlyMessageHandle whenNotPaused {
+    ) public onlyMessageEndpoint whenNotPaused {
         TokenInfo memory info = registeredTokens[token];
         require(info.token != address(0), "Erc721Backing:the token is not registered");
         for (uint idx = 0; idx < ids.length; idx++) {

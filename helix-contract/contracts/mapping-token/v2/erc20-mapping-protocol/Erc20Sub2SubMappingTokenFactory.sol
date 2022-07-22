@@ -6,26 +6,30 @@
 pragma solidity ^0.8.10;
 
 import "@zeppelin-solidity-4.4.0/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol";
 import "../MappingTokenFactory.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IGuard.sol";
+import "../../interfaces/IHelixApp.sol";
 import "../../interfaces/IHelixMessageEndpoint.sol";
-import "../../interfaces/IHelixMessageEndpointSupportingConfirm.sol";
+import "../../interfaces/IHelixSub2SubMessageEndpoint.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
-import "../../interfaces/IMessageCommitment.sol";
 import "../../../utils/DailyLimit.sol";
 
-contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingTokenFactory, MappingTokenFactory {
-    address public constant BLACK_HOLE_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-    struct UnconfirmedInfo {
-        address sender;
-        address mappingToken;
-        uint256 amount;
+contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactory, MappingTokenFactory {
+    struct BurnInfo {
+        bytes32 hash;
+        bool hasRefundForFailed;
     }
+
+    address public constant BLACK_HOLE_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     // guard
     address public guard;
-    mapping(uint256 => UnconfirmedInfo) public unlockRemoteUnconfirmed;
+    uint256 public helixFee;
+
+    mapping(uint256 => BurnInfo) burnMessages;
+    BitMaps.BitMap issueMessages;
 
     // tokenType=>Logic
     // tokenType comes from original token, the logic contract is used to create the mapping-token contract
@@ -33,8 +37,9 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
 
     event NewLogicSetted(uint32 tokenType, address addr);
     event IssuingERC20Created(address originalToken, address mappingToken);
-    event BurnAndWaitingConfirm(uint256 messageId, address sender, address recipient, address token, uint256 amount);
-    event RemoteUnlockConfirmed(uint256 messageId, bool result);
+    event BurnAndRemoteUnlocked(uint256 transferId, bytes32 messageHash, address sender, address recipient, address token, uint256 amount);
+    event TokenIssued(uint256 transferId, address token, address recipient, uint256 amount);
+    event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
 
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
         _setMessageEndpoint(_messageEndpoint);
@@ -65,6 +70,33 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
     function setTokenContractLogic(uint32 tokenType, address logic) external onlyAdmin {
         tokenType2Logic[tokenType] = logic;
         emit NewLogicSetted(tokenType, logic);
+    }
+
+    function setHelixFee(uint256 _helixFee) external onlyAdmin {
+        helixFee = _helixFee;
+    }
+
+    function fee() external view returns(uint256) {
+        return IHelixSub2SubMessageEndpoint(messageEndpoint).fee() + helixFee;
+    }
+
+    function _sendMessage(
+        uint32  remoteSpecVersion,
+        uint256 remoteReceiveGasLimit,
+        bytes memory message
+    ) internal nonReentrant returns(uint256) {
+        uint256 bridgeFee = IHelixSub2SubMessageEndpoint(messageEndpoint).fee();
+        uint256 totalFee = bridgeFee + helixFee;
+        require(msg.value >= totalFee, "MappingTokenFactory:the fee is not enough");
+        if (msg.value > totalFee) {
+            // refund fee to msgSender
+            payable(msg.sender).transfer(msg.value - totalFee);
+        }
+        return IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
+            remoteSpecVersion,
+            remoteReceiveGasLimit,
+            remoteBacking,
+            message);
     }
 
     /**
@@ -122,23 +154,28 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
         require(mappingToken != address(0), "MappingTokenFactory:mapping token has not created");
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
         expendDailyLimit(mappingToken, amount);
+        uint256 transferId = IHelixSub2SubMessageEndpoint(messageEndpoint).lastDeliveredMessageId() + 1;
+        require(BitMaps.get(issueMessages, transferId) == false, "message has been accepted");
+        BitMaps.set(issueMessages, transferId);
         if (guard != address(0)) {
             IERC20(mappingToken).mint(address(this), amount);
             require(IERC20(mappingToken).approve(guard, amount), "MappingTokenFactory:approve token transfer to guard failed");
-            uint256 messageId = IHelixMessageEndpointSupportingConfirm(messageEndpoint).lastDeliveredMessageId();
-            IGuard(guard).deposit(messageId, mappingToken, recipient, amount);
+            IGuard(guard).deposit(transferId, mappingToken, recipient, amount);
         } else {
             IERC20(mappingToken).mint(recipient, amount);
         }
+        emit TokenIssued(transferId, mappingToken, recipient, amount);
     }
 
     /**
-     * @notice burn mapping token and unlock remote original token, waiting for the confirm
+     * @notice burn mapping token and unlock remote original token
      * @param mappingToken the burt mapping token address
      * @param recipient the recipient of the remote unlocked token
      * @param amount the amount of the burn and unlock
      */
-    function burnAndRemoteUnlockWaitingConfirm(
+    function burnAndRemoteUnlock(
+        uint32  remoteSpecVersion,
+        uint256 remoteReceiveGasLimit,
         address mappingToken,
         address recipient,
         uint256 amount
@@ -146,10 +183,9 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
         require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
         address originalToken = mappingToken2OriginalToken[mappingToken];
         require(originalToken != address(0), "MappingTokenFactory:token is not created by factory");
-        // Lock the fund in this before message on remote backing chain get dispatched successfully and burn finally
-        // If remote backing chain unlock the origin token successfully, then this fund will be burned.
-        // Otherwise, this fund will be transfered back to the msg.sender.
+        // transfer to this and then burn
         require(IERC20(mappingToken).transferFrom(msg.sender, address(this), amount), "MappingTokenFactory:transfer token failed");
+        IERC20(mappingToken).burn(address(this), amount);
 
         bytes memory unlockFromRemote = abi.encodeWithSelector(
             IBacking.unlockFromRemote.selector,
@@ -158,29 +194,89 @@ contract Erc20MappingTokenFactorySupportingConfirm is DailyLimit, IErc20MappingT
             amount
         );
 
-        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
-        unlockRemoteUnconfirmed[messageId] = UnconfirmedInfo(msg.sender, mappingToken, amount);
-        emit BurnAndWaitingConfirm(messageId, msg.sender, recipient, mappingToken, amount);
+        uint256 transferId = _sendMessage(
+            remoteSpecVersion,
+            remoteReceiveGasLimit,
+            unlockFromRemote
+        );
+        require(burnMessages[transferId].hash == bytes32(0), "MappingTokenFactory: message exist");
+        bytes32 messageHash = hash(abi.encodePacked(transferId, mappingToken, msg.sender, amount));
+        burnMessages[transferId] = BurnInfo(messageHash, false);
+        emit BurnAndRemoteUnlocked(transferId, messageHash, msg.sender, recipient, mappingToken, amount);
     }
 
     /**
-     * @notice this will be called when the burn and unlock from remote message confirmed
-     * @param messageId the message id, is used to identify the unlocked message
-     * @param result the result of the remote backing's unlock, if false, the mapping token need to transfer back to the user, otherwise burt
+     * @notice send a unlock message to backing when issue mapping token faild to redeem original token.
+     * @param originalToken the original token address
+     * @param originalSender the originalSender of the remote unlocked token, must be the same as msg.send of the failed message.
+     * @param amount the amount of the failed issue token.
      */
-    function onMessageDelivered(
-        uint256 messageId,
-        bool result
-    ) external onlyMessageEndpoint {
-        UnconfirmedInfo memory info = unlockRemoteUnconfirmed[messageId];
-        require(info.amount > 0 && info.sender != address(0) && info.mappingToken != address(0), "MappingTokenFactory:invalid unconfirmed message");
-        if (result) {
-            IERC20(info.mappingToken).burn(address(this), info.amount);
-        } else {
-            require(IERC20(info.mappingToken).transfer(info.sender, info.amount), "MappingTokenFactory:transfer back failed");
-        }
-        delete unlockRemoteUnconfirmed[messageId];
-        emit RemoteUnlockConfirmed(messageId, result);
+    function remoteUnlockFailure(
+        uint32  remoteSpecVersion,
+        uint256 remoteReceiveGasLimit,
+        uint256 transferId,
+        address originalToken,
+        address originalSender,
+        uint256 amount
+    ) external payable whenNotPaused {
+        // must not exist in successful issue list
+        require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
+        // must has been checked by message layer
+        bool messageChecked = IHelixSub2SubMessageEndpoint(messageEndpoint).isMessageDelivered(transferId);
+        require(messageChecked, "MappingTokenFactory:the message is not checked by message layer");
+        bytes memory handleUnlockForFailed = abi.encodeWithSelector(
+            IHelixAppSupportWithdrawFailed.handleUnlockFailureFromRemote.selector,
+            transferId,
+            originalToken,
+            originalSender,
+            amount
+        );
+        _sendMessage(
+            remoteSpecVersion,
+            remoteReceiveGasLimit,
+            handleUnlockForFailed
+        );
+    }
+
+    /**
+     * @notice this will be called by messageEndpoint when the remote backing unlock failed and want to unlock the mapping token
+     * @param token the original token address
+     * @param origin_sender the origin_sender who will receive the unlocked token
+     * @param amount amount of the unlocked token
+     */
+    function handleIssuingFailureFromRemote(
+        uint256 transferId,
+        address token,
+        address origin_sender,
+        uint256 amount
+    ) external onlyMessageEndpoint whenNotPaused {
+        BurnInfo memory burnInfo = burnMessages[transferId];
+        require(burnInfo.hasRefundForFailed == false, "Backing:the burn message has been refund");
+        bytes32 messageHash = hash(abi.encodePacked(transferId, token, origin_sender, amount));
+        require(burnInfo.hash == messageHash, "Backing:message is not matched");
+        burnMessages[transferId].hasRefundForFailed = true;
+        // remint token
+        IERC20(token).mint(origin_sender, amount);
+        emit TokenRemintForFailed(transferId, token, origin_sender, amount);
+    }
+
+    function hash(bytes memory value) public pure returns (bytes32) {
+        return sha256(value);
+    }
+
+    function rescueFunds(
+        address token,
+        address recipient,
+        uint256 amount
+    ) external onlyAdmin {
+        IERC20(token).transfer(recipient, amount);
+    }
+
+    function withdrawFee(
+        address payable recipient,
+        uint256 amount
+    ) external onlyAdmin {
+        recipient.transfer(amount);
     }
 }
 

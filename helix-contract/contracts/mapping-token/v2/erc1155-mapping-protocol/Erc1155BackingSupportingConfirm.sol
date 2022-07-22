@@ -9,7 +9,7 @@ import "@zeppelin-solidity-4.4.0/contracts/token/ERC1155/IERC1155.sol";
 import "../Backing.sol";
 import "../../interfaces/IErc1155Backing.sol";
 import "../../interfaces/IErc1155MappingTokenFactory.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
 
 contract Erc1155BackingSupportingConfirm is Backing, IErc1155Backing {
     struct LockedInfo {
@@ -39,8 +39,8 @@ contract Erc1155BackingSupportingConfirm is Backing, IErc1155Backing {
     event TokenRegisterFinished(uint256 messageId, bool result);
     event TokenUnlocked(address token, address recipient, uint256[] ids, uint256[] amounts);
 
-    function setMessageHandle(address _messageHandle) external onlyAdmin {
-        _setMessageHandle(_messageHandle);
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
     }
 
     /**
@@ -58,7 +58,7 @@ contract Erc1155BackingSupportingConfirm is Backing, IErc1155Backing {
             token,
             remoteMetadataAddress
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc1155Contract);
+        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc1155Contract);
         registerMessages[messageId] = token;
         emit NewErc1155TokenRegistered(messageId, token);
     }
@@ -86,7 +86,7 @@ contract Erc1155BackingSupportingConfirm is Backing, IErc1155Backing {
             ids,
             amounts
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
+        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
         lockMessages[messageId] = LockedInfo(token, msg.sender, ids, amounts);
         emit TokenLocked(messageId, token, recipient, ids, amounts);
     }
@@ -99,7 +99,7 @@ contract Erc1155BackingSupportingConfirm is Backing, IErc1155Backing {
     function onMessageDelivered(
         uint256 messageId,
         bool result
-    ) external onlyMessageHandle {
+    ) external onlyMessageEndpoint {
         LockedInfo memory lockedInfo = lockMessages[messageId];
         // it is lock message, if result is false, need to transfer back to the user, otherwise will be locked here
         if (lockedInfo.token != address(0)) {
@@ -132,7 +132,7 @@ contract Erc1155BackingSupportingConfirm is Backing, IErc1155Backing {
         address recipient,
         uint256[] calldata ids,
         uint256[] calldata amounts
-    ) public onlyMessageHandle whenNotPaused {
+    ) public onlyMessageEndpoint whenNotPaused {
         require(registeredTokens[token], "Erc1155Backing:the token is not registered");
         IERC1155(token).safeBatchTransferFrom(address(this), recipient, ids, amounts, "");
         emit TokenUnlocked(token, recipient, ids, amounts);

@@ -42,22 +42,22 @@ describe("darwinia<>bsc mapping token tests", () => {
       await feeMarket.deployed();
       /****** deploy fee market *****/
 
-      // deploy darwiniaMessageHandle
-      const messageHandleContract = await ethers.getContractFactory("DarwiniaMessageHandle");
-      const darwiniaMessageHandle = await messageHandleContract.deploy();
-      await darwiniaMessageHandle.deployed();
-      const bscMessageHandle = await messageHandleContract.deploy();
-      await bscMessageHandle.deployed();
-      /******* deploy darwiniaMessageHandle ******/
-      // configure darwiniaMessageHandle
-      await darwiniaMessageHandle.setBridgeInfo(2, bscMessageHandle.address);
-      await darwiniaMessageHandle.setFeeMarket(feeMarket.address);
-      await darwiniaMessageHandle.setInboundLane(darwiniaInboundLane.address);
-      await darwiniaMessageHandle.setOutboundLane(darwiniaOutboundLane.address);
-      await bscMessageHandle.setBridgeInfo(1, darwiniaMessageHandle.address);
-      await bscMessageHandle.setFeeMarket(feeMarket.address);
-      await bscMessageHandle.setInboundLane(bscInboundLane.address);
-      await bscMessageHandle.setOutboundLane(bscOutboundLane.address);
+      // deploy darwiniaMessageEndpoint
+      const messageEndpointContract = await ethers.getContractFactory("DarwiniaMessageEndpoint");
+      const darwiniaMessageEndpoint = await messageEndpointContract.deploy();
+      await darwiniaMessageEndpoint.deployed();
+      const bscMessageEndpoint = await messageEndpointContract.deploy();
+      await bscMessageEndpoint.deployed();
+      /******* deploy darwiniaMessageEndpoint ******/
+      // configure darwiniaMessageEndpoint
+      await darwiniaMessageEndpoint.setBridgeInfo(2, bscMessageEndpoint.address);
+      await darwiniaMessageEndpoint.setFeeMarket(feeMarket.address);
+      await darwiniaMessageEndpoint.setInboundLane(darwiniaInboundLane.address);
+      await darwiniaMessageEndpoint.setOutboundLane(darwiniaOutboundLane.address);
+      await bscMessageEndpoint.setBridgeInfo(1, darwiniaMessageEndpoint.address);
+      await bscMessageEndpoint.setFeeMarket(feeMarket.address);
+      await bscMessageEndpoint.setInboundLane(bscInboundLane.address);
+      await bscMessageEndpoint.setOutboundLane(bscOutboundLane.address);
       // end configure
 
       /******* deploy mapping token factory at bsc *******/
@@ -72,7 +72,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       await mtf.deployed();
       console.log("mapping-token-factory address", mtf.address);
       // init owner
-      await mtf.initialize(bscMessageHandle.address);
+      await mtf.initialize(bscMessageEndpoint.address);
       /******* deploy mapping token factory  end *******/
 
       /******* deploy backing at darwinia ********/
@@ -81,11 +81,11 @@ describe("darwinia<>bsc mapping token tests", () => {
       await backing.deployed();
       console.log("backing address", backing.address);
       // init owner
-      await backing.initialize(darwiniaMessageHandle.address);
+      await backing.initialize(darwiniaMessageEndpoint.address);
       /******* deploy backing end ***************/
 
       //********** configure mapping-token-factory ***********
-      await bscMessageHandle.grantRole(bscMessageHandle.CALLER_ROLE(), mtf.address);
+      await bscMessageEndpoint.grantRole(bscMessageEndpoint.CALLER_ROLE(), mtf.address);
       await mtf.setRemoteBacking(backing.address);
       // set logic mapping token
       await mtf.setTokenContractLogic(0, mappingToken.address);
@@ -97,7 +97,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       const [owner] = await ethers.getSigners();
       await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
       await backing.setChainName("Darwinia");
-      await darwiniaMessageHandle.grantRole(darwiniaMessageHandle.CALLER_ROLE(), backing.address);
+      await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLER_ROLE(), backing.address);
       //********* configure backing end   ********************
 
       // use a mapping erc20 as original token
@@ -116,10 +116,11 @@ describe("darwinia<>bsc mapping token tests", () => {
           tokenName,
           tokenSymbol,
           9,
+          1000,
           {value: ethers.utils.parseEther("9.9999999999")}
-      )).to.be.revertedWith("DarwiniaMessageHandle:not enough fee to pay");
+      )).to.be.revertedWith("DarwiniaMessageEndpoint:not enough fee to pay");
       // test register successed
-      await backing.registerErc20Token(originalToken.address, tokenName, tokenSymbol, 9, {value: ethers.utils.parseEther("10.0")});
+      await backing.registerErc20Token(originalToken.address, tokenName, tokenSymbol, 9, 1000, {value: ethers.utils.parseEther("10.0")});
       // check not exist
       expect(await backing.registeredTokens(originalToken.address)).to.equal(false);
       // confirmed

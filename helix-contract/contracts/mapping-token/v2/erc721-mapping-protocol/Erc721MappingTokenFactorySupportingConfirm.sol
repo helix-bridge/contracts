@@ -11,7 +11,7 @@ import "../MappingTokenFactory.sol";
 import "../../interfaces/IErc721AttrSerializer.sol";
 import "../../interfaces/IErc721Backing.sol";
 import "../../interfaces/IErc721MappingToken.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
 
 contract Erc721MappingTokenFactorySupportingConfirm is MappingTokenFactory {
     struct UnconfirmedInfo {
@@ -25,8 +25,8 @@ contract Erc721MappingTokenFactorySupportingConfirm is MappingTokenFactory {
     event BurnAndWaitingConfirm(uint256 messageId, address sender, address recipient, address token, uint256[] ids);
     event RemoteUnlockConfirmed(uint256 messageId, bool result);
 
-    function setMessageHandle(address _messageHandle) external onlyAdmin {
-        _setMessageHandle(_messageHandle);
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
     }
 
     /**
@@ -47,7 +47,7 @@ contract Erc721MappingTokenFactorySupportingConfirm is MappingTokenFactory {
     function newErc721Contract(
         address originalToken,
         address attrSerializer
-    ) public onlyMessageHandle whenNotPaused returns (address mappingToken) {
+    ) public onlyMessageEndpoint whenNotPaused returns (address mappingToken) {
         bytes32 salt = keccak256(abi.encodePacked(remoteBacking, originalToken));
         require(salt2MappingToken[salt] == address(0), "Erc721MTFSupportingConfirm:contract has been deployed");
         bytes memory bytecode = type(Erc721MappingToken).creationCode;
@@ -69,7 +69,7 @@ contract Erc721MappingTokenFactorySupportingConfirm is MappingTokenFactory {
         address recipient,
         uint256[] calldata ids,
         bytes[] calldata attrs
-    ) public onlyMessageHandle whenNotPaused {
+    ) public onlyMessageEndpoint whenNotPaused {
         address mappingToken = getMappingToken(remoteBacking, originalToken);
         require(mappingToken != address(0), "Erc721MTFSupportingConfirm:mapping token has not created");
         require(ids.length > 0, "Erc721MTFSupportingConfirm:can not receive empty ids");
@@ -115,7 +115,7 @@ contract Erc721MappingTokenFactorySupportingConfirm is MappingTokenFactory {
             ids,
             attrs
         );
-        uint256 messageId = IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
+        uint256 messageId = IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
         unlockRemoteUnconfirmed[messageId] = UnconfirmedInfo(msg.sender, mappingToken, ids);
         emit BurnAndWaitingConfirm(messageId, msg.sender, recipient, mappingToken, ids);
     }
@@ -128,7 +128,7 @@ contract Erc721MappingTokenFactorySupportingConfirm is MappingTokenFactory {
     function onMessageDelivered(
         uint256 messageId,
         bool result
-    ) external onlyMessageHandle {
+    ) external onlyMessageEndpoint {
         UnconfirmedInfo memory info = unlockRemoteUnconfirmed[messageId];
         require(info.ids.length > 0 && info.sender != address(0) && info.mappingToken != address(0), "Erc721MTFSupportingConfirm:invalid unconfirmed message");
         if (result) {

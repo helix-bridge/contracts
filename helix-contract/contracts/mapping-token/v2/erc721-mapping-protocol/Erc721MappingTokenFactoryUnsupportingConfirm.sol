@@ -11,14 +11,14 @@ import "../MappingTokenFactory.sol";
 import "../../interfaces/IErc721AttrSerializer.sol";
 import "../../interfaces/IErc721Backing.sol";
 import "../../interfaces/IErc721MappingToken.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
 
 contract Erc721MappingTokenFactoryUnsupportingConfirm is MappingTokenFactory {
     event IssuingERC721Created(address originalToken, address mappingToken);
     event BurnAndRemoteUnlock(address sender, address recipient, address token, uint256[] ids);
 
-    function setMessageHandle(address _messageHandle) external onlyAdmin {
-        _setMessageHandle(_messageHandle);
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
     }
 
     /**
@@ -39,7 +39,7 @@ contract Erc721MappingTokenFactoryUnsupportingConfirm is MappingTokenFactory {
     function newErc721Contract(
         address originalToken,
         address attrSerializer
-    ) public onlyMessageHandle whenNotPaused returns (address mappingToken) {
+    ) public onlyMessageEndpoint whenNotPaused returns (address mappingToken) {
         bytes32 salt = keccak256(abi.encodePacked(remoteBacking, originalToken));
         require(salt2MappingToken[salt] == address(0), "Erc721MTFUnsupportingConfirm:contract has been deployed");
         bytes memory bytecode = type(Erc721MappingToken).creationCode;
@@ -61,7 +61,7 @@ contract Erc721MappingTokenFactoryUnsupportingConfirm is MappingTokenFactory {
         address recipient,
         uint256[] calldata ids,
         bytes[] calldata attrs
-    ) public onlyMessageHandle whenNotPaused {
+    ) public onlyMessageEndpoint whenNotPaused {
         address mappingToken = getMappingToken(remoteBacking, originalToken);
         require(mappingToken != address(0), "Erc721MTFUnsupportingConfirm:mapping token has not created");
         require(ids.length > 0, "Erc721MTFUnsupportingConfirm:can not receive empty ids");
@@ -108,7 +108,7 @@ contract Erc721MappingTokenFactoryUnsupportingConfirm is MappingTokenFactory {
             ids,
             attrs
         );
-        IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
+        IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteBacking, unlockFromRemote);
         emit BurnAndRemoteUnlock(msg.sender, recipient, mappingToken, ids);
     }
 }

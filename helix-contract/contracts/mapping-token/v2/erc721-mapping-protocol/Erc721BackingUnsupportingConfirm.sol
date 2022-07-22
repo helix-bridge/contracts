@@ -8,14 +8,14 @@ pragma solidity ^0.8.10;
 // The other is deployed on the target chain to deserialize the attributes of the token when the mapping token minted,
 // and serialize the attributes of the mapping token when burn_and_unlock
 // The AttributesSerializer must implement interfaces in IErc721AttrSerializer.
-// It only receive message from messageHandle, and send message by messageHandle
+// It only receive message from messageEndpoint, and send message by messageEndpoint
 
 import "@zeppelin-solidity-4.4.0/contracts/token/ERC721/IERC721.sol";
 import "../Backing.sol";
 import "../../interfaces/IErc721AttrSerializer.sol";
 import "../../interfaces/IErc721Backing.sol";
 import "../../interfaces/IErc721MappingTokenFactory.sol";
-import "../../interfaces/IHelixMessageHandle.sol";
+import "../../interfaces/IHelixMessageEndpoint.sol";
 
 contract Erc721BackingUnsupportingConfirm is Backing, IErc721Backing {
     struct TokenInfo {
@@ -29,8 +29,8 @@ contract Erc721BackingUnsupportingConfirm is Backing, IErc721Backing {
     event TokenLocked(address token, address recipient, uint256[] ids);
     event TokenUnlocked(address token, address recipient, uint256[] ids);
 
-    function setMessageHandle(address _messageHandle) external onlyAdmin {
-        _setMessageHandle(_messageHandle);
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
     }
 
     /**
@@ -50,7 +50,7 @@ contract Erc721BackingUnsupportingConfirm is Backing, IErc721Backing {
             token,
             remoteAttributesSerializer
         );
-        IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc721Contract);
+        IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteMappingTokenFactory, newErc721Contract);
         registeredTokens[token] = TokenInfo(token, attributesSerializer);
         emit NewErc721TokenRegistered(token);
     }
@@ -85,7 +85,7 @@ contract Erc721BackingUnsupportingConfirm is Backing, IErc721Backing {
             ids,
             attrs
         );
-        IHelixMessageHandle(messageHandle).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
+        IHelixMessageEndpoint(messageEndpoint).sendMessage{value: msg.value}(remoteMappingTokenFactory, issueMappingToken);
         emit TokenLocked(token, recipient, ids);
     }
 
@@ -101,7 +101,7 @@ contract Erc721BackingUnsupportingConfirm is Backing, IErc721Backing {
         address recipient,
         uint256[] calldata ids,
         bytes[] calldata attrs
-    ) public onlyMessageHandle whenNotPaused {
+    ) public onlyMessageEndpoint whenNotPaused {
         TokenInfo memory info = registeredTokens[token];
         require(info.token != address(0), "Erc721BackingUnsupportingConfirm:the token is not registered");
         for (uint idx = 0; idx < ids.length; idx++) {

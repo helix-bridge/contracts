@@ -37,9 +37,10 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
 
     event NewLogicSetted(uint32 tokenType, address addr);
     event IssuingERC20Created(address originalToken, address mappingToken);
-    event BurnAndRemoteUnlocked(uint256 transferId, bytes32 messageHash, address sender, address recipient, address token, uint256 amount);
+    event BurnAndRemoteUnlocked(uint256 transferId, bytes32 messageHash, address sender, address recipient, address token, uint256 amount, uint256 fee);
     event TokenIssued(uint256 transferId, address token, address recipient, uint256 amount);
     event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
+    event RemoteUnlockFailure(uint256 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
 
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
         _setMessageEndpoint(_messageEndpoint);
@@ -84,7 +85,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         uint32  remoteSpecVersion,
         uint256 remoteReceiveGasLimit,
         bytes memory message
-    ) internal nonReentrant returns(uint256) {
+    ) internal nonReentrant returns(uint256, uint256) {
         uint256 bridgeFee = IHelixSub2SubMessageEndpoint(messageEndpoint).fee();
         uint256 totalFee = bridgeFee + helixFee;
         require(msg.value >= totalFee, "MappingTokenFactory:the fee is not enough");
@@ -92,11 +93,12 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             // refund fee to msgSender
             payable(msg.sender).transfer(msg.value - totalFee);
         }
-        return IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
+        uint256 transferId = IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             remoteBacking,
             message);
+        return (transferId, totalFee);
     }
 
     /**
@@ -194,7 +196,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             amount
         );
 
-        uint256 transferId = _sendMessage(
+        (uint256 transferId, uint256 fee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             unlockFromRemote
@@ -202,7 +204,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         require(burnMessages[transferId].hash == bytes32(0), "MappingTokenFactory: message exist");
         bytes32 messageHash = hash(abi.encodePacked(transferId, mappingToken, msg.sender, amount));
         burnMessages[transferId] = BurnInfo(messageHash, false);
-        emit BurnAndRemoteUnlocked(transferId, messageHash, msg.sender, recipient, mappingToken, amount);
+        emit BurnAndRemoteUnlocked(transferId, messageHash, msg.sender, recipient, mappingToken, amount, fee);
     }
 
     /**
@@ -231,11 +233,12 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             originalSender,
             amount
         );
-        _sendMessage(
+        (, uint256 fee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             handleUnlockForFailed
         );
+        emit RemoteUnlockFailure(transferId, originalToken, originalSender, amount, fee);
     }
 
     /**

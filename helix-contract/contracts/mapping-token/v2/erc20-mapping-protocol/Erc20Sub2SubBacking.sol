@@ -32,8 +32,9 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     BitMaps.BitMap unlockedMessages;
 
     event NewErc20TokenRegistered(uint256 transferId, address token);
-    event TokenLocked(uint256 transferId, bytes32 hash, address token, address sender, address recipient, uint256 amount);
+    event TokenLocked(uint256 transferId, bytes32 hash, address token, address sender, address recipient, uint256 amount, uint256 fee);
     event TokenUnlocked(uint256 transferId, address token, address recipient, uint256 amount);
+    event RemoteIssuingFailure(uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
     event TokenUnlockedForFailed(uint256 transferId, address token, address recipient, uint256 amount);
 
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
@@ -64,7 +65,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         uint32  remoteSpecVersion,
         uint256 remoteReceiveGasLimit,
         bytes memory message
-    ) internal nonReentrant returns(uint256) {
+    ) internal nonReentrant returns(uint256, uint256) {
         uint256 bridgeFee = IHelixSub2SubMessageEndpoint(messageEndpoint).fee();
         uint256 totalFee = bridgeFee + helixFee;
         require(msg.value >= totalFee, "backing:the fee is not enough");
@@ -72,11 +73,12 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             // refund fee to msgSender
             payable(msg.sender).transfer(msg.value - totalFee);
         }
-        return IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
+        uint256 transferId = IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             remoteMappingTokenFactory,
             message);
+        return (transferId, totalFee);
     }
 
     /**
@@ -105,7 +107,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             decimals,
             dailyLimit
         );
-        uint256 transferId = _sendMessage(
+        (uint256 transferId,) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             newErc20Contract
@@ -138,7 +140,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             recipient,
             amount
         );
-        uint256 transferId = _sendMessage(
+        (uint256 transferId, uint256 fee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             issueMappingToken
@@ -146,7 +148,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         require(lockedMessages[transferId].hash == bytes32(0), "backing: message exist");
         bytes32 lockMessageHash = hash(abi.encodePacked(transferId, token, msg.sender, amount));
         lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
-        emit TokenLocked(transferId, lockMessageHash, token, msg.sender, recipient, amount);
+        emit TokenLocked(transferId, lockMessageHash, token, msg.sender, recipient, amount, fee);
     }
 
     /**
@@ -216,11 +218,12 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             originalSender,
             amount
         );
-        _sendMessage(
+        (, uint256 fee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             unlockForFailed
         );
+        emit RemoteIssuingFailure(transferId, mappingToken, originalSender, amount, fee);
     }
 
     /**

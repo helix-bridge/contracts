@@ -13,7 +13,7 @@ async function lockAndRemoteIssueNative(wethAddress, backingAddress, amount, wal
     await weth.approve(backingAddress, amount);
     const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, wallet);
     await backing.lockAndRemoteIssuing(
-        28140,
+        28161,
         1000000,
         wethAddress,
         "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
@@ -29,6 +29,18 @@ async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWa
         28160,
         1000000,
         xwethAddress,
+        "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
+        amount,
+        { value: ethers.utils.parseEther("100.0") });
+}
+
+async function remoteUnlockFailure(transferId, wethAddress, mtfAddress, amount, mtfWallet) {
+    const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
+    return await mtf.remoteUnlockFailure(
+        28160,
+        1000000,
+        transferId,
+        wethAddress,
         "0x3fc22FAe77159D9253851f4c7fa99786DA041f43",
         amount,
         { value: ethers.utils.parseEther("100.0") });
@@ -72,6 +84,7 @@ async function main() {
     const mtfProvider = new ethers.providers.JsonRpcProvider(mtfUrl);
     const mtfWallet = new ethers.Wallet(privateKey, mtfProvider);
 
+    /*
     // deploy
     const backingMessageEndpoint = await deployMessageEndpoint(backingWallet);
     console.log("deploy backing message handle finished, address: ", backingMessageEndpoint.address);
@@ -155,7 +168,7 @@ async function main() {
 
     // register
     const gasLimit = 5000000;
-    const specVersion = 28140;
+    const specVersion = 28160;
     const dailyLimit = ethers.utils.parseEther("10000");
     //const tx = await backing.callStatic.register(
     const tx = await backing.register(
@@ -180,24 +193,28 @@ async function main() {
         console.log("waiting bridger ...");
     }
     await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);
+    */
+
+    // the deployed addresses
+    const mtfAddress = "0x0793e2726360224dA8cf781c048dF7acCa3Bb049";
+    const backingAddress = "0x91Cdd894aD5cC203A026115B33e30670E5166504";
+    const wethAddress = "0x78f3B1ae818c304Bbec76e244B67dEdC70506006";
 
     /*
-    // the deployed addresses
-    const mtfAddress = "0xbAB122E3D4Fb853Accf47c4C3FE3ee8bfF4D0Af2";
-    const backingAddress = "0x7Df4250Cf8602abb54B5214B3F505bF25bc0F3d2";
-    const wethAddress = "0x859B3b6cdc218531350A178b7d556C8751CAa1c5";
     // 1. lock and remote issue
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
-    //await lockAndRemoteIssueNative(wethAddress, backingAddress, ethers.utils.parseEther("100.0"), backingWallet);
+    await lockAndRemoteIssueNative(wethAddress, backingAddress, ethers.utils.parseEther("1.3"), backingWallet);
 
     // 2. burn and remote unlock
-    const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, backingWallet);
-    const tx = await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.0"), mtfWallet);
-    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.0"), mtfWallet);
-    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.0"), mtfWallet);
-    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.0"), mtfWallet);
+    const tx = await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
+    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
+    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
+    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
     console.log(tx);
     */
+
+    const transferId = "0x726f6c69000000000000009e";
+    await remoteUnlockFailure(transferId, wethAddress, mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
 }
 
 main()

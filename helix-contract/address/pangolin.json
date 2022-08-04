@@ -1,7 +1,7 @@
 {
-    "S2sToPangoroEndpoint": "0xD881e8da61c3Af42724FF16B751CF7C565627c75",
-    "S2sFromPangoroIssuingLogic": "0x7Cb67148Be3f05e84FF44812b4c4E8694A999c9f",
-    "S2sFromPangoroIssuingAdmin": "0x8eAc653177c7aA200364993718c249E57E1C6A0e",
-    "S2sFromPangoroIssuingProxy": "0xDF0f067D367C379902a1efD38fcec68D238ae504",
-    "xWETH": "0x77ab273142610ff424142d973c618d5d2fca1086"
+    "S2sToPangoroEndpoint": "0x7b073Ac88977e20DB4907bdE5010a124A00cfD21",
+    "S2sFromPangoroIssuingLogic": "0x450Ef37584033E87fAdbbF1Df2f303C9002236a5",
+    "S2sFromPangoroIssuingAdmin": "0x408065400E855E1e325829b31BFb7e4a5022e331",
+    "S2sFromPangoroIssuingProxy": "0x0793e2726360224dA8cf781c048dF7acCa3Bb049",
+    "xWETH": "0xba01cfcad99c17dad9a859bd881dc99851faecf5"
 }

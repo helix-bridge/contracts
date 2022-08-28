@@ -49,7 +49,7 @@ contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
     }
 
     function _canBeExecuted(address callReceiver, bytes calldata) internal view override whenNotPaused returns (bool) {
-        return hasRole(CALLER_ROLE, callReceiver);
+        return hasRole(CALLEREE_ROLE, callReceiver);
     }
 }
 

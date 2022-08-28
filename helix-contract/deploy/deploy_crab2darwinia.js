@@ -8,7 +8,7 @@ async function deployMessageEndpoint(wallet) {
 }
 
 async function lockAndRemoteIssueNative(wethAddress, backingAddress, amount, wallet) {
-    const weth = await ethers.getContractAt("WETH9", wethAddress, wallet);
+    const weth = await ethers.getContractAt("WRING", wethAddress, wallet);
     await weth.deposit({value: amount});
     await weth.approve(backingAddress, amount);
     const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, wallet);
@@ -142,7 +142,7 @@ async function main() {
     console.log("finish to deploy mapping token factory proxy, address: ", mtfProxy.address);
 
     const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingProxy.address, backingWallet);
-    await backing.setChainName("Pangolin");
+    await backing.setChainName("Darwinia");
     await backing.setRemoteMappingTokenFactory(mtfProxy.address);
     console.log("finish to configure backing");
 
@@ -153,14 +153,16 @@ async function main() {
     console.log("finish to configure mapping token factory");
 
     await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLER_ROLE(), backing.address);
+    await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLEREE_ROLE(), backing.address);
     await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLER_ROLE(), mtf.address);
+    await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLEREE_ROLE(), mtf.address);
     await backing.grantRole(await backing.OPERATOR_ROLE(), "0x3fc22FAe77159D9253851f4c7fa99786DA041f43");
     console.log("grant role permission finished");
 
     // register special erc20 token
     //const backing = await ethers.getContractAt("Erc20Sub2SubBacking", "0x63359a0BB8eF1f6cD141761375D583eCefD5Ecfc", backingWallet);
     // native token weth
-    const wethContract = await ethers.getContractFactory("WETH9", backingWallet);
+    const wethContract = await ethers.getContractFactory("WRING", backingWallet);
     const weth = await wethContract.deploy();
     await weth.deployed();
     console.log("weth address is ", weth.address);
@@ -191,7 +193,7 @@ async function main() {
         await wait(3000);
         console.log("waiting bridger ...");
     }
-    await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);
+    //await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);
 
     // the deployed addresses
     /*
@@ -209,7 +211,7 @@ async function main() {
     await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
     await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
     console.log(tx);
-    //const weth = await ethers.getContractAt("WETH9", wethAddress, backingWallet);
+    //const weth = await ethers.getContractAt("WRING", wethAddress, backingWallet);
     //await weth.deposit({value: ethers.utils.parseEther("100")});
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
     console.log(await mtf.fee());

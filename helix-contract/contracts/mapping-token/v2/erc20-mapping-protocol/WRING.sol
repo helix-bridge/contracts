@@ -2,7 +2,7 @@
 
 pragma solidity ^0.4.18;
 
-contract WETH9 {
+contract WRING {
     string public name     = "Wrapped Ring";
     string public symbol   = "WRING";
     uint8  public decimals = 18;

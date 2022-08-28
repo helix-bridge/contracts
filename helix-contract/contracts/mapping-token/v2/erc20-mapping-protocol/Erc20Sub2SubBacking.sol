@@ -45,8 +45,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         chainName = _chainName;
     }
 
-    function changeDailyLimit(address mappingToken, uint amount) public onlyAdmin  {
-        _changeDailyLimit(mappingToken, amount);
+    function changeDailyLimit(address token, uint amount) public onlyAdmin  {
+        _changeDailyLimit(token, amount);
     }
 
     function setHelixFee(uint256 _helixFee) external onlyAdmin {

@@ -142,7 +142,7 @@ async function main() {
     console.log("finish to deploy mapping token factory proxy, address: ", mtfProxy.address);
 
     const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingProxy.address, backingWallet);
-    await backing.setChainName("Darwinia");
+    await backing.setChainName("Darwinia Smart");
     await backing.setRemoteMappingTokenFactory(mtfProxy.address);
     console.log("finish to configure backing");
 
@@ -195,11 +195,11 @@ async function main() {
     }
     //await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);
 
-    // the deployed addresses
     /*
-    const mtfAddress = "0x0793e2726360224dA8cf781c048dF7acCa3Bb049";
-    const backingAddress = "0x91Cdd894aD5cC203A026115B33e30670E5166504";
-    const wethAddress = "0x78f3B1ae818c304Bbec76e244B67dEdC70506006";
+    // the deployed addresses
+    const mtfAddress = "0x8738A64392b71617aF4C685d0E827855c741fDF7";
+    const backingAddress = "0xF3c1444CD449bD66Ef6DA7CA6c3E7884840A3995";
+    const wethAddress = "0xE7578598Aac020abFB918f33A20faD5B71d670b4";
 
     // 1. lock and remote issue
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);

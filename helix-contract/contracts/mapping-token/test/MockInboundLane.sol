@@ -2,9 +2,11 @@
 pragma solidity >=0.6.0;
 import "./MockMessageVerifier.sol";
 import "../interfaces/ICrossChainFilter.sol";
+import "../interfaces/IInboundLane.sol";
 import "hardhat/console.sol";
 
 contract MockInboundLane is MockMessageVerifier {
+    IInboundLane.InboundLaneNonce public inboundLaneNonce;
     constructor(
         uint32 _thisChainPosition,
         uint32 _thisLanePosition,
@@ -22,12 +24,13 @@ contract MockInboundLane is MockMessageVerifier {
         if (targetContract == address(0)) {
             return false;
         }
-        bool filter = ICrossChainFilter(targetContract).crossChainFilter(bridgedChainPosition, bridgedLanePosition, sender, encoded);
+        bool filter = ICrossChainFilter(targetContract).cross_chain_filter(bridgedChainPosition, bridgedLanePosition, sender, encoded);
         console.log("inbound filter return %s", filter);
 
         if (filter) {
             (bool result, ) = targetContract.call(encoded);
             console.log("inbound call return %s, target %s", result, targetContract);
+            inboundLaneNonce.last_delivered_nonce += 1;
             return result;
         }
         return false;

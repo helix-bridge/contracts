@@ -38,7 +38,6 @@ contract MockOutboundLane is MockMessageVerifier {
     function mock_confirm(uint64 _nonce) external {
         ConfirmInfo memory info = responses[_nonce];
         uint256 messageId = encodeMessageKey(_nonce);
-        IOnMessageDelivered(info.sender).on_messages_delivered(messageId, info.result);
         delete responses[_nonce];
     }
 }

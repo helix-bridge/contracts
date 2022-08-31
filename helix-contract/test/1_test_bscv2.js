@@ -45,13 +45,11 @@ describe("darwinia<>bsc mapping token tests", () => {
       // deploy darwiniaMessageEndpoint
       const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
       const darwiniaMessageEndpoint = await messageEndpointContract.deploy(
-          2,
           darwiniaInboundLane.address,
           darwiniaOutboundLane.address,
           feeMarket.address);
       await darwiniaMessageEndpoint.deployed();
       const bscMessageEndpoint = await messageEndpointContract.deploy(
-          1,
           bscInboundLane.address,
           bscOutboundLane.address,
           feeMarket.address
@@ -93,7 +91,6 @@ describe("darwinia<>bsc mapping token tests", () => {
       //********* configure backing **************************
       await backing.setRemoteMappingTokenFactory(mtf.address);
       await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
-      await backing.setChainName("Darwinia Smart");
       await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLER_ROLE(), backing.address);
       await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLEREE_ROLE(), backing.address);
       //********* configure backing end   ********************

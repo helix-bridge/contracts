@@ -10,7 +10,6 @@ import "../../interfaces/IMessageCommitment.sol";
 import "../../interfaces/IOutboundLane.sol";
 
 contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
-    uint32  immutable public remoteChainPosition;
     address immutable public inboundLane;
     address immutable public outboundLane;
     address immutable public feeMarket;
@@ -18,12 +17,10 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     address public remoteEndpoint;
 
     constructor(
-        uint32 _remoteChainPosition,
         address _inboundLane,
         address _outboundLane,
         address _feeMarket
     ) {
-        remoteChainPosition = _remoteChainPosition;
         inboundLane = _inboundLane;
         outboundLane = _outboundLane;
         feeMarket = _feeMarket;
@@ -31,15 +28,11 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     }
 
     modifier onlyInboundLane() {
-        (,,uint32 bridgedChainPosition, uint32 bridgedLanePosition) = IMessageCommitment(msg.sender).getLaneInfo();
-        require(remoteChainPosition == bridgedChainPosition, "DarwiniaSub2EthMessageEndpoint:Invalid bridged chain position");
         require(inboundLane == msg.sender, "DarwiniaSub2EthMessageEndpoint:caller is not the inboundLane account");
         _;
     }
 
     modifier onlyOutBoundLane() {
-        (,,uint32 bridgedChainPosition, uint32 bridgedLanePosition) = IMessageCommitment(msg.sender).getLaneInfo();
-        require(remoteChainPosition == bridgedChainPosition, "DarwiniaSub2EthMessageEndpoint:Invalid bridged chain position");
         require(outboundLane == msg.sender, "DarwiniaSub2EthMessageEndpoint:caller is not the outboundLane account");
         _;
     }
@@ -55,7 +48,7 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
         address sourceAccount,
         bytes calldata
     ) external view returns (bool) {
-        return remoteChainPosition == bridgedChainPosition && inboundLane == msg.sender && remoteEndpoint == sourceAccount;
+        return inboundLane == msg.sender && remoteEndpoint == sourceAccount;
     }
 
     function fee() public view returns(uint256) {

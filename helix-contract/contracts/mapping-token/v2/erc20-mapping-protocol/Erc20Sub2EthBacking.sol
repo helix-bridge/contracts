@@ -19,9 +19,6 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         bool hasRefundForFailed;
     }
     address public guard;
-    string public chainName;
-    uint256 public lastUnlockedTransferId;
-
     uint256 public helixFee;
 
     // (transferId => lockedInfo)
@@ -36,10 +33,6 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
     receive() external payable {
     }
 
-    function setChainName(string memory _chainName) external onlyAdmin {
-        chainName = _chainName;
-    }
-
     function changeDailyLimit(address mappingToken, uint amount) public onlyAdmin  {
         _changeDailyLimit(mappingToken, amount);
     }
@@ -50,6 +43,10 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
 
     function updateGuard(address newGuard) external onlyAdmin {
         guard = newGuard;
+    }
+
+    function fee() external view returns(uint256) {
+        return IHelixSub2EthMessageEndpoint(messageEndpoint).fee() + helixFee;
     }
 
     // we use messageId as transferId directly here

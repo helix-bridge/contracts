@@ -55,6 +55,10 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         _changeDailyLimit(mappingToken, amount);
     }
 
+    function fee() external view returns(uint256) {
+        return IHelixSub2EthMessageEndpoint(messageEndpoint).fee() + helixFee;
+    }
+
     function _sendMessage(bytes memory message) internal nonReentrant returns(uint256, uint256) {
         uint256 bridgeFee = IHelixSub2EthMessageEndpoint(messageEndpoint).fee();
         uint256 totalFee = bridgeFee + helixFee;

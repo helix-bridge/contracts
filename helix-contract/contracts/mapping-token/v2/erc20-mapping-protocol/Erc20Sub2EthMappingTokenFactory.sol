@@ -6,8 +6,8 @@
 pragma solidity ^0.8.10;
 
 import "@zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol";
+import "./Erc20.sol";
 import "../MappingTokenFactory.sol";
-import "../../darwinia/MappingERC20.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
@@ -89,13 +89,15 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     ) public onlyOperator whenNotPaused returns (address mappingToken) {
         bytes32 salt = keccak256(abi.encodePacked(remoteBacking, originalToken));
         require(salt2MappingToken[salt] == address(0), "MappingTokenFactory:contract has been deployed");
-        bytes memory bytecode = type(MappingERC20).creationCode;
-        mappingToken = _deploy(salt, bytecode);
-        MappingERC20(mappingToken).initialize(
-            string(abi.encodePacked(name, "[", bridgedChainName, ">")),
-            string(abi.encodePacked("x", symbol)),
-            decimals);
-
+        bytes memory bytecode = type(Erc20).creationCode;
+        bytes memory bytecodeWithInitdata = abi.encodePacked(
+            bytecode,
+            abi.encode(
+                string(abi.encodePacked(name, "[", bridgedChainName, ">")),
+                string(abi.encodePacked("x", symbol)),
+                decimals
+            ));
+        mappingToken = _deploy(salt, bytecodeWithInitdata);
         _addMappingToken(salt, originalToken, mappingToken);
         _changeDailyLimit(mappingToken, dailyLimit);
         emit IssuingERC20Created(originalToken, mappingToken);
@@ -120,11 +122,11 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:message has been accepted");
         BitMaps.set(issueMessages, transferId);
         if (guard != address(0)) {
-            MappingERC20(mappingToken).mint(address(this), amount);
+            Erc20(mappingToken).mint(address(this), amount);
             require(IERC20(mappingToken).approve(guard, amount), "MappingTokenFactory:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, mappingToken, recipient, amount);
         } else {
-            MappingERC20(mappingToken).mint(recipient, amount);
+            Erc20(mappingToken).mint(recipient, amount);
         }
     }
 
@@ -144,7 +146,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         require(originalToken != address(0), "MappingTokenFactory:token is not created by factory");
         // transfer to this and then burn
         require(IERC20(mappingToken).transferFrom(msg.sender, address(this), amount), "MappingTokenFactory:transfer token failed");
-        MappingERC20(mappingToken).burn(address(this), amount);
+        Erc20(mappingToken).burn(address(this), amount);
 
         bytes memory unlockFromRemote = abi.encodeWithSelector(
             IBacking.unlockFromRemote.selector,
@@ -205,7 +207,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         bytes32 messageHash = hash(abi.encodePacked(transferId, token, origin_sender, amount));
         require(burnInfo.hash == messageHash, "Backing:message is not matched");
         burnMessages[transferId].hasRefundForFailed = true;
-        MappingERC20(token).mint(origin_sender, amount);
+        Erc20(token).mint(origin_sender, amount);
         emit TokenRemintForFailed(transferId, token, origin_sender, amount);
     }
 

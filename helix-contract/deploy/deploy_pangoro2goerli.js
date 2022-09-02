@@ -165,7 +165,7 @@ async function main() {
     console.log("transaction is ", tx);
     */
 
-    await lockAndRemoteIssue(wethAddress, backingAddress, ethers.utils.parseEther("1.5"), backingWallet, "1000");
+    //await lockAndRemoteIssue(wethAddress, backingAddress, ethers.utils.parseEther("1.7"), backingWallet, "30");
 
     /*
     // the deployed addresses
@@ -176,18 +176,18 @@ async function main() {
     // 1. lock and remote issue
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
     await lockAndRemoteIssueNative(wethAddress, backingAddress, ethers.utils.parseEther("1.3"), backingWallet);
+    */
 
     // 2. burn and remote unlock
-    const tx = await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
-    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
-    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
-    await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
-    console.log(tx);
+    const tx = await burnAndRemoteUnlock(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet, "0.0001");
+    //await burnAndRemoteUnlock(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
+    //await burnAndRemoteUnlock(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
+    //await burnAndRemoteUnlock(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
+    //console.log(tx);
     //const weth = await ethers.getContractAt("WRING", wethAddress, backingWallet);
     //await weth.deposit({value: ethers.utils.parseEther("100")});
-    const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
-    console.log(await mtf.fee());
-    */
+    //const mtf = await ethers.getContractAt("Erc20Sub2EthMappingTokenFactory", mtfAddress, mtfWallet);
+    //console.log(await mtf.fee());
 
     //const transferId = "0x726f6c69000000000000009e";
     //await remoteUnlockFailure(transferId, wethAddress, mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);

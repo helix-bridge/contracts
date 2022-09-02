@@ -99,10 +99,9 @@ describe("darwinia<>bsc mapping token tests", () => {
       // use a mapping erc20 as original token
       const tokenName = "Darwinia Wrapped Ring";
       const tokenSymbol = "WRING";
-      const originalContract = await ethers.getContractFactory("MappingERC20");
-      const originalToken = await originalContract.deploy();
+      const originalContract = await ethers.getContractFactory("Erc20");
+      const originalToken = await originalContract.deploy(tokenName, tokenSymbol, 18);
       await originalToken.deployed();
-      await originalToken.initialize(tokenName, tokenSymbol, 18);
 
       const zeroAddress = "0x0000000000000000000000000000000000000000";
 
@@ -130,7 +129,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       expect(await originalToken.balanceOf(backing.address)).to.equal(100);
       expect(await originalToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // check issuing successed
-      var mappedToken = await ethers.getContractAt("MappingERC20", mappingTokenAddress);
+      var mappedToken = await ethers.getContractAt("Erc20", mappingTokenAddress);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(100);
 
       // test lock failed
@@ -224,10 +223,9 @@ describe("darwinia<>bsc mapping token tests", () => {
   it("test_bsc_guard", async function () {
       const tokenName = "Darwinia Native Ring";
       const tokenSymbol = "RING";
-      const originalContract = await ethers.getContractFactory("MappingERC20");
-      const originalToken = await originalContract.deploy();
+      const originalContract = await ethers.getContractFactory("Erc20");
+      const originalToken = await originalContract.deploy(tokenName, tokenSymbol, 9);
       await originalToken.deployed();
-      await originalToken.initialize(tokenName, tokenSymbol, 9);
       const [owner] = await ethers.getSigners();
       await originalToken.mint(owner.address, 1000);
 

@@ -37,6 +37,15 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     receive() external payable {
     }
 
+    modifier verifyRemoteUnlockFailure(uint256 transferId) {
+        // must not exist in successful issue list
+        require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
+        // must has been checked by message layer
+        bool messageChecked = IHelixSub2EthMessageEndpoint(messageEndpoint).isMessageDelivered(transferId);
+        require(messageChecked, "MappingTokenFactory:the message is not checked by message layer");
+        _;
+    }
+
     /**
      * @notice only admin can transfer the ownership of the mapping token from factory to other account
      * generally we should not do this. When we encounter a non-recoverable error, we temporarily transfer the privileges to a maintenance account.
@@ -174,8 +183,6 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         emit BurnAndRemoteUnlocked(transferId, msg.sender, recipient, mappingToken, amount, fee);
     }
 
-
-
     /**
      * @notice burn mapping token and unlock remote original native token
      * @param recipient the recipient of the remote unlocked token
@@ -221,14 +228,6 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         _burnAndRemoteUnlock(mappingToken, recipient, amount, unlockFromRemote);
     }
 
-    function _verifyRemoteUnlockFailure(uint256 transferId) internal {
-        // must not exist in successful issue list
-        require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
-        // must has been checked by message layer
-        bool messageChecked = IHelixSub2EthMessageEndpoint(messageEndpoint).isMessageDelivered(transferId);
-        require(messageChecked, "MappingTokenFactory:the message is not checked by message layer");
-    }
-
     /**
      * @notice send a unlock message to backing when issue mapping token faild to redeem original token.
      * @param originalToken the original token address
@@ -240,8 +239,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         address originalToken,
         address originalSender,
         uint256 amount
-    ) external payable whenNotPaused {
-        _verifyRemoteUnlockFailure(transferId);
+    ) external payable verifyRemoteUnlockFailure(transferId) whenNotPaused {
         bytes memory handleUnlockForFailed = abi.encodeWithSelector(
             IHelixAppSupportWithdrawFailed.handleUnlockFailureFromRemote.selector,
             transferId,
@@ -262,8 +260,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         uint256 transferId,
         address originalSender,
         uint256 amount
-    ) external payable whenNotPaused {
-        _verifyRemoteUnlockFailure(transferId);
+    ) external payable verifyRemoteUnlockFailure(transferId) whenNotPaused {
         bytes memory handleUnlockForFailedNative = abi.encodeWithSelector(
             IHelixAppSupportWithdrawFailed.handleUnlockFailureFromRemoteNative.selector,
             transferId,

@@ -334,6 +334,25 @@ describe("darwinia<>bsc mapping token tests", () => {
       const balance06 = await ethers.provider.getBalance(owner.address);
       expect(balance05.sub(balance06).sub(gasFee).sub(bridgeFee)).to.equal(0);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 + 100 - 30);
+
+      // test set mapping token directly
+      const erc20 = await ethers.getContractFactory("Erc20");
+      const testToken = await erc20.deploy("Setting Test Token", "STT", 18);
+      await testToken.deployed();
+      const testMappingToken = await erc20.deploy("Mapping Setting Test Token", "xSTT", 18);
+      await testMappingToken.deployed();
+      await mtf.setMappingToken(testToken.address, testMappingToken.address, 1000000);
+      await testToken.mint(owner.address, 100000);
+      await testToken.approve(backing.address, 1000000000);
+      await testMappingToken.transferOwnership(mtf.address);
+      //lock
+      await backing.lockAndRemoteIssuing(testToken.address, owner.address, 100, {value: ethers.utils.parseEther("10.0")});
+      expect(await testMappingToken.balanceOf(owner.address)).to.equal(100);
+      //burn
+      await backing.changeDailyLimit(testToken.address, 1000000);
+      await testMappingToken.approve(mtf.address, 1000000000);
+      await mtf.burnAndRemoteUnlock(testMappingToken.address, owner.address, 16, {value: ethers.utils.parseEther("10.0")});
+      expect(await testToken.balanceOf(owner.address)).to.equal(100000-100+16);
   });
   it("test_bsc_guard", async function () {
       const tokenName = "Darwinia Native Ring";

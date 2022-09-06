@@ -77,6 +77,24 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         return (transferId, totalFee);
     }
 
+    function _lockAndRemoteIssuing(
+        address token,
+        address recipient,
+        uint256 amount,
+        uint256 prepaid
+    ) internal {
+        bytes memory issueMappingToken = abi.encodeWithSelector(
+            IErc20MappingTokenFactory.issueMappingToken.selector,
+            token,
+            recipient,
+            amount
+        );
+        (uint256 transferId, uint256 fee) = _sendMessage(issueMappingToken, prepaid);
+        bytes32 lockMessageHash = hash(abi.encodePacked(transferId, token, msg.sender, amount));
+        lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
+        emit TokenLocked(transferId, token, msg.sender, recipient, amount, fee);
+    }
+
     /**
      * @notice lock original token and issuing mapping token from bridged chain
      * @dev maybe some tokens will take some fee when transfer
@@ -93,16 +111,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Backing:transfer tokens failed");
         uint256 balanceAfter = IERC20(token).balanceOf(address(this));
         require(balanceBefore.add(amount) == balanceAfter, "Backing:Transfer amount is invalid");
-        bytes memory issueMappingToken = abi.encodeWithSelector(
-            IErc20MappingTokenFactory.issueMappingToken.selector,
-            token,
-            recipient,
-            amount
-        );
-        (uint256 transferId, uint256 fee) = _sendMessage(issueMappingToken, msg.value);
-        bytes32 lockMessageHash = hash(abi.encodePacked(transferId, token, msg.sender, amount));
-        lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
-        emit TokenLocked(transferId, token, msg.sender, recipient, amount, fee);
+        _lockAndRemoteIssuing(token, recipient, amount, msg.value);
     }
 
     /**
@@ -117,16 +126,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
     ) external payable whenNotPaused {
         require(msg.value > amount, "Backing: msg.value must larger than amount");
         IWToken(wToken).deposit{value: amount}();
-        bytes memory issueMappingToken = abi.encodeWithSelector(
-            IErc20MappingTokenFactory.issueMappingToken.selector,
-            wToken,
-            recipient,
-            amount
-        );
-        (uint256 transferId, uint256 fee) = _sendMessage(issueMappingToken, msg.value - amount);
-        bytes32 lockMessageHash = hash(abi.encodePacked(transferId, wToken, msg.sender, amount));
-        lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
-        emit TokenLocked(transferId, wToken, msg.sender, recipient, amount, fee);
+        _lockAndRemoteIssuing(wToken, recipient, amount, msg.value - amount);
     }
 
     /**

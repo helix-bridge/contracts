@@ -27,12 +27,12 @@ contract MockOutboundLane is MockMessageVerifier {
         remoteInboundLane = _remoteInboundLane;
     }
 
-    function send_message(address targetContract, bytes calldata encoded) external payable returns (uint256) {
+    function send_message(address targetContract, bytes calldata encoded) external payable returns (uint64) {
         // call target contract
         bool result = MockInboundLane(remoteInboundLane).mock_dispatch(msg.sender, targetContract, encoded);
         nonce += 1;
         responses[nonce] = ConfirmInfo(msg.sender, result);
-        return encodeMessageKey(nonce);
+        return nonce;
     }
 
     function mock_confirm(uint64 _nonce) external {

@@ -17,7 +17,6 @@ import "../../interfaces/IMessageCommitment.sol";
 import "../../../utils/DailyLimit.sol";
 
 contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
-    address public constant BLACK_HOLE_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     struct BurnInfo {
         bytes32 hash;
         bool hasRefundForFailed;
@@ -25,6 +24,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     // guard
     address public guard;
     uint256 public helixFee;
+    address xwToken;
 
     mapping(uint256 => BurnInfo) burnMessages;
     BitMaps.BitMap issueMessages;
@@ -55,7 +55,16 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         _changeDailyLimit(mappingToken, amount);
     }
 
-    function fee() external view returns(uint256) {
+    // !!! admin must check the nonce of the newEndpoint is larger than the old one
+    function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
+        _setMessageEndpoint(_messageEndpoint);
+    }
+
+    function setxwToken(address _xwToken) external onlyAdmin {
+        xwToken = _xwToken;
+    }
+
+    function currentFee() external view returns(uint256) {
         return IHelixSub2EthMessageEndpoint(messageEndpoint).fee() + helixFee;
     }
 
@@ -73,7 +82,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     }
 
     /**
-     * @notice create new erc20 mapping contract, this can only be called by inboundLane
+     * @notice create new erc20 mapping contract, this can only be called by operator
      * @param originalToken the original token address
      * @param name the name of the original erc20 token
      * @param symbol the symbol of the original erc20 token
@@ -98,6 +107,24 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
                 decimals
             ));
         mappingToken = _deploy(salt, bytecodeWithInitdata);
+        _addMappingToken(salt, originalToken, mappingToken);
+        _changeDailyLimit(mappingToken, dailyLimit);
+        emit IssuingERC20Created(originalToken, mappingToken);
+    }
+
+    /**
+     * @notice set erc20 mapping contract directly, this can be only called by admin
+     * @param originalToken the original token address
+     * @param mappingToken the mapping token address of the original erc20 token
+     * @param dailyLimit the daily limit of the mapping erc20 token
+     */
+    function setMappingToken(
+        address originalToken,
+        address mappingToken,
+        uint256 dailyLimit
+    ) public onlyAdmin {
+        bytes32 salt = keccak256(abi.encodePacked(remoteBacking, originalToken));
+        require(salt2MappingToken[salt] == address(0), "MappingTokenFactory:contract has been deployed");
         _addMappingToken(salt, originalToken, mappingToken);
         _changeDailyLimit(mappingToken, dailyLimit);
         emit IssuingERC20Created(originalToken, mappingToken);
@@ -130,6 +157,46 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         }
     }
 
+    function _burnAndRemoteUnlock(
+        address mappingToken,
+        address recipient,
+        uint256 amount,
+        bytes memory remoteUnlockCall
+    ) internal whenNotPaused {
+        require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
+        // transfer to this and then burn
+        require(IERC20(mappingToken).transferFrom(msg.sender, address(this), amount), "MappingTokenFactory:transfer token failed");
+        Erc20(mappingToken).burn(address(this), amount);
+        (uint256 transferId, uint256 fee) = _sendMessage(remoteUnlockCall);
+        require(burnMessages[transferId].hash == bytes32(0), "MappingTokenFactory: message exist");
+        bytes32 messageHash = hash(abi.encodePacked(transferId, mappingToken, msg.sender, amount));
+        burnMessages[transferId] = BurnInfo(messageHash, false);
+        emit BurnAndRemoteUnlocked(transferId, msg.sender, recipient, mappingToken, amount, fee);
+    }
+
+
+
+    /**
+     * @notice burn mapping token and unlock remote original native token
+     * @param recipient the recipient of the remote unlocked token
+     * @param amount the amount of the burn and unlock
+     */
+    function burnAndRemoteUnlockNative(
+        address recipient,
+        uint256 amount
+    ) external payable whenNotPaused {
+        require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
+        address originalToken = mappingToken2OriginalToken[xwToken];
+        require(originalToken != address(0), "MappingTokenFactory:token is not created by factory");
+        bytes memory unlockFromRemoteNative = abi.encodeWithSelector(
+            IBackingSupportNative.unlockFromRemoteNative.selector,
+            recipient,
+            amount
+        );
+
+        _burnAndRemoteUnlock(xwToken, recipient, amount, unlockFromRemoteNative);
+    }
+
     /**
      * @notice burn mapping token and unlock remote original token
      * @param mappingToken the burt mapping token address
@@ -144,10 +211,6 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
         address originalToken = mappingToken2OriginalToken[mappingToken];
         require(originalToken != address(0), "MappingTokenFactory:token is not created by factory");
-        // transfer to this and then burn
-        require(IERC20(mappingToken).transferFrom(msg.sender, address(this), amount), "MappingTokenFactory:transfer token failed");
-        Erc20(mappingToken).burn(address(this), amount);
-
         bytes memory unlockFromRemote = abi.encodeWithSelector(
             IBacking.unlockFromRemote.selector,
             originalToken,
@@ -155,11 +218,15 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
             amount
         );
 
-        (uint256 transferId, uint256 fee) = _sendMessage(unlockFromRemote);
-        require(burnMessages[transferId].hash == bytes32(0), "MappingTokenFactory: message exist");
-        bytes32 messageHash = hash(abi.encodePacked(transferId, mappingToken, msg.sender, amount));
-        burnMessages[transferId] = BurnInfo(messageHash, false);
-        emit BurnAndRemoteUnlocked(transferId, msg.sender, recipient, mappingToken, amount, fee);
+        _burnAndRemoteUnlock(mappingToken, recipient, amount, unlockFromRemote);
+    }
+
+    function _verifyRemoteUnlockFailure(uint256 transferId) internal {
+        // must not exist in successful issue list
+        require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
+        // must has been checked by message layer
+        bool messageChecked = IHelixSub2EthMessageEndpoint(messageEndpoint).isMessageDelivered(transferId);
+        require(messageChecked, "MappingTokenFactory:the message is not checked by message layer");
     }
 
     /**
@@ -174,11 +241,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         address originalSender,
         uint256 amount
     ) external payable whenNotPaused {
-        // must not exist in successful issue list
-        require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
-        // must has been checked by message layer
-        bool messageChecked = IHelixSub2EthMessageEndpoint(messageEndpoint).isMessageDelivered(transferId);
-        require(messageChecked, "MappingTokenFactory:the message is not checked by message layer");
+        _verifyRemoteUnlockFailure(transferId);
         bytes memory handleUnlockForFailed = abi.encodeWithSelector(
             IHelixAppSupportWithdrawFailed.handleUnlockFailureFromRemote.selector,
             transferId,
@@ -188,6 +251,27 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         );
         (, uint256 fee) = _sendMessage(handleUnlockForFailed);
         emit RemoteUnlockFailure(transferId, originalToken, originalSender, amount, fee);
+    }
+
+    /**
+     * @notice send a unlock message to backing when issue mapping token faild to redeem original token.
+     * @param originalSender the originalSender of the remote unlocked token, must be the same as msg.send of the failed message.
+     * @param amount the amount of the failed issue token.
+     */
+    function remoteUnlockFailureNative(
+        uint256 transferId,
+        address originalSender,
+        uint256 amount
+    ) external payable whenNotPaused {
+        _verifyRemoteUnlockFailure(transferId);
+        bytes memory handleUnlockForFailedNative = abi.encodeWithSelector(
+            IHelixAppSupportWithdrawFailed.handleUnlockFailureFromRemoteNative.selector,
+            transferId,
+            originalSender,
+            amount
+        );
+        (, uint256 fee) = _sendMessage(handleUnlockForFailedNative);
+        emit RemoteUnlockFailure(transferId, xwToken, originalSender, amount, fee);
     }
 
     /**

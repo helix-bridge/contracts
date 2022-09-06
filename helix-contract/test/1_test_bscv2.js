@@ -99,9 +99,11 @@ describe("darwinia<>bsc mapping token tests", () => {
       // use a mapping erc20 as original token
       const tokenName = "Darwinia Wrapped Ring";
       const tokenSymbol = "WRING";
-      const originalContract = await ethers.getContractFactory("Erc20");
+      const originalContract = await ethers.getContractFactory("WToken");
       const originalToken = await originalContract.deploy(tokenName, tokenSymbol, 18);
       await originalToken.deployed();
+      // set it as wToken
+      await backing.setwToken(originalToken.address);
 
       const zeroAddress = "0x0000000000000000000000000000000000000000";
 
@@ -109,9 +111,10 @@ describe("darwinia<>bsc mapping token tests", () => {
       await mtf.register(originalToken.address, "Darwinia Smart", tokenName, tokenSymbol, 18, 1000);
       expect(await mtf.tokenLength()).to.equal(1);
       const mappingTokenAddress = await mtf.allMappingTokens(0);
+      mtf.setxwToken(mappingTokenAddress);
       
       // test lock
-      await originalToken.mint(owner.address, 1000);
+      await originalToken.deposit({value: 1000});
       await originalToken.approve(backing.address, 1000);
       
       // test lock successful
@@ -219,6 +222,118 @@ describe("darwinia<>bsc mapping token tests", () => {
 
       expect(await mappedToken.name()).to.equal(tokenName + "[Darwinia Smart>");
       expect(await mappedToken.symbol()).to.equal("x" + tokenSymbol);
+
+      // test native
+      await mtf.changeDailyLimit(mappingTokenAddress, 100000);
+      await backing.changeDailyLimit(originalToken.address, 100000);
+      // check the initial token balance
+      expect(await originalToken.balanceOf(owner.address)).to.equal(1000 - 100 + 21);
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21);
+      // lockNative
+      // fee 10ether + 100value > 10
+      await expect(backing.lockAndRemoteIssuingNative(
+          owner.address,
+          100,
+          {value: ethers.utils.parseEther("10")}
+      )).to.be.revertedWith("backing:the fee is not enough");
+      // lock success
+      var balanceInit = await ethers.provider.getBalance(owner.address);
+      const lockValue = 100;
+      const bridgeFee = ethers.utils.parseEther("10");
+      var transaction = await backing.lockAndRemoteIssuingNative(
+          owner.address,
+          lockValue,
+          {
+              value: bridgeFee.add(lockValue),
+              gasPrice: 20000000000,
+          }
+      );
+      const balance01 = await ethers.provider.getBalance(owner.address);
+      let receipt = await transaction.wait();
+      let gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
+      expect(balanceInit.sub(balance01).sub(gasFee).sub(bridgeFee).sub(lockValue)).to.equal(0);
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 + 100);
+      // burn success
+      balanceInit = await ethers.provider.getBalance(owner.address);
+      const burnValue = 30;
+      transaction = await mtf.burnAndRemoteUnlockNative(
+          owner.address,
+          burnValue,
+          {
+              value: bridgeFee,
+              gasPrice: 20000000000,
+          }
+      );
+      receipt = await transaction.wait();
+      gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
+      const balance02 = await ethers.provider.getBalance(owner.address);
+      expect(balanceInit.sub(balance02).sub(gasFee).sub(bridgeFee).add(burnValue)).to.equal(0);
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 + 100 - 30);
+      expect(await originalToken.balanceOf(owner.address)).to.equal(1000 - 100 + 21);
+
+      // test failure
+      await mtf.changeDailyLimit(mappingTokenAddress, 0);
+      await backing.changeDailyLimit(originalToken.address, 0);
+      // lock failed
+      balanceInit = await ethers.provider.getBalance(owner.address);
+      transaction = await backing.lockAndRemoteIssuingNative(
+          owner.address,
+          lockValue,
+          {
+              value: bridgeFee.add(lockValue),
+              gasPrice: 20000000000,
+          }
+      );
+      receipt = await transaction.wait();
+      gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
+      const balance03 = await ethers.provider.getBalance(owner.address);
+      expect(balanceInit.sub(balance03).sub(gasFee).sub(bridgeFee).sub(lockValue)).to.equal(0);
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 + 100 - 30);
+      // refund
+      transaction = await mtf.remoteUnlockFailureNative(
+          7,
+          owner.address,
+          lockValue,
+          {
+              value: bridgeFee,
+              gasPrice: 20000000000,
+          }
+      );
+      receipt = await transaction.wait();
+      gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
+      const balance04 = await ethers.provider.getBalance(owner.address);
+      expect(balance03.sub(balance04).sub(gasFee).sub(bridgeFee).add(lockValue)).to.equal(0);
+      // burn failed
+      balanceInit = await ethers.provider.getBalance(owner.address);
+      transaction = await mtf.burnAndRemoteUnlockNative(
+          owner.address,
+          burnValue,
+          {
+              value: bridgeFee,
+              gasPrice: 20000000000,
+          }
+      );
+      receipt = await transaction.wait();
+      gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
+      const balance05 = await ethers.provider.getBalance(owner.address);
+      expect(balance04.sub(balance05).sub(gasFee).sub(bridgeFee)).to.equal(0);
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 + 100 - 30 - burnValue);
+      // refund
+      transaction = await backing.remoteIssuingFailure(
+          8,
+          mappingTokenAddress,
+          owner.address,
+          burnValue,
+          {
+              value: bridgeFee,
+              gasPrice: 20000000000,
+          }
+      );
+      receipt = await transaction.wait();
+      gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
+      const balance06 = await ethers.provider.getBalance(owner.address);
+      expect(balance05.sub(balance06).sub(gasFee).sub(bridgeFee)).to.equal(0);
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 + 100 - 30);
   });
   it("test_bsc_guard", async function () {
       const tokenName = "Darwinia Native Ring";

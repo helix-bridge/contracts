@@ -20,7 +20,7 @@ async function lockAndRemoteIssue(tokenAddress, backingAddress, amount, wallet, 
 }
 
 async function burnAndRemoteUnlock(mappingTokenAddress, mtfAddress, amount, mtfWallet, fee) {
-    const mappingToken = await ethers.getContractAt("MappingERC20", mappingTokenAddress, mtfWallet);
+    const mappingToken = await ethers.getContractAt("Erc20", mappingTokenAddress, mtfWallet);
     await mappingToken.approve(mtfAddress, amount);
     const mtf = await ethers.getContractAt("Erc20Sub2EthMappingTokenFactory", mtfAddress, mtfWallet);
     return await mtf.burnAndRemoteUnlock(

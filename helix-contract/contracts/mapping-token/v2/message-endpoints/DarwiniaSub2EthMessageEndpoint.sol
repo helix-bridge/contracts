@@ -61,8 +61,8 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
             receiver,
             message
         );
-        uint256 id = IOutboundLane(outboundLane).send_message{value: msg.value}(remoteEndpoint, messageWithCaller);
-        return truncateNonce(id);
+        uint64 nonce = IOutboundLane(outboundLane).send_message{value: msg.value}(remoteEndpoint, messageWithCaller);
+        return uint256(nonce);
     }
 
     function recvMessage(
@@ -83,14 +83,6 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     function isMessageDelivered(uint256 messageId) public view returns (bool) {
         uint256 lastMessageId = lastDeliveredMessageId();
         return messageId <= lastMessageId;
-    }
-
-    function truncateNonce(uint256 id)
-        public
-        pure
-        returns (uint256)
-    {
-        return id & 0xFFFFFFFFFFFFFFFF;
     }
 }
 

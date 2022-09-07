@@ -43,7 +43,7 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
       //****** deploy fee market *****
 
       // deploy darwiniaMessageEndpoint
-      const messageEndpointContract = await ethers.getContractFactory("DarwiniaMessageEndpoint");
+      const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
       const darwiniaMessageEndpoint = await messageEndpointContract.deploy();
       await darwiniaMessageEndpoint.deployed();
       const bscMessageEndpoint = await messageEndpointContract.deploy();
@@ -112,7 +112,7 @@ describe("darwinia<>bsc erc721 mapping token tests", () => {
           monkeyAttrContractOnDarwinia.address,
           monkeyAttrContractOnBsc.address,
           {value: ethers.utils.parseEther("9.9999999999")}
-      )).to.be.revertedWith("DarwiniaMessageEndpoint:not enough fee to pay");
+      )).to.be.revertedWith("DarwiniaSub2EthMessageEndpoint:not enough fee to pay");
       // test register successed
       await backing.registerErc721Token(
           originalToken.address,

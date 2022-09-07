@@ -19,7 +19,6 @@ describe("darwinia<>bsc mapping token tests", () => {
       // darwinia outboundLanePosition 2 <-----> 2 inboundLanePosition  bsc
       // from darwinia to bsc
       
-      /*******      deploy inboundLane/outboundLane     ********/
       // deploy inboundLane
       const inboundLaneContract = await ethers.getContractFactory("MockInboundLane");
       const darwiniaInboundLane = await inboundLaneContract.deploy(1, 1, 2, 1);
@@ -34,13 +33,13 @@ describe("darwinia<>bsc mapping token tests", () => {
       const bscOutboundLane = await outboundLaneContract.deploy(2, 1, 1, 1, darwiniaInboundLane.address);
       await bscOutboundLane.deployed();
       console.log("deploy mock outboundLane success");
-      /******* deploy inboundLane/outboundLane finished ********/
+      //******* deploy inboundLane/outboundLane finished ********
 
       // deploy fee market
       const feeMarketContract = await ethers.getContractFactory("MockFeeMarket");
       const feeMarket = await feeMarketContract.deploy();
       await feeMarket.deployed();
-      /****** deploy fee market *****/
+      //****** deploy fee market *****
 
       // deploy darwiniaMessageEndpoint
       const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
@@ -55,13 +54,13 @@ describe("darwinia<>bsc mapping token tests", () => {
           feeMarket.address
       );
       await bscMessageEndpoint.deployed();
-      /******* deploy darwiniaMessageEndpoint ******/
+      //******* deploy darwiniaMessageEndpoint ******
       // configure darwiniaMessageEndpoint
       await darwiniaMessageEndpoint.setRemoteEndpoint(bscMessageEndpoint.address);
       await bscMessageEndpoint.setRemoteEndpoint(darwiniaMessageEndpoint.address);
       // end configure
 
-      /******* deploy mapping token factory at bsc *******/
+      //******* deploy mapping token factory at bsc *******
       // deploy mapping token factory
       const mapping_token_factory = await ethers.getContractFactory("Erc20Sub2EthMappingTokenFactory");
       const mtf = await mapping_token_factory.deploy();
@@ -69,21 +68,21 @@ describe("darwinia<>bsc mapping token tests", () => {
       console.log("mapping-token-factory address", mtf.address);
       // init owner
       await mtf.initialize(bscMessageEndpoint.address);
-      /******* deploy mapping token factory  end *******/
+      //******* deploy mapping token factory  end *******
 
-      /******* deploy backing at darwinia ********/
+      //******* deploy backing at darwinia ********
       backingContract = await ethers.getContractFactory("Erc20Sub2EthBacking");
       const backing = await backingContract.deploy();
       await backing.deployed();
       console.log("backing address", backing.address);
       // init owner
       await backing.initialize(darwiniaMessageEndpoint.address);
-      /******* deploy backing end ***************/
+      //******* deploy backing end ***************
 
       const [owner] = await ethers.getSigners();
       //********** configure mapping-token-factory ***********
       await bscMessageEndpoint.grantRole(bscMessageEndpoint.CALLER_ROLE(), mtf.address);
-      await bscMessageEndpoint.grantRole(bscMessageEndpoint.CALLEREE_ROLE(), mtf.address);
+      await bscMessageEndpoint.grantRole(bscMessageEndpoint.CALLEE_ROLE(), mtf.address);
       await mtf.setRemoteBacking(backing.address);
       await mtf.grantRole(mtf.OPERATOR_ROLE(), owner.address);
       //************ configure mapping-token end *************
@@ -92,7 +91,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       await backing.setRemoteMappingTokenFactory(mtf.address);
       await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
       await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLER_ROLE(), backing.address);
-      await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLEREE_ROLE(), backing.address);
+      await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLEE_ROLE(), backing.address);
       //********* configure backing end   ********************
       console.log("configure backing finished");
 
@@ -384,17 +383,17 @@ describe("darwinia<>bsc mapping token tests", () => {
       const structHash =
           ethUtil.keccak256(
               abi.rawEncode(
-                  ['bytes4', 'bytes', 'uint256'],
-                  [abi.methodID('claim', [ 'uint256[]', 'bytes[]' ]),
-                  abi.rawEncode(['uint256[]'], [[1, 2]]),
-                  0]
+                  ['bytes4', 'bytes'],
+                  [abi.methodID('claim', [ 'uint256', 'bytes[]' ]),
+                  abi.rawEncode(['uint256'], [1])
+                  ]
               )
           );
+
       // cannot claim without signatures
       await expect(guard.claimByTimeout(2)).to.be.revertedWith("Guard: claim at invalid time");
 
       const dataHash = await guard.encodeDataHash(structHash);
-      console.log("data hash", dataHash);
       const signatures = wallets.map((wallet) => {
           const address = wallet.address;
           const privateKey = ethers.utils.arrayify(wallet.privateKey);
@@ -405,9 +404,10 @@ describe("darwinia<>bsc mapping token tests", () => {
           );
           return ethers.utils.hexlify(signature);
       });
-      await guard.claim([1, 2], signatures);
+      await guard.claim(1, signatures);
       expect(await originalToken.balanceOf(wallets[1].address)).to.equal(100);
-      expect(await originalToken.balanceOf(wallets[2].address)).to.equal(200);
+      await expect(guard.claim(1, signatures)).to.be.revertedWith("Guard: Invalid id to claim");
+      await expect(guard.claim(2, signatures)).to.be.revertedWith("Guard: Invalid guard provided");
   });
 });
 

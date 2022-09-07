@@ -61,15 +61,16 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
             receiver,
             message
         );
-        uint64 nonce = IOutboundLane(outboundLane).send_message{value: msg.value}(remoteEndpoint, messageWithCaller);
-        return uint256(nonce);
+        IOutboundLane(outboundLane).send_message{value: msg.value}(remoteEndpoint, messageWithCaller);
+        IOutboundLane.OutboundLaneNonce memory outboundLaneNonce = IOutboundLane(outboundLane).outboundLaneNonce();
+        return outboundLaneNonce.latest_generated_nonce;
     }
 
     function recvMessage(
         address receiver,
         bytes calldata message
     ) external onlyInboundLane whenNotPaused {
-        require(hasRole(CALLEREE_ROLE, receiver), "DarwiniaSub2EthMessageEndpoint:receiver is not calleree");
+        require(hasRole(CALLEE_ROLE, receiver), "DarwiniaSub2EthMessageEndpoint:receiver is not callee");
         (bool result,) = receiver.call(message);
         require(result, "DarwiniaSub2EthMessageEndpoint:call app failed");
     }
@@ -77,7 +78,7 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     // we use nonce as message id
     function lastDeliveredMessageId() public view returns(uint256) {
         IInboundLane.InboundLaneNonce memory inboundLaneNonce = IInboundLane(inboundLane).inboundLaneNonce();
-        return uint256(inboundLaneNonce.last_delivered_nonce);
+        return inboundLaneNonce.last_delivered_nonce;
     }
 
     function isMessageDelivered(uint256 messageId) public view returns (bool) {

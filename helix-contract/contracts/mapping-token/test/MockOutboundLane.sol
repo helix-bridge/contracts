@@ -3,15 +3,15 @@ pragma solidity >=0.6.0;
 import "./MockMessageVerifier.sol";
 import "./MockInboundLane.sol";
 import "../interfaces/IOnMessageDelivered.sol";
+import "../interfaces/IOutboundLane.sol";
 
 contract MockOutboundLane is MockMessageVerifier {
+    IOutboundLane.OutboundLaneNonce public outboundLaneNonce;
     struct ConfirmInfo {
         address sender;
         bool result;
     }
     address remoteInboundLane;
-    uint64 public nonce = 0;
-    mapping(uint64 => ConfirmInfo) responses;
     constructor(
         uint32 _thisChainPosition,
         uint32 _thisLanePosition,
@@ -27,18 +27,11 @@ contract MockOutboundLane is MockMessageVerifier {
         remoteInboundLane = _remoteInboundLane;
     }
 
-    function send_message(address targetContract, bytes calldata encoded) external payable returns (uint64) {
+    function send_message(address targetContract, bytes calldata encoded) external payable returns (uint256) {
         // call target contract
         bool result = MockInboundLane(remoteInboundLane).mock_dispatch(msg.sender, targetContract, encoded);
-        nonce += 1;
-        responses[nonce] = ConfirmInfo(msg.sender, result);
-        return nonce;
-    }
-
-    function mock_confirm(uint64 _nonce) external {
-        ConfirmInfo memory info = responses[_nonce];
-        uint256 messageId = encodeMessageKey(_nonce);
-        delete responses[_nonce];
+        outboundLaneNonce.latest_generated_nonce += 1;
+        return outboundLaneNonce.latest_generated_nonce;
     }
 }
  

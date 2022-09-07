@@ -84,18 +84,12 @@ contract Guard is GuardRegistry, Pausable {
 
     /**
       * @dev claim the tokens in the contract saved by deposit, this acquire signatures from guards
-      * @param ids the array of the id to be claimed
+      * @param id the id to be claimed
       * @param signatures the signatures of the guards which to claim tokens.
       */
-    function claim(uint256[] memory ids, bytes[] memory signatures) public {
-        verifyGuardSignatures(msg.sig, abi.encode(ids), signatures);
-        for (uint idx = 0; idx < ids.length; idx++) {
-            uint256 id = ids[idx];
-            DepositInfo memory info = depositors[id];
-            if (info.amount > 0) {
-                claimById(id);
-            }
-        }
+    function claim(uint256 id, bytes[] memory signatures) public {
+        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(id), signatures);
+        claimById(id);
     }
 
     /**

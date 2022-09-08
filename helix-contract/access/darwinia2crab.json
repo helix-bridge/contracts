@@ -1,0 +1,36 @@
+{
+    "Crab": [
+        {
+            "Description": "Erc20Sub2SubMappingTokenFactory Admin Role Renounce",
+            "ContractAddress": "0x8738a64392b71617af4c685d0e827855c741fdf7",
+            "Transaction": "https://subview.xyz/tx/0x298a6128feb7351afcd5614872517ec688242e71161a350c2d6d806562ac20b1"
+        },
+        {
+            "Description": "DarwiniaSub2SubMessageEndpoint Admin Role Renounce",
+            "ContractAddress": "0xf18d136b0ae173a1fc361e5367e3de6128c2ee5d",
+            "Transaction": "https://subview.xyz/tx/0x345614d02175aa5848856367543173f9e8af1dc78c4db43025e8a461cf034704"
+        },
+        {
+            "Description": "Erc20Sub2SubMappingTokenFactory ProxyAdmin Ownership Transfer",
+            "ContractAddress": "0x9FA16146BA5b7d144927E46acd9ba143f7205Fc8",
+            "Transaction": "https://subview.xyz/tx/0x1d3eb9c3bad087a972c7afdfae6a51b7284244eff1cb3112085e981cd3ddfb86"
+        }
+    ],
+    "Darwinia": [
+        {
+            "Description": "Erc20Sub2SubBacking Admin Role Renounce",
+            "ContractAddress": "0xF3c1444CD449bD66Ef6DA7CA6c3E7884840A3995",
+            "Transation": "https://darwinia.subview.xyz/tx/0x11c8197f0d0e56ef90992ed3064510e6b8926fa9dd8d87563148a24b0593dda3"
+        },
+        {
+            "Description": "DarwiniaSub2SubMessageEndpoint Admin Role Renounce",
+            "ContractAddress": "0xBEE2395D630a5821204B7c60b00C659D0893BE46",
+            "Transation": "https://darwinia.subview.xyz/tx/0xdeb36e6555d6323ca2970f3e2e3e49cf54a9db179232facdf8cab6877ee6c842"
+        },
+        {
+            "Description": "Erc20Sub2SubBacking ProxyAdmin Ownership Transfer",
+            "ContractAddress": "0x91331B6Dd589163aF02Fb13E0466c3ba10eE310f",
+            "Transaction": "https://darwinia.subview.xyz/tx/0x9ed62949e95c561e9cb4a66d53e0b31e1a66fd14cd9d8399bb997d2bcb73ed4f"
+        }
+    ]
+}

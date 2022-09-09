@@ -7,11 +7,10 @@
         "WETH": "0x78f3B1ae818c304Bbec76e244B67dEdC70506006"
     },
     "Pangoro2Goerli-Sub2Eth": {
-        "MessageEndpoint": "0xc7b061F80e89C40a656e3f2511239059918bd63F",
-        "BackingLogic": "0x5c938FfdDf485FE1a1a30A9f5b153C14820D0E97",
-        "BackingAdmin": "0x7d7f19448d02BeFdaAFf613CE2EdC9Fc9a4bc8be",
-        "BackingProxy": "0x80Dce54b6d8f72FDad004068f9375E61e09fDd9f",
-        "WRING": "0x83718E0810c1346C55e853cC4F153F29148dE5Ce"
+        "MessageEndpoint": "0x108F42d2eC40F4a6847cAbD6B218a675A73176Ba",
+        "BackingLogic": "0x5Db4b26722182e2235832aF4BAFC29D6Bf8138C4",
+        "BackingAdmin": "0xD9015b1b9fDba6bB07b6dD2722368A069f5eE489",
+        "BackingProxy": "0x80f20ab3E545FB0DbE951734541E7256D786E3aB",
+        "WRING": "0xaFA68E0F5B89ccAB20D785025482475C66ef2aC5"
     }
 }
-

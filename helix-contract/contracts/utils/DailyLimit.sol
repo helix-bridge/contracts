@@ -11,6 +11,9 @@ contract DailyLimit {
     mapping(address => uint) public lastDay;
     mapping(address => uint) public spentToday;
 
+    uint constant public SPEND_BIT_LENGTH = 196;
+    uint constant public LASTDAY_BIT_LENGTH = 64;
+
     /// ==== Internal functions ==== 
 
     /// @dev Contract constructor sets initial owners, required number of confirmations and daily mint limit.
@@ -19,6 +22,7 @@ contract DailyLimit {
     function _setDailyLimit(address _token, uint _dailyLimit)
         internal
     {
+        require(_dailyLimit < (1 << SPEND_BIT_LENGTH), "DailyLimt: can't set exceed max_uint128");
         dailyLimit[_token] = _dailyLimit;
     }
 
@@ -28,6 +32,7 @@ contract DailyLimit {
     function _changeDailyLimit(address _token, uint _dailyLimit)
         internal
     {
+        require(_dailyLimit < (1 << SPEND_BIT_LENGTH), "DailyLimt: can't set exceed max_uint128");
         dailyLimit[_token] = _dailyLimit;
         emit DailyLimitChange(_token, _dailyLimit);
     }
@@ -38,28 +43,16 @@ contract DailyLimit {
     function expendDailyLimit(address token, uint amount)
         internal
     {
-        require(isUnderDailyLimit(token, amount), "DailyLimit:: expendDailyLimit: Out ot daily limit.");
-        spentToday[token] += amount;
-    }
-
-    /// @dev Returns if amount is within daily limit and resets spentToday after one day.
-    /// @param token Token address.
-    /// @param amount Amount to calc.
-    /// @return Returns if amount is under daily limit.
-    function isUnderDailyLimit(address token, uint amount)
-        internal
-        returns (bool)
-    {
-        if (block.timestamp > lastDay[token] + 24 hours) {
-            lastDay[token] = block.timestamp;
-            spentToday[token] = 0;
+        uint spentInfo = spentToday[token];
+        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
+        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
+        if (block.timestamp > lastday + 24 hours) {
+            require(amount <= dailyLimit[token], "DailyLimit: amount exceed daily limit");
+            spentToday[token] = (block.timestamp << SPEND_BIT_LENGTH) + amount;
+            return;
         }
-
-        if (spentToday[token] + amount > dailyLimit[token] || spentToday[token] + amount < spentToday[token]) {
-          return false;
-        }
-            
-        return true;
+        require(lastspent + amount <= dailyLimit[token] && amount <= dailyLimit[token], "DailyLimit: exceed daily limit");
+        spentToday[token] = spentInfo + amount;
     }
 
     /// ==== Web3 call functions ==== 
@@ -72,14 +65,17 @@ contract DailyLimit {
         view
         returns (uint)
     {
-        if (block.timestamp > lastDay[token] + 24 hours) {
+        uint spentInfo = spentToday[token];
+        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
+        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
+        if (block.timestamp > lastday + 24 hours) {
           return dailyLimit[token];
         }
 
-        if (dailyLimit[token] < spentToday[token]) {
+        if (dailyLimit[token] < lastspent) {
           return 0;
         }
 
-        return dailyLimit[token] - spentToday[token];
+        return dailyLimit[token] - lastspent;
     }
 }

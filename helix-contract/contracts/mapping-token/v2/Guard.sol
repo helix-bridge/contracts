@@ -10,14 +10,7 @@ import "../../utils/Pausable.sol";
 contract Guard is GuardRegistry, Pausable {
     using SafeMath for uint256;
 
-    struct DepositInfo {
-        address token;
-        address recipient;
-        uint256 amount;
-        uint256 timestamp;
-    }
-
-    mapping(uint256 => DepositInfo) depositors;
+    mapping(uint256 => bytes32) depositors;
 
     uint256 public maxUnclaimableTime;
     address public depositor;
@@ -63,21 +56,26 @@ contract Guard is GuardRegistry, Pausable {
       * @param recipient the recipient of the token
       * @param amount the amount of the token
       */
-    function deposit(uint256 id, address token, address recipient, uint256 amount) public onlyDepositor whenNotPaused {
-        require(depositors[id].amount == 0, "Guard: the asset exist");
-        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
-        require(IERC20(token).transferFrom(msg.sender, address(this), amount), "AssetStore: deposit transfer failed");
-        uint256 balanceAfter = IERC20(token).balanceOf(address(this));
-        require(balanceBefore.add(amount) == balanceAfter, "Guard:Transfer amount is invalid");
-
-        depositors[id] = DepositInfo(token, recipient, amount, block.timestamp);
+    function deposit(
+        uint256 id,
+        address token,
+        address recipient,
+        uint256 amount
+    ) public onlyDepositor whenNotPaused {
+        depositors[id] = hash(abi.encodePacked(block.timestamp, token, recipient, amount));
         emit TokenDeposit(id, token, recipient, amount);
     }
 
-    function claimById(uint256 id) internal whenNotPaused {
-        DepositInfo memory info = depositors[id];
-        require(info.amount > 0, "Guard: Invalid id to claim");
-        require(IERC20(info.token).transfer(info.recipient, info.amount), "Guard: claim token failed");
+    function claimById(
+        uint256 id,
+        uint256 timestamp,
+        address token,
+        address recipient,
+        uint256 amount
+    ) internal whenNotPaused {
+        require(hash(abi.encodePacked(timestamp, token, recipient, amount)) == depositors[id], "Guard: Invalid id to claim");
+        require(amount > 0, "Guard: Invalid amount to claim");
+        require(IERC20(token).transfer(recipient, amount), "Guard: claim token failed");
         delete depositors[id];
         emit TokenClaimed(id);
     }
@@ -87,19 +85,35 @@ contract Guard is GuardRegistry, Pausable {
       * @param id the id to be claimed
       * @param signatures the signatures of the guards which to claim tokens.
       */
-    function claim(uint256 id, bytes[] memory signatures) public {
-        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(id), signatures);
-        claimById(id);
+    function claim(
+        uint256 id,
+        uint256 timestamp,
+        address token,
+        address recipient,
+        uint256 amount,
+        bytes[] memory signatures
+    ) public {
+        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(id, timestamp, token, recipient, amount), signatures);
+        claimById(id, timestamp, token, recipient, amount);
     }
 
     /**
       * @dev claim the tokens without signatures, this only allowed when timeout
       * @param id the id to be claimed
       */
-    function claimByTimeout(uint256 id) public {
-        DepositInfo memory info = depositors[id];
-        require(info.timestamp < block.timestamp && block.timestamp - info.timestamp > maxUnclaimableTime, "Guard: claim at invalid time");
-        claimById(id);
+    function claimByTimeout(
+        uint256 id,
+        uint256 timestamp,
+        address token,
+        address recipient,
+        uint256 amount
+    ) public {
+        require(timestamp < block.timestamp && block.timestamp - timestamp > maxUnclaimableTime, "Guard: claim at invalid time");
+        claimById(id, timestamp, token, recipient, amount);
+    }
+
+    function hash(bytes memory value) public pure returns (bytes32) {
+        return sha256(value);
     }
 }
 

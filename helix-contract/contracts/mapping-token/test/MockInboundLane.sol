@@ -35,5 +35,9 @@ contract MockInboundLane is MockMessageVerifier {
         }
         return false;
     }
+
+    function test_dispatch(address targetContract, bytes calldata encoded) external {
+        targetContract.call(encoded);
+    }
 }
  

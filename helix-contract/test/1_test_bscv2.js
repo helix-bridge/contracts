@@ -7,6 +7,12 @@ const secp256k1 = require('secp256k1');
 
 chai.use(solidity);
 
+async function getBlockTimestamp() {
+    const blockNumber = await ethers.provider.getBlockNumber();
+    const block = await ethers.provider.getBlock(blockNumber);
+    return block.timestamp;
+}
+
 describe("darwinia<>bsc mapping token tests", () => {
   before(async () => {
   });
@@ -371,27 +377,37 @@ describe("darwinia<>bsc mapping token tests", () => {
       wallets = wallets.sort((x, y) => {
           return x.address.toLowerCase().localeCompare(y.address.toLowerCase())
       });
+      console.log(wallets[0].address, wallets[1].address, wallets[2].address);
       const guardContract = await ethers.getContractFactory("Guard");
       const guard = await guardContract.deploy([wallets[0].address, wallets[1].address, wallets[2].address], 3, 60, owner.address);
       await guard.deployed();
 
       await originalToken.approve(guard.address, 1000);
+      await originalToken.transfer(guard.address, 300);
       await guard.deposit(1, originalToken.address, wallets[1].address, 100);
+      const timestamp01 = await getBlockTimestamp();
       await guard.deposit(2, originalToken.address, wallets[2].address, 200);
+      const timestamp02 = await getBlockTimestamp();
 
       // encode value
       const structHash =
           ethUtil.keccak256(
               abi.rawEncode(
                   ['bytes4', 'bytes'],
-                  [abi.methodID('claim', [ 'uint256', 'bytes[]' ]),
-                  abi.rawEncode(['uint256'], [1])
+                  [abi.methodID('claim', [ 'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
+                  abi.rawEncode(['uint256', 'uint256', 'address', 'address', 'uint256'],
+                      [1, timestamp01, originalToken.address, wallets[1].address, 100])
                   ]
               )
           );
 
       // cannot claim without signatures
-      await expect(guard.claimByTimeout(2)).to.be.revertedWith("Guard: claim at invalid time");
+      await expect(guard.claimByTimeout(
+          2,
+          timestamp01,
+          originalToken.address,
+          wallets[1].address,
+          100)).to.be.revertedWith("Guard: claim at invalid time");
 
       const dataHash = await guard.encodeDataHash(structHash);
       const signatures = wallets.map((wallet) => {
@@ -404,10 +420,58 @@ describe("darwinia<>bsc mapping token tests", () => {
           );
           return ethers.utils.hexlify(signature);
       });
-      await guard.claim(1, signatures);
+      await guard.claim(1, timestamp01, originalToken.address, wallets[1].address, 100, signatures);
       expect(await originalToken.balanceOf(wallets[1].address)).to.equal(100);
-      await expect(guard.claim(1, signatures)).to.be.revertedWith("Guard: Invalid id to claim");
-      await expect(guard.claim(2, signatures)).to.be.revertedWith("Guard: Invalid guard provided");
+      await expect(guard.claim(1, timestamp01, originalToken.address, wallets[1].address, 100, signatures)).to.be.revertedWith("Guard: Invalid id to claim");
+      await expect(guard.claim(2, timestamp02, originalToken.address, wallets[2].address, 200, signatures)).to.be.revertedWith("Guard: Invalid guard provided");
+  });
+
+  it("test_gas", async function () {
+      const tokenName = "Darwinia Native Ring";
+      const tokenSymbol = "RING";
+      const originalContract = await ethers.getContractFactory("Erc20");
+      const originalToken = await originalContract.deploy(tokenName, tokenSymbol, 9);
+      await originalToken.deployed();
+      const [owner] = await ethers.getSigners();
+      await originalToken.mint(owner.address, 1000);
+
+      const inboundLaneContract = await ethers.getContractFactory("MockInboundLane");
+      const darwiniaInboundLane = await inboundLaneContract.deploy(1, 1, 2, 1);
+      await darwiniaInboundLane.deployed();
+
+      const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
+      const darwiniaMessageEndpoint = await messageEndpointContract.deploy(
+          darwiniaInboundLane.address,
+          owner.address,
+          owner.address);
+      await darwiniaMessageEndpoint.deployed();
+
+      const mapping_token_factory = await ethers.getContractFactory("Erc20Sub2EthMappingTokenFactory");
+      const mtf = await mapping_token_factory.deploy();
+      await mtf.deployed();
+      await mtf.initialize(darwiniaMessageEndpoint.address);
+
+      await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLEE_ROLE(), mtf.address);
+      await darwiniaMessageEndpoint.grantRole(darwiniaMessageEndpoint.CALLER_ROLE(), mtf.address);
+      await mtf.grantRole(mtf.OPERATOR_ROLE(), owner.address);
+      await mtf.register(originalToken.address, "Darwinia Smart", tokenName, tokenSymbol, 18, 1000);
+      expect(await mtf.tokenLength()).to.equal(1);
+      const mappingTokenAddress = await mtf.allMappingTokens(0);
+      mtf.setxwToken(mappingTokenAddress);
+
+      const guardContract = await ethers.getContractFactory("Guard");
+      const guard = await guardContract.deploy([owner.address], 1, 60, mtf.address);
+      await guard.deployed();
+
+      await mtf.updateGuard(guard.address);
+
+      var recv = abi.simpleEncode("issueMappingToken(address,address,uint256)", originalToken.address, owner.address, 100);
+      var encoded = abi.simpleEncode("recvMessage(address,bytes)", mtf.address, recv);
+      const tx = await darwiniaInboundLane.test_dispatch(
+          darwiniaMessageEndpoint.address,
+          encoded);
+      let receipt = await tx.wait();
+      console.log(receipt.cumulativeGasUsed);
   });
 });
 

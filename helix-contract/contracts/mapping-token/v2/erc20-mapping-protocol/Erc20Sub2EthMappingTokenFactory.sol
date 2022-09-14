@@ -158,8 +158,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:message has been accepted");
         BitMaps.set(issueMessages, transferId);
         if (guard != address(0)) {
-            Erc20(mappingToken).mint(address(this), amount);
-            require(IERC20(mappingToken).approve(guard, amount), "MappingTokenFactory:approve token transfer to guard failed");
+            Erc20(mappingToken).mint(guard, amount);
             IGuard(guard).deposit(transferId, mappingToken, recipient, amount);
         } else {
             Erc20(mappingToken).mint(recipient, amount);

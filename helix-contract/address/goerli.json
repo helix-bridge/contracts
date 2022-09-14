@@ -1,9 +1,11 @@
 {
     "Pangoro2Goerli-Sub2Eth": {
-        "MessageEndpoint": "0xF4ffbd8116811A0c5debe0dBDF7a0E0BB6d8BFD1",
-        "MappingTokenFactoryLogic": "0xa357204f1f6CddF68Ac045257F908899f0b5C611",
-        "MappingTokenFactoryAdmin": "0x69A4235f47bB1cE53cc73fF6950ea25f96564361",
-        "MappingTokenFactoryProxy": "0x9f57dABa8d840035ab8c788Ba0469aCB9C41c0Fc",
-        "RING": "0xA9782241FF364b3bC0ceF10A7e3aCAbB01072e5d"
+        "MessageEndpoint": "0xeBccceaf024649b535cf337b4c3bC569490FEe0E",
+        "MappingTokenFactoryLogic": "0x957eDBbe60146300Fea3fB5e1cC0E74De0904889",
+        "MappingTokenFactoryAdmin": "0x389F3dE1AAA01185F800103F519343a8aCe19490",
+        "MappingTokenFactoryProxy": "0x3616439290D95Ca511606B70cB652e1A83321258",
+        "RING": "0x873084Ebb655701Bc7Ad2B09A2Fd48C1A0a07b65",
+        "GUARD": "0xb10666299137311A443C0e0964a34895D8fDc294"
     }
 }
+

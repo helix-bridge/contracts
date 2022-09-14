@@ -28,9 +28,9 @@ contract MockInboundLane is MockMessageVerifier {
         console.log("inbound filter return %s", filter);
 
         if (filter) {
+            inboundLaneNonce.last_delivered_nonce += 1;
             (bool result, ) = targetContract.call(encoded);
             console.log("inbound call return %s, target %s", result, targetContract);
-            inboundLaneNonce.last_delivered_nonce += 1;
             return result;
         }
         return false;

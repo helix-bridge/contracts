@@ -1,0 +1,17 @@
+{
+    "darwinia2crab-sub2sub-darwinia": {
+        "endpoint": "0xBEE2395D630a5821204B7c60b00C659D0893BE46",
+        "backingLogic": "0x4F991a06475d0665C108B47BFd3d527c82875EB9",
+        "backingAdmin": "0x91331B6Dd589163aF02Fb13E0466c3ba10eE310f",
+        "backingProxy": "0xF3c1444CD449bD66Ef6DA7CA6c3E7884840A3995",
+        "WRING": "0xE7578598Aac020abFB918f33A20faD5B71d670b4"
+    },
+    "darwinia2crab-sub2sub-crab": {
+        "endpoint": "0xf18D136b0AE173A1fC361E5367e3dE6128c2Ee5D",
+        "mappingTokenFactoryLogic": "0xb27c172b62f84aE39C1854616F28C5a18f31192e",
+        "mappingTokenFactoryAdmin": "0x9FA16146BA5b7d144927E46acd9ba143f7205Fc8",
+        "mappingTokenFactoryProxy": "0x8738A64392b71617aF4C685d0E827855c741fDF7",
+        "xWRING": "0x273131F7CB50ac002BDd08cA721988731F7e1092",
+        "xRINGMigrate": "0xdED6Edd731f5F59fEB2555Ec3f1b6C085Dc6E42E"
+    }
+}

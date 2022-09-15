@@ -1,0 +1,17 @@
+{
+  pangoro2goerli_sub2eth_goerli: {
+    "messageEndpoint": "0x01d59f6c3537b0D02a13f608b46194dc0b6A564D",
+    "mappingTokenFactoryLogic": "0x86c8659D0296C4f65B8D5b74B3C9b9e9eF21d400",
+    "mappingTokenFactoryAdmin": "0x3F1E1DFcC0E7FF0d48D57Be6EB8e014cBbfc687E",
+    "mappingTokenFactoryProxy": "0x99EEC38BF4967BeA209B5A5D366aFB287722Ec69",
+    "ring": "0x69e392E057B5994da2b0E9661039970Ac4c26b8c",
+    "guard": "0xCaaE893257366c866a82BAbDe85320b9123B829f"
+  },
+  pangoro2goerli_sub2eth_pangoro: {
+    "messageEndpoint": "0x8d6E20b69Fcc254A5d5197B52963c7166b5090D6",
+    "backingLogic": "0x2C3832165C8c79D225Afe5629F3642657A1c7f6F",
+    "backingAdmin": "0x0C2f3588B95A818FA2e11822ffE10a8145fF9e1A",
+    "backingProxy": "0x448ee34f0F552eAd97a1B63aD6da9734f555919A",
+    "WRING": "0x69e392E057B5994da2b0E9661039970Ac4c26b8c"
+  }
+}

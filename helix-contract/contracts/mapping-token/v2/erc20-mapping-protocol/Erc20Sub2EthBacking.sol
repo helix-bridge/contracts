@@ -50,7 +50,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         helixFee = _helixFee;
     }
 
-    function setwToken(address _wToken) external onlyAdmin {
+    function setNativeWrappedToken(address _wToken) external onlyAdmin {
         wToken = _wToken;
     }
 

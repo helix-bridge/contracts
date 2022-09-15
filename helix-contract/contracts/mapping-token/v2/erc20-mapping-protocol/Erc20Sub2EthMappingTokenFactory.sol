@@ -69,7 +69,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         _setMessageEndpoint(_messageEndpoint);
     }
 
-    function setxwToken(address _xwToken) external onlyAdmin {
+    function setMappingNativeWrappedToken(address _xwToken) external onlyAdmin {
         xwToken = _xwToken;
     }
 

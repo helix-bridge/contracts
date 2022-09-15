@@ -108,7 +108,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       const originalToken = await originalContract.deploy(tokenName, tokenSymbol, 18);
       await originalToken.deployed();
       // set it as wToken
-      await backing.setwToken(originalToken.address);
+      await backing.setNativeWrappedToken(originalToken.address);
 
       const zeroAddress = "0x0000000000000000000000000000000000000000";
 
@@ -116,7 +116,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       await mtf.register(originalToken.address, "Darwinia Smart", tokenName, tokenSymbol, 18, 1000);
       expect(await mtf.tokenLength()).to.equal(1);
       const mappingTokenAddress = await mtf.allMappingTokens(0);
-      mtf.setxwToken(mappingTokenAddress);
+      mtf.setMappingNativeWrappedToken(mappingTokenAddress);
       
       // test lock
       await originalToken.deposit({value: 1000});
@@ -457,7 +457,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       await mtf.register(originalToken.address, "Darwinia Smart", tokenName, tokenSymbol, 18, 1000);
       expect(await mtf.tokenLength()).to.equal(1);
       const mappingTokenAddress = await mtf.allMappingTokens(0);
-      mtf.setxwToken(mappingTokenAddress);
+      mtf.setMappingNativeWrappedToken(mappingTokenAddress);
 
       const guardContract = await ethers.getContractFactory("Guard");
       const guard = await guardContract.deploy([owner.address], 1, 60, mtf.address);

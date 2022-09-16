@@ -362,7 +362,7 @@ describe("darwinia<>bsc mapping token tests", () => {
   it("test_bsc_guard", async function () {
       const tokenName = "Darwinia Native Ring";
       const tokenSymbol = "RING";
-      const originalContract = await ethers.getContractFactory("Erc20");
+      const originalContract = await ethers.getContractFactory("MockErc20Withdraw");
       const originalToken = await originalContract.deploy(tokenName, tokenSymbol, 9);
       await originalToken.deployed();
       const [owner] = await ethers.getSigners();
@@ -407,7 +407,30 @@ describe("darwinia<>bsc mapping token tests", () => {
           timestamp01,
           originalToken.address,
           wallets[1].address,
-          100)).to.be.revertedWith("Guard: claim at invalid time");
+          100,
+          false)).to.be.revertedWith("Guard: claim at invalid time");
+      await network.provider.send("evm_increaseTime", [3600]);
+      await expect(guard.claimByTimeout(
+          2,
+          timestamp01,
+          originalToken.address,
+          wallets[1].address,
+          100,
+          false)).to.be.revertedWith("Guard: Invalid id to claim");
+      await expect(guard.claimByTimeout(
+          1,
+          timestamp01,
+          originalToken.address,
+          wallets[1].address,
+          101,
+          false)).to.be.revertedWith("Guard: Invalid id to claim");
+      await expect(guard.claimByTimeout(
+          1,
+          timestamp01,
+          originalToken.address,
+          wallets[1].address,
+          100,
+          true)).to.be.revertedWith("Guard: token is not wrapped by native token");
 
       const dataHash = await guard.encodeDataHash(structHash);
       const signatures = wallets.map((wallet) => {
@@ -422,7 +445,15 @@ describe("darwinia<>bsc mapping token tests", () => {
       });
       await guard.claim(1, timestamp01, originalToken.address, wallets[1].address, 100, signatures);
       expect(await originalToken.balanceOf(wallets[1].address)).to.equal(100);
+      // can't claim twice
       await expect(guard.claim(1, timestamp01, originalToken.address, wallets[1].address, 100, signatures)).to.be.revertedWith("Guard: Invalid id to claim");
+      await expect(guard.claimByTimeout(
+          1,
+          timestamp01,
+          originalToken.address,
+          wallets[1].address,
+          100,
+          true)).to.be.revertedWith("Guard: Invalid id to claim");
       await expect(guard.claim(2, timestamp02, originalToken.address, wallets[2].address, 200, signatures)).to.be.revertedWith("Guard: Invalid guard provided");
   });
 

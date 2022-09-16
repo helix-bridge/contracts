@@ -5,6 +5,7 @@ pragma solidity >=0.8.10;
 import "@zeppelin-solidity-4.4.0/contracts/utils/math/SafeMath.sol";
 import "./GuardRegistry.sol";
 import "../interfaces/IERC20.sol";
+import "../interfaces/IWToken.sol";
 import "../../utils/Pausable.sol";
 
 contract Guard is GuardRegistry, Pausable {
@@ -71,11 +72,19 @@ contract Guard is GuardRegistry, Pausable {
         uint256 timestamp,
         address token,
         address recipient,
-        uint256 amount
+        uint256 amount,
+        bool isNative
     ) internal whenNotPaused {
         require(hash(abi.encodePacked(timestamp, token, recipient, amount)) == depositors[id], "Guard: Invalid id to claim");
         require(amount > 0, "Guard: Invalid amount to claim");
-        require(IERC20(token).transfer(recipient, amount), "Guard: claim token failed");
+        if (isNative) {
+            uint256 balanceBefore = address(this).balance;
+            IWToken(token).withdraw(amount);
+            require(address(this).balance == balanceBefore.add(amount), "Guard: token is not wrapped by native token");
+            payable(recipient).transfer(amount);
+        } else {
+            require(IERC20(token).transfer(recipient, amount), "Guard: claim token failed");
+        }
         delete depositors[id];
         emit TokenClaimed(id);
     }
@@ -94,7 +103,24 @@ contract Guard is GuardRegistry, Pausable {
         bytes[] memory signatures
     ) public {
         verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(id, timestamp, token, recipient, amount), signatures);
-        claimById(id, timestamp, token, recipient, amount);
+        claimById(id, timestamp, token, recipient, amount, false);
+    }
+
+    /**
+      * @dev claimNative the tokens in the contract saved by deposit, this acquire signatures from guards
+      * @param id the id to be claimed
+      * @param signatures the signatures of the guards which to claim tokens.
+      */
+    function claimNative(
+        uint256 id,
+        uint256 timestamp,
+        address token,
+        address recipient,
+        uint256 amount,
+        bytes[] memory signatures
+    ) public {
+        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(id, timestamp, token, recipient, amount), signatures);
+        claimById(id, timestamp, token, recipient, amount, true);
     }
 
     /**
@@ -106,10 +132,11 @@ contract Guard is GuardRegistry, Pausable {
         uint256 timestamp,
         address token,
         address recipient,
-        uint256 amount
+        uint256 amount,
+        bool isNative
     ) public {
         require(timestamp < block.timestamp && block.timestamp - timestamp > maxUnclaimableTime, "Guard: claim at invalid time");
-        claimById(id, timestamp, token, recipient, amount);
+        claimById(id, timestamp, token, recipient, amount, isNative);
     }
 
     function hash(bytes memory value) public pure returns (bytes32) {

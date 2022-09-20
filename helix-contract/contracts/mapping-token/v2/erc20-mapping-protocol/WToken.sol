@@ -2,10 +2,10 @@
 
 pragma solidity ^0.4.18;
 
-contract WRING {
-    string public name     = "Wrapped Ring";
-    string public symbol   = "WRING";
-    uint8  public decimals = 18;
+contract WToken {
+    string public name;
+    string public symbol;
+    uint8  public decimals;
 
     event  Approval(address indexed src, address indexed guy, uint wad);
     event  Transfer(address indexed src, address indexed dst, uint wad);
@@ -14,6 +14,12 @@ contract WRING {
 
     mapping (address => uint)                       public  balanceOf;
     mapping (address => mapping (address => uint))  public  allowance;
+
+    constructor(string _name, string _symbol, uint8 _decimals) public {
+        name = _name;
+        symbol = _symbol;
+        decimals = _decimals;
+    }
 
     function() public payable {
         deposit();
@@ -30,7 +36,7 @@ contract WRING {
     }
 
     function totalSupply() public view returns (uint) {
-        return this.balance;
+        return address(this).balance;
     }
 
     function approve(address guy, uint wad) public returns (bool) {

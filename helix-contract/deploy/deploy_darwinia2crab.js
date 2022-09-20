@@ -153,9 +153,9 @@ async function main() {
     console.log("finish to configure mapping token factory");
 
     await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLER_ROLE(), backing.address);
-    await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLEREE_ROLE(), backing.address);
+    await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLEE_ROLE(), backing.address);
     await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLER_ROLE(), mtf.address);
-    await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLEREE_ROLE(), mtf.address);
+    await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLEE_ROLE(), mtf.address);
     await backing.grantRole(await backing.OPERATOR_ROLE(), "0x3fc22FAe77159D9253851f4c7fa99786DA041f43");
     console.log("grant role permission finished");
 

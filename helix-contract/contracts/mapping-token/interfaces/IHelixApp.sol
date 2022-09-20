@@ -13,6 +13,11 @@ interface IHelixAppSupportWithdrawFailed {
         address sender,
         uint256 amount
     ) external;
+    function handleUnlockFailureFromRemoteNative(
+        uint256 messageId,
+        address sender,
+        uint256 amount
+    ) external;
     function handleIssuingFailureFromRemote(
         uint256 messageId,
         address token,

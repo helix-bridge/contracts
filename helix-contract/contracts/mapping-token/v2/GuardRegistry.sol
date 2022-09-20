@@ -218,6 +218,21 @@ contract GuardRegistry {
         nonce++;
     }
 
+    function verifyGuardSignaturesWithoutNonce(
+        bytes4 methodID,
+        bytes memory params,
+        bytes[] memory signatures
+    ) internal {
+        bytes32 structHash =
+            keccak256(
+                abi.encode(
+                    methodID,
+                    params
+                )
+            );
+        checkGuardSignatures(structHash, signatures);
+    }
+
     /**
      * @dev Checks whether the signature provided is valid for the provided data, hash. Will revert otherwise.
      * @param structHash The struct Hash of the data (could be either a message/commitment hash).

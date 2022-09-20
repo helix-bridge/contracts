@@ -8,3 +8,9 @@ interface IBacking {
         address recipient,
         uint256 amount) external;
 }
+
+interface IBackingSupportNative {
+    function unlockFromRemoteNative(
+        address recipient,
+        uint256 amount) external;
+}

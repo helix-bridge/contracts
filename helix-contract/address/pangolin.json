@@ -1,7 +1,0 @@
-{
-    "S2sToPangoroEndpoint": "0x7b073Ac88977e20DB4907bdE5010a124A00cfD21",
-    "S2sFromPangoroIssuingLogic": "0x450Ef37584033E87fAdbbF1Df2f303C9002236a5",
-    "S2sFromPangoroIssuingAdmin": "0x408065400E855E1e325829b31BFb7e4a5022e331",
-    "S2sFromPangoroIssuingProxy": "0x0793e2726360224dA8cf781c048dF7acCa3Bb049",
-    "xWETH": "0xba01cfcad99c17dad9a859bd881dc99851faecf5"
-}

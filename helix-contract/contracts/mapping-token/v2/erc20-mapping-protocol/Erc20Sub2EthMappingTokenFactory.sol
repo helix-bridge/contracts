@@ -30,7 +30,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     BitMaps.BitMap issueMessages;
 
     event IssuingERC20Created(address originalToken, address mappingToken);
-    event BurnAndRemoteUnlocked(uint256 transferId, address sender, address recipient, address token, uint256 amount, uint256 fee);
+    event BurnAndRemoteUnlocked(uint256 transferId, bool isNative, address sender, address recipient, address token, uint256 amount, uint256 fee);
     event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
     event RemoteUnlockFailure(uint256 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
 
@@ -169,7 +169,8 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         address mappingToken,
         address recipient,
         uint256 amount,
-        bytes memory remoteUnlockCall
+        bytes memory remoteUnlockCall,
+        bool isNative
     ) internal whenNotPaused {
         require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
         // transfer to this and then burn
@@ -179,7 +180,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         require(burnMessages[transferId].hash == bytes32(0), "MappingTokenFactory: message exist");
         bytes32 messageHash = hash(abi.encodePacked(transferId, mappingToken, msg.sender, amount));
         burnMessages[transferId] = BurnInfo(messageHash, false);
-        emit BurnAndRemoteUnlocked(transferId, msg.sender, recipient, mappingToken, amount, fee);
+        emit BurnAndRemoteUnlocked(transferId, isNative, msg.sender, recipient, mappingToken, amount, fee);
     }
 
     /**
@@ -200,7 +201,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
             amount
         );
 
-        _burnAndRemoteUnlock(xwToken, recipient, amount, unlockFromRemoteNative);
+        _burnAndRemoteUnlock(xwToken, recipient, amount, unlockFromRemoteNative, true);
     }
 
     /**
@@ -224,7 +225,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
             amount
         );
 
-        _burnAndRemoteUnlock(mappingToken, recipient, amount, unlockFromRemote);
+        _burnAndRemoteUnlock(mappingToken, recipient, amount, unlockFromRemote, false);
     }
 
     /**

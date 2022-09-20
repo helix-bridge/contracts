@@ -28,11 +28,10 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
     mapping(uint256 => LockedInfo) public lockedMessages;
     BitMaps.BitMap unlockedTransferIds;
 
-    event TokenLocked(uint256 transferId, address token, address sender, address recipient, uint256 amount, uint256 fee);
-    event TokenUnlocked(uint256 transferId, address token, address recipient, uint256 amount);
+    event TokenLocked(uint256 transferId, bool isNative, address token, address sender, address recipient, uint256 amount, uint256 fee);
+    event TokenUnlocked(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
     event RemoteIssuingFailure(uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
-    event TokenUnlockedForFailed(uint256 transferId, address token, address recipient, uint256 amount);
-    event NativeTokenUnlockedForFailed(uint256 transferId, address token, address recipient, uint256 amount);
+    event TokenUnlockedForFailed(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
 
     receive() external payable {
     }
@@ -81,7 +80,8 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         address token,
         address recipient,
         uint256 amount,
-        uint256 prepaid
+        uint256 prepaid,
+        bool isNative
     ) internal {
         bytes memory issueMappingToken = abi.encodeWithSelector(
             IErc20MappingTokenFactory.issueMappingToken.selector,
@@ -92,7 +92,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         (uint256 transferId, uint256 fee) = _sendMessage(issueMappingToken, prepaid);
         bytes32 lockMessageHash = hash(abi.encodePacked(transferId, token, msg.sender, amount));
         lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
-        emit TokenLocked(transferId, token, msg.sender, recipient, amount, fee);
+        emit TokenLocked(transferId, isNative, token, msg.sender, recipient, amount, fee);
     }
 
     /**
@@ -111,7 +111,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Backing:transfer tokens failed");
         uint256 balanceAfter = IERC20(token).balanceOf(address(this));
         require(balanceBefore.add(amount) == balanceAfter, "Backing:Transfer amount is invalid");
-        _lockAndRemoteIssuing(token, recipient, amount, msg.value);
+        _lockAndRemoteIssuing(token, recipient, amount, msg.value, false);
     }
 
     /**
@@ -126,7 +126,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
     ) external payable whenNotPaused {
         require(msg.value > amount, "Backing: msg.value must larger than amount");
         IWToken(wToken).deposit{value: amount}();
-        _lockAndRemoteIssuing(wToken, recipient, amount, msg.value - amount);
+        _lockAndRemoteIssuing(wToken, recipient, amount, msg.value - amount, true);
     }
 
     /**
@@ -150,7 +150,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         } else {
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");
         }
-        emit TokenUnlocked(transferId, token, recipient, amount);
+        emit TokenUnlocked(transferId, false, token, recipient, amount);
     }
 
     /**
@@ -173,7 +173,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
             IWToken(wToken).withdraw(amount);
             recipient.transfer(amount);
         }
-        emit TokenUnlocked(transferId, wToken, recipient, amount);
+        emit TokenUnlocked(transferId, true, wToken, recipient, amount);
     }
 
     function remoteIssuingFailure(
@@ -230,7 +230,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
     ) external onlyMessageEndpoint whenNotPaused {
         _handleUnlockFailureFromRemote(transferId, token, originSender, amount);
         require(IERC20(token).transfer(originSender, amount), "Backing:unlock transfer failed");
-        emit TokenUnlockedForFailed(transferId, token, originSender, amount);
+        emit TokenUnlockedForFailed(transferId, false, token, originSender, amount);
     }
 
     /**
@@ -246,7 +246,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         _handleUnlockFailureFromRemote(transferId, wToken, originSender, amount);
         IWToken(wToken).withdraw(amount);
         payable(originSender).transfer(amount);
-        emit NativeTokenUnlockedForFailed(transferId, wToken, originSender, amount);
+        emit TokenUnlockedForFailed(transferId, true, wToken, originSender, amount);
     }
 
     /**

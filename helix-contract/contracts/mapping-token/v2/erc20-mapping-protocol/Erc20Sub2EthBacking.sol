@@ -163,7 +163,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         uint256 amount
     ) public onlyMessageEndpoint whenNotPaused {
         expendDailyLimit(wToken, amount);
-        uint256 transferId = IHelixSub2EthMessageEndpoint(messageEndpoint).lastDeliveredMessageId() + 1;
+        uint256 transferId = IHelixSub2EthMessageEndpoint(messageEndpoint).lastDeliveredMessageId();
         require(BitMaps.get(unlockedTransferIds, transferId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedTransferIds, transferId);
         if (guard != address(0)) {

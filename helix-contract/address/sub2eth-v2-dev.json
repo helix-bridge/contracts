@@ -1,17 +1,17 @@
 {
   "pangoro2goerli_sub2eth_goerli": {
-    "messageEndpoint": "0xCE277bd3a474762F42F26731bcD18137C141bD65",
-    "mappingTokenFactoryLogic": "0x478f210F77e4aCed2069a39B45EBdE54d8A4420A",
-    "mappingTokenFactoryAdmin": "0x77A103B4e0d0765373CEFedd8DFD6F44F13DbD8F",
-    "mappingTokenFactoryProxy": "0xe35b898A65c9868336bf34321373E1DA9401eB9d",
-    "ring": "0xD08a544fc3baa1dBB34F310c4A941E88D82bc8Fe",
-    "guard": "0xd9C81baff337387F9c6C83507e85CEA0635618FE"
+    "messageEndpoint": "0xa4bAE72077c43F72D168b923Ffb28030FD382F51",
+    "mappingTokenFactoryLogic": "0x24B8dc40f84210B0375EE8E14620988E5cbd6180",
+    "mappingTokenFactoryAdmin": "0xbb119dB68F710E035091b94ADa8a48d0868C648A",
+    "mappingTokenFactoryProxy": "0x1AECF62B14aC33929e74fc7939FA490b3B3E3563",
+    "ring": "0xB7A9115C0a1D2baBc764957C506c34843eeE8893",
+    "guard": "0x6aa0e15E88A8EF584304Bb52c3E9C6fA16d3EAc5"
   },
   "pangoro2goerli_sub2eth_pangoro": {
-    "messageEndpoint": "0x7842f7Bf28eA7c0D3994b9b81ee7b581CAcFd493",
-    "backingLogic": "0x597B1bE0adEd9dc7eC116B7d8DF38307F4a4D4aF",
-    "backingAdmin": "0x3B481bb28CEb91A704e16578E94Ab15D37d6a1B5",
-    "backingProxy": "0x7F9096beb4bAd82a63f4275d53c7E8EA03aC1C99",
-    "WRING": "0xF5c874cb3C541aE8C8f5C810BA78E98449A17913"
+    "messageEndpoint": "0x478f210F77e4aCed2069a39B45EBdE54d8A4420A",
+    "backingLogic": "0xe35b898A65c9868336bf34321373E1DA9401eB9d",
+    "backingAdmin": "0x73e810ae1a56a2d1BCd55f0F1c304e46ce14a70e",
+    "backingProxy": "0x41073C282621590b731B69D7DEA9dE5557C22823",
+    "WRING": "0x1977213Bb561d6e3bB07A9F22BCE758A14D7C693"
   }
 }

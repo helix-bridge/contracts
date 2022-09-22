@@ -144,6 +144,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         require(BitMaps.get(unlockedTransferIds, transferId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedTransferIds, transferId);
         if (guard != address(0)) {
+            // see https://github.com/helix-bridge/contracts/issues/18
             require(IERC20(token).increaseAllowance(guard, amount), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, token, recipient, amount);
         } else {

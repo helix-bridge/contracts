@@ -74,16 +74,17 @@ contract Guard is GuardRegistry, Pausable {
         address recipient,
         uint256 amount,
         bool isNative
-    ) internal whenNotPaused {
+    ) internal {
         require(hash(abi.encodePacked(timestamp, token, recipient, amount)) == depositors[id], "Guard: Invalid id to claim");
         require(amount > 0, "Guard: Invalid amount to claim");
         if (isNative) {
+            require(IERC20(token).transferFrom(depositor, address(this), amount), "Guard: claim native token failed");
             uint256 balanceBefore = address(this).balance;
             IWToken(token).withdraw(amount);
             require(address(this).balance == balanceBefore.add(amount), "Guard: token is not wrapped by native token");
             payable(recipient).transfer(amount);
         } else {
-            require(IERC20(token).transfer(recipient, amount), "Guard: claim token failed");
+            require(IERC20(token).transferFrom(depositor, recipient, amount), "Guard: claim token failed");
         }
         delete depositors[id];
         emit TokenClaimed(id);
@@ -134,7 +135,7 @@ contract Guard is GuardRegistry, Pausable {
         address recipient,
         uint256 amount,
         bool isNative
-    ) public {
+    ) public whenNotPaused {
         require(timestamp < block.timestamp && block.timestamp - timestamp > maxUnclaimableTime, "Guard: claim at invalid time");
         claimById(id, timestamp, token, recipient, amount, isNative);
     }

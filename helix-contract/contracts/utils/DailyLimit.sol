@@ -8,6 +8,7 @@ contract DailyLimit {
     event DailyLimitChange(address token, uint dailyLimit);
 
     mapping(address => uint) public dailyLimit;
+    // deprecated, slot for upgrade
     mapping(address => uint) public lastDay;
     mapping(address => uint) public spentToday;
 

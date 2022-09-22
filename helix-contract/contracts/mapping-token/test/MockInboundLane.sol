@@ -25,7 +25,6 @@ contract MockInboundLane is MockMessageVerifier {
             return false;
         }
         bool filter = ICrossChainFilter(targetContract).cross_chain_filter(bridgedChainPosition, bridgedLanePosition, sender, encoded);
-        console.log("inbound filter return %s", filter);
 
         if (filter) {
             (bool result, ) = targetContract.call(encoded);

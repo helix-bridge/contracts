@@ -6,6 +6,6 @@ import "./IHelixMessageEndpoint.sol";
 
 interface IHelixSub2EthMessageEndpoint is IHelixMessageEndpoint {
     function fee() external view returns (uint256);
-    function lastDeliveredMessageId() external view returns (uint256);
+    function currentDeliveredMessageId() external view returns (uint256);
     function isMessageDelivered(uint256 messageId) external view returns (bool);
 }

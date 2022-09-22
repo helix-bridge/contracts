@@ -61,9 +61,7 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
             receiver,
             message
         );
-        IOutboundLane(outboundLane).send_message{value: msg.value}(remoteEndpoint, messageWithCaller);
-        IOutboundLane.OutboundLaneNonce memory outboundLaneNonce = IOutboundLane(outboundLane).outboundLaneNonce();
-        return outboundLaneNonce.latest_generated_nonce;
+        return IOutboundLane(outboundLane).send_message{value: msg.value}(remoteEndpoint, messageWithCaller);
     }
 
     function recvMessage(
@@ -82,7 +80,8 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     }
 
     function isMessageDelivered(uint256 messageId) public view returns (bool) {
-        uint256 lastMessageId = currentDeliveredMessageId();
+        IInboundLane.InboundLaneNonce memory inboundLaneNonce = IInboundLane(inboundLane).inboundLaneNonce();
+        uint256 lastMessageId = inboundLaneNonce.last_delivered_nonce;
         return messageId <= lastMessageId;
     }
 }

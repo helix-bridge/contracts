@@ -12,7 +12,7 @@ contract DailyLimit {
     mapping(address => uint) public lastDay;
     mapping(address => uint) public spentToday;
 
-    uint constant public SPEND_BIT_LENGTH = 196;
+    uint constant public SPEND_BIT_LENGTH = 192;
     uint constant public LASTDAY_BIT_LENGTH = 64;
 
     /// ==== Internal functions ==== 
@@ -23,7 +23,7 @@ contract DailyLimit {
     function _setDailyLimit(address _token, uint _dailyLimit)
         internal
     {
-        require(_dailyLimit < (1 << SPEND_BIT_LENGTH), "DailyLimt: can't set exceed max_uint128");
+        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
         dailyLimit[_token] = _dailyLimit;
     }
 
@@ -33,7 +33,7 @@ contract DailyLimit {
     function _changeDailyLimit(address _token, uint _dailyLimit)
         internal
     {
-        require(_dailyLimit < (1 << SPEND_BIT_LENGTH), "DailyLimt: can't set exceed max_uint128");
+        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
         dailyLimit[_token] = _dailyLimit;
         emit DailyLimitChange(_token, _dailyLimit);
     }

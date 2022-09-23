@@ -35,7 +35,7 @@ contract Erc721MonkeyAttributeSerializer is IErc721AttrSerializer {
         return "MKY";
     }
 
-    function tokenURI(uint256 tokenId) external pure returns(string memory) {
+    function tokenURI(uint256) external pure returns(string memory) {
         return "";
     }
 

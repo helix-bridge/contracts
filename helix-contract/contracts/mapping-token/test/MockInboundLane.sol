@@ -36,7 +36,8 @@ contract MockInboundLane is MockMessageVerifier {
     }
 
     function test_dispatch(address targetContract, bytes calldata encoded) external {
-        targetContract.call(encoded);
+        (bool result, ) = targetContract.call(encoded);
+        require(result, "test_dispatch failed");
     }
 }
  

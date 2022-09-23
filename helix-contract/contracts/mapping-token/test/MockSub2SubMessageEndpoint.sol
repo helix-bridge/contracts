@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 import "../v2/AccessController.sol";
+import "hardhat/console.sol";
 
 contract MockSub2SubMessageEndpoint is AccessController {
     address remoteHelix;
@@ -33,8 +34,8 @@ contract MockSub2SubMessageEndpoint is AccessController {
     }
 
     function sendMessage(
-        uint32  remoteSpecVersion,
-        uint256 remoteReceiveGasLimit,
+        uint32,
+        uint256,
         address receiver,
         bytes calldata message) external onlyCaller payable returns(uint256) {
         require(msg.value == fee(), "fee is not matched");
@@ -45,14 +46,16 @@ contract MockSub2SubMessageEndpoint is AccessController {
         );
         uint64 nonce = outboundMessages[outboundLaneId] + 1;
         outboundMessages[outboundLaneId] = nonce;
-        remoteHelix.call(recv);
+        (bool result, ) = remoteHelix.call(recv);
+        require(result, "call remote helix failed");
         return encodeMessageId(outboundLaneId, nonce);
     }
 
     function recvMessage(address receiver, bytes calldata message) external onlyRemoteHelix {
         require(hasRole(CALLER_ROLE, receiver), "MockS2sMessageEndpoint:receiver is not caller");
         // don't make sure this success to simulate the failed case.
-        receiver.call(message);
+        (bool result, ) = receiver.call(message);
+        console.log("mock recv call return %s", result);
         inboundMessages[inboundLaneId] = inboundMessages[inboundLaneId] + 1;
     }
 
@@ -60,7 +63,7 @@ contract MockSub2SubMessageEndpoint is AccessController {
         return encodeMessageId(inboundLaneId, inboundMessages[inboundLaneId]);
     }
 
-    function fee() public view returns(uint256) {
+    function fee() public pure returns(uint256) {
         return 1 ether;
     }
 

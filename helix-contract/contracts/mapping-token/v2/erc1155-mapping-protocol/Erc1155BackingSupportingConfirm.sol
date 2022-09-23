@@ -139,22 +139,22 @@ contract Erc1155BackingSupportingConfirm is Backing, IErc1155Backing {
     }
 
     function onERC1155Received(
-        address operator,
-        address from,
-        uint256 id,
-        uint256 value,
-        bytes calldata data
-    ) external returns (bytes4) {
+        address,
+        address,
+        uint256,
+        uint256,
+        bytes calldata
+    ) external pure returns (bytes4) {
         return Erc1155BackingSupportingConfirm.onERC1155Received.selector;
     }
 
     function onERC1155BatchReceived(
-        address operator,
-        address from,
-        uint256[] calldata ids,
-        uint256[] calldata values,
-        bytes calldata data
-    ) external returns (bytes4) {
+        address,
+        address,
+        uint256[] calldata,
+        uint256[] calldata,
+        bytes calldata
+    ) external pure returns (bytes4) {
         return Erc1155BackingSupportingConfirm.onERC1155BatchReceived.selector;
     }
 

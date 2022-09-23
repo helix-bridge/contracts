@@ -32,8 +32,8 @@ contract MockcBridgeMsgBus {
     }
 
     function sendMessage(
-        address _receiver,
-        uint256 _dstChainId,
+        address,
+        uint256,
         bytes calldata _message
     ) external payable {
         IMsgBus(remoteMessageBus).executeMessage(msg.sender, remoteChainId, _message, address(0));
@@ -44,8 +44,9 @@ contract MockcBridgeMsgBus {
         uint64 srcChainId,
         bytes memory message,
         address executor
-    ) external payable returns (IMessageReceiverApp.ExecutionStatus) {
+    ) external payable returns (IMessageReceiverApp.ExecutionStatus status) {
         IMsgBus(receiver).executeMessage(sender, srcChainId, message, executor);
+        status = IMessageReceiverApp.ExecutionStatus.Success;
     }
 }
 

@@ -196,7 +196,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             amount
         );
 
-        (uint256 transferId, uint256 fee) = _sendMessage(
+        (uint256 transferId, uint256 totalFee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             unlockFromRemote
@@ -204,7 +204,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         require(burnMessages[transferId].hash == bytes32(0), "MappingTokenFactory: message exist");
         bytes32 messageHash = hash(abi.encodePacked(transferId, mappingToken, msg.sender, amount));
         burnMessages[transferId] = BurnInfo(messageHash, false);
-        emit BurnAndRemoteUnlocked(transferId, messageHash, msg.sender, recipient, mappingToken, amount, fee);
+        emit BurnAndRemoteUnlocked(transferId, messageHash, msg.sender, recipient, mappingToken, amount, totalFee);
     }
 
     /**
@@ -233,12 +233,12 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
             originalSender,
             amount
         );
-        (, uint256 fee) = _sendMessage(
+        (, uint256 totalFee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             handleUnlockForFailed
         );
-        emit RemoteUnlockFailure(transferId, originalToken, originalSender, amount, fee);
+        emit RemoteUnlockFailure(transferId, originalToken, originalSender, amount, totalFee);
     }
 
     /**

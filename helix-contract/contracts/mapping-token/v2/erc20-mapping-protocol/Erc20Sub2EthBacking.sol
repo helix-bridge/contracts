@@ -171,7 +171,6 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
             require(IERC20(wToken).approve(guard, allowance + amount), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, wToken, recipient, amount);
         } else {
-            uint balance = IERC20(wToken).balanceOf(address(this));
             IWToken(wToken).withdraw(amount);
             recipient.transfer(amount);
         }

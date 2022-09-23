@@ -222,7 +222,7 @@ contract GuardRegistry {
         bytes4 methodID,
         bytes memory params,
         bytes[] memory signatures
-    ) internal {
+    ) view internal {
         bytes32 structHash =
             keccak256(
                 abi.encode(

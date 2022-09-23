@@ -34,6 +34,8 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
     event RemoteUnlockFailure(uint256 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
 
+    receive() external payable {}
+
     modifier verifyRemoteUnlockFailure(uint256 transferId) {
         // must not exist in successful issue list
         require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
@@ -155,7 +157,8 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         BitMaps.set(issueMessages, transferId);
         if (guard != address(0)) {
             Erc20(mappingToken).mint(address(this), amount);
-            require(Erc20(mappingToken).increaseAllowance(guard, amount), "Backing:approve token transfer to guard failed");
+            uint allowance = IERC20(mappingToken).allowance(address(this), guard);
+            require(IERC20(mappingToken).approve(guard, allowance + amount), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, mappingToken, recipient, amount);
         } else {
             expendDailyLimit(mappingToken, amount);

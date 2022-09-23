@@ -11,6 +11,7 @@ interface IERC20 {
   function mint(address _to, uint256 _value) external;
   function burn(address _from, uint256 _value) external;
   function decimals() external view returns(uint8);
+  function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
   event Transfer(address indexed from, address indexed to, uint256 value);
 }
 

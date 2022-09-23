@@ -11,5 +11,5 @@ interface IOutboundLane {
 
     function outboundLaneNonce() view external returns(OutboundLaneNonce memory);
 
-    function send_message(address targetContract, bytes calldata encoded) external payable returns (uint256);
+    function send_message(address targetContract, bytes calldata encoded) external payable returns (uint64);
 }

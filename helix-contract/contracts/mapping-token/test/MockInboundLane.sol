@@ -25,11 +25,10 @@ contract MockInboundLane is MockMessageVerifier {
             return false;
         }
         bool filter = ICrossChainFilter(targetContract).cross_chain_filter(bridgedChainPosition, bridgedLanePosition, sender, encoded);
-        console.log("inbound filter return %s", filter);
 
         if (filter) {
-            inboundLaneNonce.last_delivered_nonce += 1;
             (bool result, ) = targetContract.call(encoded);
+            inboundLaneNonce.last_delivered_nonce += 1;
             console.log("inbound call return %s, target %s", result, targetContract);
             return result;
         }

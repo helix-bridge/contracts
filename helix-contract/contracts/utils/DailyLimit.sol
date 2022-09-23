@@ -9,7 +9,7 @@ contract DailyLimit {
 
     mapping(address => uint) public dailyLimit;
     // deprecated, slot for upgrade
-    mapping(address => uint) public lastDay;
+    mapping(address => uint) public _slotReserved;
     mapping(address => uint) public spentToday;
 
     uint constant public SPEND_BIT_LENGTH = 192;

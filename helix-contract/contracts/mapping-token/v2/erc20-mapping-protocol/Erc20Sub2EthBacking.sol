@@ -33,9 +33,6 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
     event RemoteIssuingFailure(uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
     event TokenUnlockedForFailed(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
 
-    receive() external payable {
-    }
-
     // !!! admin must check the nonce of the newEndpoint is larger than the old one
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
         _setMessageEndpoint(_messageEndpoint);
@@ -228,7 +225,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         address token,
         address originSender,
         uint256 amount
-    ) external onlyMessageEndpoint whenNotPaused {
+    ) external onlyMessageEndpoint {
         _handleUnlockFailureFromRemote(transferId, token, originSender, amount);
         require(IERC20(token).transfer(originSender, amount), "Backing:unlock transfer failed");
         emit TokenUnlockedForFailed(transferId, false, token, originSender, amount);
@@ -243,7 +240,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         uint256 transferId,
         address originSender,
         uint256 amount
-    ) external onlyMessageEndpoint whenNotPaused {
+    ) external onlyMessageEndpoint {
         _handleUnlockFailureFromRemote(transferId, wToken, originSender, amount);
         IWToken(wToken).withdraw(amount);
         payable(originSender).transfer(amount);

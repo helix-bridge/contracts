@@ -2,11 +2,11 @@
 
 pragma solidity >=0.8.10;
 
+import "@zeppelin-solidity-4.4.0/contracts/security/Pausable.sol";
 import "@zeppelin-solidity-4.4.0/contracts/utils/math/SafeMath.sol";
 import "./GuardRegistry.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IWToken.sol";
-import "../../utils/Pausable.sol";
 
 contract Guard is GuardRegistry, Pausable {
     using SafeMath for uint256;

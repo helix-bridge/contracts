@@ -34,9 +34,6 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
     event RemoteUnlockFailure(uint256 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
 
-    receive() external payable {
-    }
-
     modifier verifyRemoteUnlockFailure(uint256 transferId) {
         // must not exist in successful issue list
         require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:success message can't refund for failed");
@@ -192,7 +189,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     function burnAndRemoteUnlockNative(
         address recipient,
         uint256 amount
-    ) external payable whenNotPaused {
+    ) external payable {
         require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
         address originalToken = mappingToken2OriginalToken[xwToken];
         require(originalToken != address(0), "MappingTokenFactory:token is not created by factory");
@@ -215,7 +212,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         address mappingToken,
         address recipient,
         uint256 amount
-    ) external payable whenNotPaused {
+    ) external payable {
         require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
         address originalToken = mappingToken2OriginalToken[mappingToken];
         require(originalToken != address(0), "MappingTokenFactory:token is not created by factory");

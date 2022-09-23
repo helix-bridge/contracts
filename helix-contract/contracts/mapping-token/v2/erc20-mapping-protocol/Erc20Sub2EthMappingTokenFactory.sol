@@ -30,7 +30,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     event IssuingERC20Created(address originalToken, address mappingToken);
     event BurnAndRemoteUnlocked(uint256 transferId, bool isNative, address sender, address recipient, address token, uint256 amount, uint256 fee);
     event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
-    event RemoteUnlockFailure(uint256 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteUnlockFailure(uint256 refundId, uint256 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
 
     receive() external payable {}
 
@@ -246,8 +246,8 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
             originalSender,
             amount
         );
-        (, uint256 fee) = _sendMessage(handleUnlockForFailed);
-        emit RemoteUnlockFailure(transferId, originalToken, originalSender, amount, fee);
+        (uint256 refundId, uint256 fee) = _sendMessage(handleUnlockForFailed);
+        emit RemoteUnlockFailure(refundId, transferId, originalToken, originalSender, amount, fee);
     }
 
     /**
@@ -266,8 +266,8 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
             originalSender,
             amount
         );
-        (, uint256 fee) = _sendMessage(handleUnlockForFailedNative);
-        emit RemoteUnlockFailure(transferId, xwToken, originalSender, amount, fee);
+        (uint256 refundId, uint256 fee) = _sendMessage(handleUnlockForFailedNative);
+        emit RemoteUnlockFailure(refundId, transferId, xwToken, originalSender, amount, fee);
     }
 
     /**

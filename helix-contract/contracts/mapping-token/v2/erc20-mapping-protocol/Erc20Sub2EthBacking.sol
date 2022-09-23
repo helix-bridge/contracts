@@ -28,7 +28,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
 
     event TokenLocked(uint256 transferId, bool isNative, address token, address sender, address recipient, uint256 amount, uint256 fee);
     event TokenUnlocked(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
-    event RemoteIssuingFailure(uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteIssuingFailure(uint256 refundId, uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
     event TokenUnlockedForFailed(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
 
     receive() external payable {}
@@ -193,8 +193,8 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
             originalSender,
             amount
         );
-        (, uint256 fee) = _sendMessage(unlockForFailed, msg.value);
-        emit RemoteIssuingFailure(transferId, mappingToken, originalSender, amount, fee);
+        (uint256 refundId, uint256 fee) = _sendMessage(unlockForFailed, msg.value);
+        emit RemoteIssuingFailure(refundId, transferId, mappingToken, originalSender, amount, fee);
     }
 
     /**

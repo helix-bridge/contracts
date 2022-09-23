@@ -13,7 +13,6 @@ import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
 import "../../interfaces/IHelixMessageEndpoint.sol";
 import "../../interfaces/IHelixSub2EthMessageEndpoint.sol";
-import "../../interfaces/IMessageCommitment.sol";
 import "../../../utils/DailyLimit.sol";
 
 contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {

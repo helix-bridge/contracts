@@ -6,7 +6,6 @@ import "../../interfaces/ICrossChainFilter.sol";
 import "../../interfaces/IFeeMarket.sol";
 import "../../interfaces/IHelixApp.sol";
 import "../../interfaces/IInboundLane.sol";
-import "../../interfaces/IMessageCommitment.sol";
 import "../../interfaces/IOutboundLane.sol";
 
 contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {

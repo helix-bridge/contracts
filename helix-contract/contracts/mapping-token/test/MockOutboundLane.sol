@@ -2,7 +2,6 @@
 pragma solidity >=0.6.0;
 import "./MockMessageVerifier.sol";
 import "./MockInboundLane.sol";
-import "../interfaces/IOnMessageDelivered.sol";
 import "../interfaces/IOutboundLane.sol";
 import "hardhat/console.sol";
 

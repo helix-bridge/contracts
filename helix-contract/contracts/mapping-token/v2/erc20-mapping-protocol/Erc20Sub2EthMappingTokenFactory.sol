@@ -11,7 +11,6 @@ import "../MappingTokenFactory.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
-import "../../interfaces/IHelixMessageEndpoint.sol";
 import "../../interfaces/IHelixSub2EthMessageEndpoint.sol";
 import "../../../utils/DailyLimit.sol";
 

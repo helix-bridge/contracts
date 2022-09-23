@@ -1,5 +1,13 @@
 var ProxyDeployer = require("./proxy.js");
 
+const backingFeeMarket = "0x25ee4212CfA2DC29E6a5e4A857b9656E439259c9";
+const backingOutboundLane = "0x2f6aE7fDbB7c0c613F7923Ddce3E5b71aFE71f78";
+const backingInboundLane = "0x8F02B779EaD342Bb431A2f6cCc7866EB1928AE88";
+
+const mtfFeeMarket = "0xdb5E16A6E25ABF29dbe26e701D1DDCad03180E92";
+const mtfOutboundLane = "0x449337BBe404CaE0bA82f3451661AF7481f37aaC";
+const mtfInboundLane = "0xBEF08069FD1F43CB48Afd436D73F1a59019B87D7";
+
 async function deployMessageEndpoint(wallet, inboundLane, ouboundLane, feeMarket, existedAddress) {
     return await deployContract(wallet, "DarwiniaSub2EthMessageEndpoint", existedAddress, inboundLane, ouboundLane, feeMarket, {gasLimit: 2000000});
 }
@@ -97,13 +105,6 @@ function wallet() {
 }
 
 async function deploy(backingWallet, mtfWallet) {
-    const backingFeeMarket = "0x6eDcF984eF28C29aa48242B92685244bcD6D7203";
-    const backingOutboundLane = "0x671EB5a157328b46518D9D0d070e33404Bae5758";
-    const backingInboundLane = "0x3277B7BABbeadF5dC43D5350df25310f3c819965";
-
-    const mtfFeeMarket = "0x380244554a9C51f0CCaFec90A2766B0C8b698a4a";
-    const mtfOutboundLane = "0x33Ae943B5567e0a92928EF5EB1E6151558a086da";
-    const mtfInboundLane = "0xD9c96CaDC0710b8cD206d4F24DD8c547c6Ce23af";
     // deploy
     const backingMessageEndpoint = await deployMessageEndpoint(backingWallet, backingInboundLane, backingOutboundLane, backingFeeMarket, null);
     console.log("deploy backing message handle finished, address: ", backingMessageEndpoint.address);
@@ -231,14 +232,6 @@ async function redeployGuard(mtfWallet, mtf) {
 }
 
 async function deployWithExistContract(backingWallet, mtfWallet) {
-    const backingFeeMarket = "0x6eDcF984eF28C29aa48242B92685244bcD6D7203";
-    const backingOutboundLane = "0x671EB5a157328b46518D9D0d070e33404Bae5758";
-    const backingInboundLane = "0x3277B7BABbeadF5dC43D5350df25310f3c819965";
-
-    const mtfFeeMarket = "0x380244554a9C51f0CCaFec90A2766B0C8b698a4a";
-    const mtfOutboundLane = "0x33Ae943B5567e0a92928EF5EB1E6151558a086da";
-    const mtfInboundLane = "0xD9c96CaDC0710b8cD206d4F24DD8c547c6Ce23af";
-
     const wringAddress = "0x69e392E057B5994da2b0E9661039970Ac4c26b8c";
     const ringErc20 = "0x69e392E057B5994da2b0E9661039970Ac4c26b8c";
 
@@ -361,33 +354,35 @@ async function main() {
     const mtfWallet = wallets[1];
 
     const deployed = await deploy(backingWallet, mtfWallet);
-    //const deployed = await deployWithExistContract(backingWallet, mtfWallet);
+    ////const deployed = await deployWithExistContract(backingWallet, mtfWallet);
     console.log(deployed);
-    const backingInfo = deployed.pangoro2goerli_sub2eth_pangoro;
-    const mtfInfo = deployed.pangoro2goerli_sub2eth_goerli;
-    await lockAndRemoteIssue(backingInfo.WRING, backingInfo.backingProxy, ethers.utils.parseEther("1.1"), backingWallet, "30");
-    await lockAndRemoteIssueNative(backingInfo.backingProxy, ethers.utils.parseEther("1.2"), backingWallet, "30");
+    //const backingInfo = deployed.pangoro2goerli_sub2eth_pangoro;
+    //const mtfInfo = deployed.pangoro2goerli_sub2eth_goerli;
+    //await lockAndRemoteIssue(backingInfo.WRING, backingInfo.backingProxy, ethers.utils.parseEther("1.1"), backingWallet, "30");
+    //await lockAndRemoteIssueNative(backingInfo.backingProxy, ethers.utils.parseEther("1.2"), backingWallet, "30");
     
-    //const wethAddress = "0xF5c874cb3C541aE8C8f5C810BA78E98449A17913";
-    //const mtfAddress = "0xe35b898A65c9868336bf34321373E1DA9401eB9d";
-    //const backingAddress = "0x7F9096beb4bAd82a63f4275d53c7E8EA03aC1C99";
-    //const ringAddress = "0xD08a544fc3baa1dBB34F310c4A941E88D82bc8Fe";
-    //const mtf = await ethers.getContractAt("Erc20Sub2EthMappingTokenFactory", mtfAddress, mtfWallet);
-    //const backing = await ethers.getContractAt("Erc20Sub2EthBacking", backingAddress, backingWallet);
+    /*
+    const wethAddress = "0x46f01081e800BF47e43e7bAa6D98d45F6a0251E4";
+    const mtfAddress = "0xfcAcf3d08275031e5Bd453Cf2509301290858984";
+    const backingAddress = "0xaafFbF487e9dA8429E2E9502d0907e5fD6b0C320";
+    const ringAddress = "0x046D07d53926318d1F06c2c2A0F26a4de83E26c4";
+    const mtf = await ethers.getContractAt("Erc20Sub2EthMappingTokenFactory", mtfAddress, mtfWallet);
+    const backing = await ethers.getContractAt("Erc20Sub2EthBacking", backingAddress, backingWallet);
 
     //const oldmtf = await ethers.getContractAt("Erc20Sub2EthMappingTokenFactory", "0x38d8af6834bc10856a161977534d0bca7419eacd", mtfWallet);
     //await oldmtf.transferMappingTokenOwnership("0x69e392E057B5994da2b0E9661039970Ac4c26b8c", mtfAddress);
 
     
-    //const dailyLimit = ethers.utils.parseEther("300");
+    const dailyLimit = ethers.utils.parseEther("200");
     //await mtf.changeDailyLimit(ringAddress, dailyLimit);
-    //await backing.changeDailyLimit(wethAddress, dailyLimit);
+    await backing.changeDailyLimit(wethAddress, dailyLimit);
 
     //console.log(await mtf.calcMaxWithdraw(ringAddress));
     //await lockAndRemoteIssue(wethAddress, backingAddress, ethers.utils.parseEther("1.7"), backingWallet, "100");
     //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("1.82"), backingWallet, "100");
     //await burnAndRemoteUnlock(ringAddress, mtfAddress, ethers.utils.parseEther("0.11"), mtfWallet, "0.01");
     //await burnAndRemoteUnlockNative(ringAddress, mtfAddress, ethers.utils.parseEther("0.12"), mtfWallet, "0.01");
+    */
 }
 
 main()

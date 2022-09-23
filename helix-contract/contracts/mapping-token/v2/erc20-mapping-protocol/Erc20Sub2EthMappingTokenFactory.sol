@@ -151,6 +151,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         require(mappingToken != address(0), "MappingTokenFactory:mapping token has not created");
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
         uint256 transferId = IHelixSub2EthMessageEndpoint(messageEndpoint).currentDeliveredMessageId();
+        expendDailyLimit(mappingToken, amount);
         require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:message has been accepted");
         BitMaps.set(issueMessages, transferId);
         if (guard != address(0)) {
@@ -159,7 +160,6 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
             require(IERC20(mappingToken).approve(guard, allowance + amount), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, mappingToken, recipient, amount);
         } else {
-            expendDailyLimit(mappingToken, amount);
             Erc20(mappingToken).mint(recipient, amount);
         }
     }

@@ -9,7 +9,9 @@
     "test": "npx hardhat test",
     "deploy": "npx hardhat run",
     "clean": "shx rm -rf cache artifacts abi",
-    "flatten": "npx hardhat flatten"
+    "flatten": "npx hardhat flatten",
+    "flat": "npx hardhat flat",
+    "flat:sub2eth": "sh deploy/flatten-sub2eth.sh"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
@@ -20,7 +22,7 @@
     "dotenv": "^10.0.0",
     "ethereum-waffle": "^3.0.0",
     "ethers": "^5.0.0",
-    "hardhat": "^2.6.8",
+    "hardhat": "^2.11.2",
     "hardhat-abi-exporter": "^2.2.1",
     "readline-sync": "^1.4.10",
     "shx": "^0.3.3"

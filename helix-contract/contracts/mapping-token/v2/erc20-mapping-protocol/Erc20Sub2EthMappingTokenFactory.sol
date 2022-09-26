@@ -11,9 +11,7 @@ import "../MappingTokenFactory.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
-import "../../interfaces/IHelixMessageEndpoint.sol";
 import "../../interfaces/IHelixSub2EthMessageEndpoint.sol";
-import "../../interfaces/IMessageCommitment.sol";
 import "../../../utils/DailyLimit.sol";
 
 contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
@@ -32,10 +30,9 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     event IssuingERC20Created(address originalToken, address mappingToken);
     event BurnAndRemoteUnlocked(uint256 transferId, bool isNative, address sender, address recipient, address token, uint256 amount, uint256 fee);
     event TokenRemintForFailed(uint256 transferId, address token, address recipient, uint256 amount);
-    event RemoteUnlockFailure(uint256 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteUnlockFailure(uint256 refundId, uint256 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
 
-    receive() external payable {
-    }
+    receive() external payable {}
 
     modifier verifyRemoteUnlockFailure(uint256 transferId) {
         // must not exist in successful issue list
@@ -154,14 +151,15 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         require(mappingToken != address(0), "MappingTokenFactory:mapping token has not created");
         require(amount > 0, "MappingTokenFactory:can not receive amount zero");
         uint256 transferId = IHelixSub2EthMessageEndpoint(messageEndpoint).currentDeliveredMessageId();
+        expendDailyLimit(mappingToken, amount);
         require(BitMaps.get(issueMessages, transferId) == false, "MappingTokenFactory:message has been accepted");
         BitMaps.set(issueMessages, transferId);
         if (guard != address(0)) {
             Erc20(mappingToken).mint(address(this), amount);
-            require(Erc20(mappingToken).increaseAllowance(guard, amount), "Backing:approve token transfer to guard failed");
+            uint allowance = IERC20(mappingToken).allowance(address(this), guard);
+            require(IERC20(mappingToken).approve(guard, allowance + amount), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, mappingToken, recipient, amount);
         } else {
-            expendDailyLimit(mappingToken, amount);
             Erc20(mappingToken).mint(recipient, amount);
         }
     }
@@ -192,7 +190,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
     function burnAndRemoteUnlockNative(
         address recipient,
         uint256 amount
-    ) external payable whenNotPaused {
+    ) external payable {
         require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
         address originalToken = mappingToken2OriginalToken[xwToken];
         require(originalToken != address(0), "MappingTokenFactory:token is not created by factory");
@@ -215,7 +213,7 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
         address mappingToken,
         address recipient,
         uint256 amount
-    ) external payable whenNotPaused {
+    ) external payable {
         require(amount > 0, "MappingTokenFactory:can not transfer amount zero");
         address originalToken = mappingToken2OriginalToken[mappingToken];
         require(originalToken != address(0), "MappingTokenFactory:token is not created by factory");
@@ -248,8 +246,8 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
             originalSender,
             amount
         );
-        (, uint256 fee) = _sendMessage(handleUnlockForFailed);
-        emit RemoteUnlockFailure(transferId, originalToken, originalSender, amount, fee);
+        (uint256 refundId, uint256 fee) = _sendMessage(handleUnlockForFailed);
+        emit RemoteUnlockFailure(refundId, transferId, originalToken, originalSender, amount, fee);
     }
 
     /**
@@ -268,8 +266,8 @@ contract Erc20Sub2EthMappingTokenFactory is DailyLimit, MappingTokenFactory {
             originalSender,
             amount
         );
-        (, uint256 fee) = _sendMessage(handleUnlockForFailedNative);
-        emit RemoteUnlockFailure(transferId, xwToken, originalSender, amount, fee);
+        (uint256 refundId, uint256 fee) = _sendMessage(handleUnlockForFailedNative);
+        emit RemoteUnlockFailure(refundId, transferId, xwToken, originalSender, amount, fee);
     }
 
     /**

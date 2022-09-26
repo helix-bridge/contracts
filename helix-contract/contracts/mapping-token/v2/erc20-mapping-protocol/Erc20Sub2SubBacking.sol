@@ -8,7 +8,6 @@ import "../../interfaces/IBacking.sol";
 import "../../interfaces/IERC20.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
-import "../../interfaces/IHelixMessageEndpoint.sol";
 import "../../interfaces/IHelixSub2SubMessageEndpoint.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../../utils/DailyLimit.sol";
@@ -140,7 +139,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             recipient,
             amount
         );
-        (uint256 transferId, uint256 fee) = _sendMessage(
+        (uint256 transferId, uint256 totalFee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             issueMappingToken
@@ -148,7 +147,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         require(lockedMessages[transferId].hash == bytes32(0), "backing: message exist");
         bytes32 lockMessageHash = hash(abi.encodePacked(transferId, token, msg.sender, amount));
         lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
-        emit TokenLocked(transferId, lockMessageHash, token, msg.sender, recipient, amount, fee);
+        emit TokenLocked(transferId, lockMessageHash, token, msg.sender, recipient, amount, totalFee);
     }
 
     /**
@@ -218,12 +217,12 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             originalSender,
             amount
         );
-        (, uint256 fee) = _sendMessage(
+        (, uint256 totalFee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
             unlockForFailed
         );
-        emit RemoteIssuingFailure(transferId, mappingToken, originalSender, amount, fee);
+        emit RemoteIssuingFailure(transferId, mappingToken, originalSender, amount, totalFee);
     }
 
     /**

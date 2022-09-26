@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.6.0;
+pragma solidity >=0.8.10;
 
 /// @title relay with daily limit - Allows the relay to mint token in a daily limit.
 contract DailyLimit {
@@ -9,7 +9,7 @@ contract DailyLimit {
 
     mapping(address => uint) public dailyLimit;
     // deprecated, slot for upgrade
-    mapping(address => uint) public lastDay;
+    mapping(address => uint) public _slotReserved;
     mapping(address => uint) public spentToday;
 
     uint constant public SPEND_BIT_LENGTH = 192;

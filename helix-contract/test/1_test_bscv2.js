@@ -383,7 +383,6 @@ describe("darwinia<>bsc mapping token tests", () => {
       await guard.deployed();
 
       await originalToken.approve(guard.address, 1000);
-      await originalToken.transfer(guard.address, 300);
       await guard.deposit(1, originalToken.address, wallets[1].address, 100);
       const timestamp01 = await getBlockTimestamp();
       await guard.deposit(2, originalToken.address, wallets[2].address, 200);

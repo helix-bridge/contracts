@@ -4,7 +4,7 @@ pragma solidity ^0.8.10;
 import "@zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity-4.4.0/contracts/utils/math/SafeMath.sol";
 import "@zeppelin-solidity-4.4.0/contracts/proxy/utils/Initializable.sol";
-import "../../utils/Ownable.sol";
+import "@zeppelin-solidity-4.4.0/contracts/access/Ownable.sol";
 
 contract MappingERC20 is IERC20, Ownable, Initializable {
     using SafeMath for uint256;
@@ -24,7 +24,7 @@ contract MappingERC20 is IERC20, Ownable, Initializable {
         string memory _symbol,
         uint8 _decimals
     ) public initializer {
-        ownableConstructor();
+        _transferOwnership(_msgSender());
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
@@ -121,4 +121,3 @@ contract MappingERC20 is IERC20, Ownable, Initializable {
 
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
 }
-

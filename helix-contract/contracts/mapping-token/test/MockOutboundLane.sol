@@ -2,8 +2,8 @@
 pragma solidity >=0.6.0;
 import "./MockMessageVerifier.sol";
 import "./MockInboundLane.sol";
-import "../interfaces/IOnMessageDelivered.sol";
 import "../interfaces/IOutboundLane.sol";
+import "hardhat/console.sol";
 
 contract MockOutboundLane is MockMessageVerifier {
     IOutboundLane.OutboundLaneNonce public outboundLaneNonce;
@@ -30,6 +30,7 @@ contract MockOutboundLane is MockMessageVerifier {
     function send_message(address targetContract, bytes calldata encoded) external payable returns (uint64) {
         // call target contract
         bool result = MockInboundLane(remoteInboundLane).mock_dispatch(msg.sender, targetContract, encoded);
+        console.log("remote dispatch return %s", result);
         outboundLaneNonce.latest_generated_nonce += 1;
         return outboundLaneNonce.latest_generated_nonce;
     }

@@ -45,7 +45,7 @@ contract cBridgeMessageEndpoint is IHelixMessageEndpoint, AccessController {
         address sender,
         uint64 srcChainId,
         bytes memory message,
-        address executor
+        address
     ) external payable onlyMessageBus onlyBridgeMessageEndpoint(sender) returns (IMessageReceiverApp.ExecutionStatus) {
         require(remoteChainId == srcChainId, "invalid srcChainId");
         (address receiver, bytes memory payload) = abi.decode(message, (address, bytes));

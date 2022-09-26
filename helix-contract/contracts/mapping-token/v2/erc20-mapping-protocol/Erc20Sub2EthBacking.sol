@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "@zeppelin-solidity-4.4.0/contracts/utils/math/SafeMath.sol";
+import "@zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol";
 import "../Backing.sol";
 import "../../interfaces/IBacking.sol";
-import "../../interfaces/IERC20.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
@@ -14,7 +13,6 @@ import "../../interfaces/IWToken.sol";
 import "../../../utils/DailyLimit.sol";
 
 contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
-    using SafeMath for uint256;
     struct LockedInfo {
         bytes32 hash;
         bool hasRefundForFailed;
@@ -30,11 +28,10 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
 
     event TokenLocked(uint256 transferId, bool isNative, address token, address sender, address recipient, uint256 amount, uint256 fee);
     event TokenUnlocked(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
-    event RemoteIssuingFailure(uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteIssuingFailure(uint256 refundId, uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
     event TokenUnlockedForFailed(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
 
-    receive() external payable {
-    }
+    receive() external payable {}
 
     // !!! admin must check the nonce of the newEndpoint is larger than the old one
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
@@ -110,7 +107,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         uint256 balanceBefore = IERC20(token).balanceOf(address(this));
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Backing:transfer tokens failed");
         uint256 balanceAfter = IERC20(token).balanceOf(address(this));
-        require(balanceBefore.add(amount) == balanceAfter, "Backing:Transfer amount is invalid");
+        require(balanceBefore + amount == balanceAfter, "Backing:Transfer amount is invalid");
         _lockAndRemoteIssuing(token, recipient, amount, msg.value, false);
     }
 
@@ -143,12 +140,13 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         uint256 transferId = IHelixSub2EthMessageEndpoint(messageEndpoint).currentDeliveredMessageId();
         require(BitMaps.get(unlockedTransferIds, transferId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedTransferIds, transferId);
+        expendDailyLimit(token, amount);
         if (guard != address(0)) {
             // see https://github.com/helix-bridge/contracts/issues/18
-            require(IERC20(token).increaseAllowance(guard, amount), "Backing:approve token transfer to guard failed");
+            uint allowance = IERC20(token).allowance(address(this), guard);
+            require(IERC20(token).approve(guard, allowance + amount), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, token, recipient, amount);
         } else {
-            expendDailyLimit(token, amount);
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");
         }
         emit TokenUnlocked(transferId, false, token, recipient, amount);
@@ -168,7 +166,8 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         require(BitMaps.get(unlockedTransferIds, transferId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedTransferIds, transferId);
         if (guard != address(0)) {
-            require(IERC20(wToken).approve(guard, amount), "Backing:approve token transfer to guard failed");
+            uint allowance = IERC20(wToken).allowance(address(this), guard);
+            require(IERC20(wToken).approve(guard, allowance + amount), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, wToken, recipient, amount);
         } else {
             IWToken(wToken).withdraw(amount);
@@ -194,8 +193,8 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
             originalSender,
             amount
         );
-        (, uint256 fee) = _sendMessage(unlockForFailed, msg.value);
-        emit RemoteIssuingFailure(transferId, mappingToken, originalSender, amount, fee);
+        (uint256 refundId, uint256 fee) = _sendMessage(unlockForFailed, msg.value);
+        emit RemoteIssuingFailure(refundId, transferId, mappingToken, originalSender, amount, fee);
     }
 
     /**
@@ -228,7 +227,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         address token,
         address originSender,
         uint256 amount
-    ) external onlyMessageEndpoint whenNotPaused {
+    ) external onlyMessageEndpoint {
         _handleUnlockFailureFromRemote(transferId, token, originSender, amount);
         require(IERC20(token).transfer(originSender, amount), "Backing:unlock transfer failed");
         emit TokenUnlockedForFailed(transferId, false, token, originSender, amount);
@@ -243,7 +242,7 @@ contract Erc20Sub2EthBacking is Backing, DailyLimit, IBacking {
         uint256 transferId,
         address originSender,
         uint256 amount
-    ) external onlyMessageEndpoint whenNotPaused {
+    ) external onlyMessageEndpoint {
         _handleUnlockFailureFromRemote(transferId, wToken, originSender, amount);
         IWToken(wToken).withdraw(amount);
         payable(originSender).transfer(amount);

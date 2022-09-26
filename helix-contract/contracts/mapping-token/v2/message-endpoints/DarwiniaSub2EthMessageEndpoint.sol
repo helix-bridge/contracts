@@ -6,7 +6,6 @@ import "../../interfaces/ICrossChainFilter.sol";
 import "../../interfaces/IFeeMarket.sol";
 import "../../interfaces/IHelixApp.sol";
 import "../../interfaces/IInboundLane.sol";
-import "../../interfaces/IMessageCommitment.sol";
 import "../../interfaces/IOutboundLane.sol";
 
 contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
@@ -43,8 +42,8 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     }
 
     function cross_chain_filter(
-        uint32 bridgedChainPosition,
-        uint32 bridgedLanePosition,
+        uint32,
+        uint32,
         address sourceAccount,
         bytes calldata
     ) external view returns (bool) {

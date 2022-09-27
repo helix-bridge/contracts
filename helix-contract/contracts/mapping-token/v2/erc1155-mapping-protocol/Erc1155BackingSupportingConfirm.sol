@@ -5,7 +5,7 @@ pragma solidity ^0.8.10;
 // Before the new Erc1155 token registered, user should create a metadata contract on the target chain first
 // the medata contract need support uri interface defined in IErc1155Metadata
 
-import "@zeppelin-solidity-4.4.0/contracts/token/ERC1155/IERC1155.sol";
+import "@zeppelin-solidity/contracts/token/ERC1155/IERC1155.sol";
 import "../Backing.sol";
 import "../../interfaces/IErc1155Backing.sol";
 import "../../interfaces/IErc1155MappingTokenFactory.sol";

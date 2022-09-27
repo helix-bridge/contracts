@@ -20,7 +20,7 @@
 
 pragma solidity ^0.8.10;
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Strings.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/Strings.sol)
 
@@ -96,7 +96,7 @@ library Strings {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/cryptography/ECDSA.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/cryptography/ECDSA.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.3) (utils/cryptography/ECDSA.sol)
 
@@ -618,7 +618,7 @@ interface IWToken {
     function withdraw(uint wad) external;
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Context.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
 
@@ -643,7 +643,7 @@ abstract contract Context {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/security/Pausable.sol@v4.7.3
+// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
 
@@ -747,7 +747,7 @@ abstract contract Pausable is Context {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol@v4.7.3
+// File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
 
@@ -830,7 +830,7 @@ interface IERC20 {
     ) external returns (bool);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/math/SafeMath.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/math/SafeMath.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (utils/math/SafeMath.sol)
 

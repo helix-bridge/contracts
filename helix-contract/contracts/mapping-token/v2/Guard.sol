@@ -2,9 +2,9 @@
 
 pragma solidity >=0.8.10;
 
-import "@zeppelin-solidity-4.4.0/contracts/security/Pausable.sol";
-import "@zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol";
-import "@zeppelin-solidity-4.4.0/contracts/utils/math/SafeMath.sol";
+import "@zeppelin-solidity/contracts/security/Pausable.sol";
+import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
 import "./GuardRegistry.sol";
 import "../interfaces/IWToken.sol";
 

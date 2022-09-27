@@ -13,119 +13,14 @@
  * | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
+ * https://helixbridge.app/
+ *
  * 9/27/2022
  **/
 
 pragma solidity ^0.8.10;
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Context.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/access/Ownable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (access/Ownable.sol)
-
-
-/**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
- *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
- *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
- */
-abstract contract Ownable is Context {
-    address private _owner;
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-    constructor() {
-        _transferOwnership(_msgSender());
-    }
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        _checkOwner();
-        _;
-    }
-
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if the sender is not the owner.
-     */
-    function _checkOwner() internal view virtual {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-    }
-
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called by the current owner.
-     *
-     * NOTE: Renouncing ownership will leave the contract without an owner,
-     * thereby removing any functionality that is only available to the owner.
-     */
-    function renounceOwnership() public virtual onlyOwner {
-        _transferOwnership(address(0));
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        _transferOwnership(newOwner);
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Internal function without access restriction.
-     */
-    function _transferOwnership(address newOwner) internal virtual {
-        address oldOwner = _owner;
-        _owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
-    }
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/proxy/Proxy.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/Proxy.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (proxy/Proxy.sol)
 
@@ -212,96 +107,7 @@ abstract contract Proxy {
     function _beforeFallback() internal virtual {}
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/StorageSlot.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (utils/StorageSlot.sol)
-
-
-/**
- * @dev Library for reading and writing primitive types to specific storage slots.
- *
- * Storage slots are often used to avoid storage conflict when dealing with upgradeable contracts.
- * This library helps with reading and writing to such slots without the need for inline assembly.
- *
- * The functions in this library return Slot structs that contain a `value` member that can be used to read or write.
- *
- * Example usage to set ERC1967 implementation slot:
- * ```
- * contract ERC1967 {
- *     bytes32 internal constant _IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
- *
- *     function _getImplementation() internal view returns (address) {
- *         return StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value;
- *     }
- *
- *     function _setImplementation(address newImplementation) internal {
- *         require(Address.isContract(newImplementation), "ERC1967: new implementation is not a contract");
- *         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = newImplementation;
- *     }
- * }
- * ```
- *
- * _Available since v4.1 for `address`, `bool`, `bytes32`, and `uint256`._
- */
-library StorageSlot {
-    struct AddressSlot {
-        address value;
-    }
-
-    struct BooleanSlot {
-        bool value;
-    }
-
-    struct Bytes32Slot {
-        bytes32 value;
-    }
-
-    struct Uint256Slot {
-        uint256 value;
-    }
-
-    /**
-     * @dev Returns an `AddressSlot` with member `value` located at `slot`.
-     */
-    function getAddressSlot(bytes32 slot) internal pure returns (AddressSlot storage r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            r.slot := slot
-        }
-    }
-
-    /**
-     * @dev Returns an `BooleanSlot` with member `value` located at `slot`.
-     */
-    function getBooleanSlot(bytes32 slot) internal pure returns (BooleanSlot storage r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            r.slot := slot
-        }
-    }
-
-    /**
-     * @dev Returns an `Bytes32Slot` with member `value` located at `slot`.
-     */
-    function getBytes32Slot(bytes32 slot) internal pure returns (Bytes32Slot storage r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            r.slot := slot
-        }
-    }
-
-    /**
-     * @dev Returns an `Uint256Slot` with member `value` located at `slot`.
-     */
-    function getUint256Slot(bytes32 slot) internal pure returns (Uint256Slot storage r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            r.slot := slot
-        }
-    }
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/utils/Address.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
 
@@ -524,7 +330,7 @@ library Address {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/interfaces/draft-IERC1822.sol@v4.7.3
+// File @zeppelin-solidity/contracts/interfaces/draft-IERC1822.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (interfaces/draft-IERC1822.sol)
 
@@ -545,7 +351,7 @@ interface IERC1822Proxiable {
     function proxiableUUID() external view returns (bytes32);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/beacon/IBeacon.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/beacon/IBeacon.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (proxy/beacon/IBeacon.sol)
 
@@ -562,7 +368,96 @@ interface IBeacon {
     function implementation() external view returns (address);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/ERC1967/ERC1967Upgrade.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/StorageSlot.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/StorageSlot.sol)
+
+
+/**
+ * @dev Library for reading and writing primitive types to specific storage slots.
+ *
+ * Storage slots are often used to avoid storage conflict when dealing with upgradeable contracts.
+ * This library helps with reading and writing to such slots without the need for inline assembly.
+ *
+ * The functions in this library return Slot structs that contain a `value` member that can be used to read or write.
+ *
+ * Example usage to set ERC1967 implementation slot:
+ * ```
+ * contract ERC1967 {
+ *     bytes32 internal constant _IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+ *
+ *     function _getImplementation() internal view returns (address) {
+ *         return StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value;
+ *     }
+ *
+ *     function _setImplementation(address newImplementation) internal {
+ *         require(Address.isContract(newImplementation), "ERC1967: new implementation is not a contract");
+ *         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = newImplementation;
+ *     }
+ * }
+ * ```
+ *
+ * _Available since v4.1 for `address`, `bool`, `bytes32`, and `uint256`._
+ */
+library StorageSlot {
+    struct AddressSlot {
+        address value;
+    }
+
+    struct BooleanSlot {
+        bool value;
+    }
+
+    struct Bytes32Slot {
+        bytes32 value;
+    }
+
+    struct Uint256Slot {
+        uint256 value;
+    }
+
+    /**
+     * @dev Returns an `AddressSlot` with member `value` located at `slot`.
+     */
+    function getAddressSlot(bytes32 slot) internal pure returns (AddressSlot storage r) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            r.slot := slot
+        }
+    }
+
+    /**
+     * @dev Returns an `BooleanSlot` with member `value` located at `slot`.
+     */
+    function getBooleanSlot(bytes32 slot) internal pure returns (BooleanSlot storage r) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            r.slot := slot
+        }
+    }
+
+    /**
+     * @dev Returns an `Bytes32Slot` with member `value` located at `slot`.
+     */
+    function getBytes32Slot(bytes32 slot) internal pure returns (Bytes32Slot storage r) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            r.slot := slot
+        }
+    }
+
+    /**
+     * @dev Returns an `Uint256Slot` with member `value` located at `slot`.
+     */
+    function getUint256Slot(bytes32 slot) internal pure returns (Uint256Slot storage r) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            r.slot := slot
+        }
+    }
+}
+
+// File @zeppelin-solidity/contracts/proxy/ERC1967/ERC1967Upgrade.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (proxy/ERC1967/ERC1967Upgrade.sol)
 
@@ -746,7 +641,7 @@ abstract contract ERC1967Upgrade {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/ERC1967/ERC1967Proxy.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/ERC1967/ERC1967Proxy.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (proxy/ERC1967/ERC1967Proxy.sol)
 
@@ -777,7 +672,7 @@ contract ERC1967Proxy is Proxy, ERC1967Upgrade {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/transparent/TransparentUpgradeableProxy.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/transparent/TransparentUpgradeableProxy.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (proxy/transparent/TransparentUpgradeableProxy.sol)
 
@@ -900,7 +795,114 @@ contract TransparentUpgradeableProxy is ERC1967Proxy {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/transparent/ProxyAdmin.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+// File @zeppelin-solidity/contracts/access/Ownable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (access/Ownable.sol)
+
+
+/**
+ * @dev Contract module which provides a basic access control mechanism, where
+ * there is an account (an owner) that can be granted exclusive access to
+ * specific functions.
+ *
+ * By default, the owner account will be the one that deploys the contract. This
+ * can later be changed with {transferOwnership}.
+ *
+ * This module is used through inheritance. It will make available the modifier
+ * `onlyOwner`, which can be applied to your functions to restrict their use to
+ * the owner.
+ */
+abstract contract Ownable is Context {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor() {
+        _transferOwnership(_msgSender());
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        _checkOwner();
+        _;
+    }
+
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    /**
+     * @dev Throws if the sender is not the owner.
+     */
+    function _checkOwner() internal view virtual {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+    }
+
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceOwnership() public virtual onlyOwner {
+        _transferOwnership(address(0));
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
+     */
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        _transferOwnership(newOwner);
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Internal function without access restriction.
+     */
+    function _transferOwnership(address newOwner) internal virtual {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+
+// File @zeppelin-solidity/contracts/proxy/transparent/ProxyAdmin.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (proxy/transparent/ProxyAdmin.sol)
 
@@ -980,3 +982,5 @@ contract ProxyAdmin is Ownable {
     }
 }
 
+// File contracts/mapping-token/deprecated/admin.sol
+// License-Identifier: MIT

@@ -9,7 +9,7 @@ pragma solidity ^0.8.10;
 // and serialize the attributes of the mapping token when burn_and_unlock
 // The AttributesSerializer must implement interfaces in IErc721AttrSerializer.
 
-import "@zeppelin-solidity-4.4.0/contracts/token/ERC721/IERC721.sol";
+import "@zeppelin-solidity/contracts/token/ERC721/IERC721.sol";
 import "../Backing.sol";
 import "../../interfaces/IErc721AttrSerializer.sol";
 import "../../interfaces/IErc721Backing.sol";

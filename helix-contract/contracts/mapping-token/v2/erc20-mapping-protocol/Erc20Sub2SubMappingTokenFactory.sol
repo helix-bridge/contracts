@@ -5,8 +5,8 @@
 // Only we need is to verify the sourceAccount is expected. And we add it to the Filter.
 pragma solidity ^0.8.10;
 
-import "@zeppelin-solidity-4.4.0/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol";
+import "@zeppelin-solidity/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@zeppelin-solidity/contracts/utils/structs/BitMaps.sol";
 import "../MappingTokenFactory.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IERC20.sol";

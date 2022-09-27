@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.10;
 
-import "@zeppelin-solidity-4.4.0/contracts/access/Ownable.sol";
+import "@zeppelin-solidity/contracts/access/Ownable.sol";
 import "../interfaces/IErc1155Metadata.sol";
 import "../interfaces/IErc1155MappingToken.sol";
 

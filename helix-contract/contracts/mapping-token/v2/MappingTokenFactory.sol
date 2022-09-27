@@ -5,8 +5,8 @@
 // Only we need is to verify the sourceAccount is expected. And we add it to the Filter.
 pragma solidity ^0.8.10;
 
-import "@zeppelin-solidity-4.4.0/contracts/access/Ownable.sol";
-import "@zeppelin-solidity-4.4.0/contracts/proxy/utils/Initializable.sol";
+import "@zeppelin-solidity/contracts/access/Ownable.sol";
+import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./AccessController.sol";
 
 contract MappingTokenFactory is AccessController, Initializable {

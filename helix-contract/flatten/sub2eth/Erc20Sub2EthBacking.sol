@@ -13,6 +13,8 @@
  * | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
+ * https://helixbridge.app/
+ *
  * 9/27/2022
  **/
 
@@ -101,74 +103,7 @@ contract DailyLimit {
     }
 }
 
-// File contracts/mapping-token/interfaces/IGuard.sol
-// License-Identifier: MIT
-
-
-interface IGuard {
-  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
-}
-
-// File contracts/mapping-token/interfaces/IHelixApp.sol
-// License-Identifier: MIT
-
-
-interface IHelixAppSupportWithdrawFailed {
-    function handleUnlockFailureFromRemote(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-    function handleUnlockFailureFromRemoteNative(
-        uint256 messageId,
-        address sender,
-        uint256 amount
-    ) external;
-    function handleIssuingFailureFromRemote(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-}
-
-// File contracts/mapping-token/interfaces/IBacking.sol
-// License-Identifier: MIT
-
-
-interface IBacking {
-    function unlockFromRemote(
-        address originalToken,
-        address recipient,
-        uint256 amount) external;
-}
-
-interface IBackingSupportNative {
-    function unlockFromRemoteNative(
-        address recipient,
-        uint256 amount) external;
-}
-
-// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixMessageEndpoint {
-    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
-}
-
-// File contracts/mapping-token/interfaces/IHelixSub2EthMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixSub2EthMessageEndpoint is IHelixMessageEndpoint {
-    function fee() external view returns (uint256);
-    function currentDeliveredMessageId() external view returns (uint256);
-    function isMessageDelivered(uint256 messageId) external view returns (bool);
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControl.sol@v4.7.3
+// File @zeppelin-solidity/contracts/access/IAccessControl.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (access/IAccessControl.sol)
 
@@ -257,37 +192,7 @@ interface IAccessControl {
     function renounceRole(bytes32 role, address account) external;
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControlEnumerable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
-
-
-/**
- * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
- */
-interface IAccessControlEnumerable is IAccessControl {
-    /**
-     * @dev Returns one of the accounts that have `role`. `index` must be a
-     * value between 0 and {getRoleMemberCount}, non-inclusive.
-     *
-     * Role bearers are not sorted in any particular way, and their ordering may
-     * change at any point.
-     *
-     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
-     * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-     * for more information.
-     */
-    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
-
-    /**
-     * @dev Returns the number of accounts that have `role`. Can be used
-     * together with {getRoleMember} to enumerate all bearers of a role.
-     */
-    function getRoleMemberCount(bytes32 role) external view returns (uint256);
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/utils/Context.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
 
@@ -312,7 +217,7 @@ abstract contract Context {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Strings.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/Strings.sol)
 
@@ -388,7 +293,7 @@ library Strings {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/IERC165.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 
@@ -414,7 +319,7 @@ interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/ERC165.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
 
@@ -442,7 +347,7 @@ abstract contract ERC165 is IERC165 {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/AccessControl.sol@v4.7.3
+// File @zeppelin-solidity/contracts/access/AccessControl.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (access/AccessControl.sol)
 
@@ -688,7 +593,37 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/structs/EnumerableSet.sol@v4.7.3
+// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
+
+
+/**
+ * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
+ */
+interface IAccessControlEnumerable is IAccessControl {
+    /**
+     * @dev Returns one of the accounts that have `role`. `index` must be a
+     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     *
+     * Role bearers are not sorted in any particular way, and their ordering may
+     * change at any point.
+     *
+     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
+     * you perform all queries on the same block. See the following
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * for more information.
+     */
+    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
+
+    /**
+     * @dev Returns the number of accounts that have `role`. Can be used
+     * together with {getRoleMember} to enumerate all bearers of a role.
+     */
+    function getRoleMemberCount(bytes32 role) external view returns (uint256);
+}
+
+// File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/structs/EnumerableSet.sol)
 
@@ -1056,7 +991,7 @@ library EnumerableSet {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/AccessControlEnumerable.sol@v4.7.3
+// File @zeppelin-solidity/contracts/access/AccessControlEnumerable.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (access/AccessControlEnumerable.sol)
 
@@ -1119,7 +1054,7 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/security/Pausable.sol@v4.7.3
+// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
 
@@ -1273,7 +1208,7 @@ contract AccessController is AccessControlEnumerable, Pausable {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Address.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
 
@@ -1496,7 +1431,7 @@ library Address {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/utils/Initializable.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/utils/Initializable.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (proxy/utils/Initializable.sol)
 
@@ -1668,6 +1603,23 @@ contract Backing is AccessController, Initializable {
     }
 }
 
+// File contracts/mapping-token/interfaces/IBacking.sol
+// License-Identifier: MIT
+
+
+interface IBacking {
+    function unlockFromRemote(
+        address originalToken,
+        address recipient,
+        uint256 amount) external;
+}
+
+interface IBackingSupportNative {
+    function unlockFromRemoteNative(
+        address recipient,
+        uint256 amount) external;
+}
+
 // File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
 // License-Identifier: MIT
 
@@ -1689,6 +1641,56 @@ interface IErc20MappingTokenFactory {
     ) external;
 }
 
+// File contracts/mapping-token/interfaces/IGuard.sol
+// License-Identifier: MIT
+
+
+interface IGuard {
+  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
+}
+
+// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixMessageEndpoint {
+    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
+}
+
+// File contracts/mapping-token/interfaces/IHelixSub2EthMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixSub2EthMessageEndpoint is IHelixMessageEndpoint {
+    function fee() external view returns (uint256);
+    function currentDeliveredMessageId() external view returns (uint256);
+    function isMessageDelivered(uint256 messageId) external view returns (bool);
+}
+
+// File contracts/mapping-token/interfaces/IHelixApp.sol
+// License-Identifier: MIT
+
+
+interface IHelixAppSupportWithdrawFailed {
+    function handleUnlockFailureFromRemote(
+        uint256 messageId,
+        address token,
+        address sender,
+        uint256 amount
+    ) external;
+    function handleUnlockFailureFromRemoteNative(
+        uint256 messageId,
+        address sender,
+        uint256 amount
+    ) external;
+    function handleIssuingFailureFromRemote(
+        uint256 messageId,
+        address token,
+        address sender,
+        uint256 amount
+    ) external;
+}
+
 // File contracts/mapping-token/interfaces/IWToken.sol
 // License-Identifier: MIT
 
@@ -1698,7 +1700,7 @@ interface IWToken {
     function withdraw(uint wad) external;
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol@v4.7.3
+// File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
 
@@ -1781,7 +1783,7 @@ interface IERC20 {
     ) external returns (bool);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/structs/BitMaps.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/structs/BitMaps.sol)
 

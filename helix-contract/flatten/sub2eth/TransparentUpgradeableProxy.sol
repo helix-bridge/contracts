@@ -20,7 +20,7 @@
 
 pragma solidity ^0.8.10;
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/Proxy.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/Proxy.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (proxy/Proxy.sol)
 
@@ -107,113 +107,7 @@ abstract contract Proxy {
     function _beforeFallback() internal virtual {}
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/beacon/IBeacon.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (proxy/beacon/IBeacon.sol)
-
-
-/**
- * @dev This is the interface that {BeaconProxy} expects of its beacon.
- */
-interface IBeacon {
-    /**
-     * @dev Must return an address that can be used as a delegate call target.
-     *
-     * {BeaconProxy} will check that this address is a contract.
-     */
-    function implementation() external view returns (address);
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/utils/StorageSlot.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (utils/StorageSlot.sol)
-
-
-/**
- * @dev Library for reading and writing primitive types to specific storage slots.
- *
- * Storage slots are often used to avoid storage conflict when dealing with upgradeable contracts.
- * This library helps with reading and writing to such slots without the need for inline assembly.
- *
- * The functions in this library return Slot structs that contain a `value` member that can be used to read or write.
- *
- * Example usage to set ERC1967 implementation slot:
- * ```
- * contract ERC1967 {
- *     bytes32 internal constant _IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
- *
- *     function _getImplementation() internal view returns (address) {
- *         return StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value;
- *     }
- *
- *     function _setImplementation(address newImplementation) internal {
- *         require(Address.isContract(newImplementation), "ERC1967: new implementation is not a contract");
- *         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = newImplementation;
- *     }
- * }
- * ```
- *
- * _Available since v4.1 for `address`, `bool`, `bytes32`, and `uint256`._
- */
-library StorageSlot {
-    struct AddressSlot {
-        address value;
-    }
-
-    struct BooleanSlot {
-        bool value;
-    }
-
-    struct Bytes32Slot {
-        bytes32 value;
-    }
-
-    struct Uint256Slot {
-        uint256 value;
-    }
-
-    /**
-     * @dev Returns an `AddressSlot` with member `value` located at `slot`.
-     */
-    function getAddressSlot(bytes32 slot) internal pure returns (AddressSlot storage r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            r.slot := slot
-        }
-    }
-
-    /**
-     * @dev Returns an `BooleanSlot` with member `value` located at `slot`.
-     */
-    function getBooleanSlot(bytes32 slot) internal pure returns (BooleanSlot storage r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            r.slot := slot
-        }
-    }
-
-    /**
-     * @dev Returns an `Bytes32Slot` with member `value` located at `slot`.
-     */
-    function getBytes32Slot(bytes32 slot) internal pure returns (Bytes32Slot storage r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            r.slot := slot
-        }
-    }
-
-    /**
-     * @dev Returns an `Uint256Slot` with member `value` located at `slot`.
-     */
-    function getUint256Slot(bytes32 slot) internal pure returns (Uint256Slot storage r) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            r.slot := slot
-        }
-    }
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/interfaces/draft-IERC1822.sol@v4.7.3
+// File @zeppelin-solidity/contracts/interfaces/draft-IERC1822.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (interfaces/draft-IERC1822.sol)
 
@@ -234,7 +128,24 @@ interface IERC1822Proxiable {
     function proxiableUUID() external view returns (bytes32);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Address.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/beacon/IBeacon.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (proxy/beacon/IBeacon.sol)
+
+
+/**
+ * @dev This is the interface that {BeaconProxy} expects of its beacon.
+ */
+interface IBeacon {
+    /**
+     * @dev Must return an address that can be used as a delegate call target.
+     *
+     * {BeaconProxy} will check that this address is a contract.
+     */
+    function implementation() external view returns (address);
+}
+
+// File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
 
@@ -457,7 +368,96 @@ library Address {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/ERC1967/ERC1967Upgrade.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/StorageSlot.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/StorageSlot.sol)
+
+
+/**
+ * @dev Library for reading and writing primitive types to specific storage slots.
+ *
+ * Storage slots are often used to avoid storage conflict when dealing with upgradeable contracts.
+ * This library helps with reading and writing to such slots without the need for inline assembly.
+ *
+ * The functions in this library return Slot structs that contain a `value` member that can be used to read or write.
+ *
+ * Example usage to set ERC1967 implementation slot:
+ * ```
+ * contract ERC1967 {
+ *     bytes32 internal constant _IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+ *
+ *     function _getImplementation() internal view returns (address) {
+ *         return StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value;
+ *     }
+ *
+ *     function _setImplementation(address newImplementation) internal {
+ *         require(Address.isContract(newImplementation), "ERC1967: new implementation is not a contract");
+ *         StorageSlot.getAddressSlot(_IMPLEMENTATION_SLOT).value = newImplementation;
+ *     }
+ * }
+ * ```
+ *
+ * _Available since v4.1 for `address`, `bool`, `bytes32`, and `uint256`._
+ */
+library StorageSlot {
+    struct AddressSlot {
+        address value;
+    }
+
+    struct BooleanSlot {
+        bool value;
+    }
+
+    struct Bytes32Slot {
+        bytes32 value;
+    }
+
+    struct Uint256Slot {
+        uint256 value;
+    }
+
+    /**
+     * @dev Returns an `AddressSlot` with member `value` located at `slot`.
+     */
+    function getAddressSlot(bytes32 slot) internal pure returns (AddressSlot storage r) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            r.slot := slot
+        }
+    }
+
+    /**
+     * @dev Returns an `BooleanSlot` with member `value` located at `slot`.
+     */
+    function getBooleanSlot(bytes32 slot) internal pure returns (BooleanSlot storage r) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            r.slot := slot
+        }
+    }
+
+    /**
+     * @dev Returns an `Bytes32Slot` with member `value` located at `slot`.
+     */
+    function getBytes32Slot(bytes32 slot) internal pure returns (Bytes32Slot storage r) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            r.slot := slot
+        }
+    }
+
+    /**
+     * @dev Returns an `Uint256Slot` with member `value` located at `slot`.
+     */
+    function getUint256Slot(bytes32 slot) internal pure returns (Uint256Slot storage r) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            r.slot := slot
+        }
+    }
+}
+
+// File @zeppelin-solidity/contracts/proxy/ERC1967/ERC1967Upgrade.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (proxy/ERC1967/ERC1967Upgrade.sol)
 
@@ -641,7 +641,7 @@ abstract contract ERC1967Upgrade {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/ERC1967/ERC1967Proxy.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/ERC1967/ERC1967Proxy.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (proxy/ERC1967/ERC1967Proxy.sol)
 
@@ -672,7 +672,7 @@ contract ERC1967Proxy is Proxy, ERC1967Upgrade {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/transparent/TransparentUpgradeableProxy.sol@v4.7.3
+// File @zeppelin-solidity/contracts/proxy/transparent/TransparentUpgradeableProxy.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (proxy/transparent/TransparentUpgradeableProxy.sol)
 

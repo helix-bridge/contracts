@@ -13,16 +13,164 @@
  * | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
- * https://helixbridge.app/
- *
- * 9/24/2022
+ * 9/27/2022
  **/
 
 pragma solidity ^0.8.10;
 
-// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControl.sol@v4.4.0-rc.0
+// File contracts/utils/DailyLimit.sol
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (access/IAccessControl.sol)
+
+
+/// @title relay with daily limit - Allows the relay to mint token in a daily limit.
+contract DailyLimit {
+
+    event DailyLimitChange(address token, uint dailyLimit);
+
+    mapping(address => uint) public dailyLimit;
+    // deprecated, slot for upgrade
+    mapping(address => uint) public _slotReserved;
+    mapping(address => uint) public spentToday;
+
+    uint constant public SPEND_BIT_LENGTH = 192;
+    uint constant public LASTDAY_BIT_LENGTH = 64;
+
+    /// ==== Internal functions ==== 
+
+    /// @dev Contract constructor sets initial owners, required number of confirmations and daily mint limit.
+    /// @param _token Token address.
+    /// @param _dailyLimit Amount in wei, which can be mint without confirmations on a daily basis.
+    function _setDailyLimit(address _token, uint _dailyLimit)
+        internal
+    {
+        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
+        dailyLimit[_token] = _dailyLimit;
+    }
+
+    /// @dev Allows to change the daily limit.
+    /// @param _token Token address.
+    /// @param _dailyLimit Amount in wei.
+    function _changeDailyLimit(address _token, uint _dailyLimit)
+        internal
+    {
+        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
+        dailyLimit[_token] = _dailyLimit;
+        emit DailyLimitChange(_token, _dailyLimit);
+    }
+
+    /// @dev Allows to change the daily limit.
+    /// @param token Token address.
+    /// @param amount Amount in wei.
+    function expendDailyLimit(address token, uint amount)
+        internal
+    {
+        uint spentInfo = spentToday[token];
+        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
+        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
+        if (block.timestamp > lastday + 24 hours) {
+            require(amount <= dailyLimit[token], "DailyLimit: amount exceed daily limit");
+            spentToday[token] = (block.timestamp << SPEND_BIT_LENGTH) + amount;
+            return;
+        }
+        require(lastspent + amount <= dailyLimit[token] && amount <= dailyLimit[token], "DailyLimit: exceed daily limit");
+        spentToday[token] = spentInfo + amount;
+    }
+
+    /// ==== Web3 call functions ==== 
+
+    /// @dev Returns maximum withdraw amount.
+    /// @param token Token address.
+    /// @return Returns amount.
+    function calcMaxWithdraw(address token)
+        public
+        view
+        returns (uint)
+    {
+        uint spentInfo = spentToday[token];
+        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
+        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
+        if (block.timestamp > lastday + 24 hours) {
+          return dailyLimit[token];
+        }
+
+        if (dailyLimit[token] < lastspent) {
+          return 0;
+        }
+
+        return dailyLimit[token] - lastspent;
+    }
+}
+
+// File contracts/mapping-token/interfaces/IGuard.sol
+// License-Identifier: MIT
+
+
+interface IGuard {
+  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
+}
+
+// File contracts/mapping-token/interfaces/IHelixApp.sol
+// License-Identifier: MIT
+
+
+interface IHelixAppSupportWithdrawFailed {
+    function handleUnlockFailureFromRemote(
+        uint256 messageId,
+        address token,
+        address sender,
+        uint256 amount
+    ) external;
+    function handleUnlockFailureFromRemoteNative(
+        uint256 messageId,
+        address sender,
+        uint256 amount
+    ) external;
+    function handleIssuingFailureFromRemote(
+        uint256 messageId,
+        address token,
+        address sender,
+        uint256 amount
+    ) external;
+}
+
+// File contracts/mapping-token/interfaces/IBacking.sol
+// License-Identifier: MIT
+
+
+interface IBacking {
+    function unlockFromRemote(
+        address originalToken,
+        address recipient,
+        uint256 amount) external;
+}
+
+interface IBackingSupportNative {
+    function unlockFromRemoteNative(
+        address recipient,
+        uint256 amount) external;
+}
+
+// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixMessageEndpoint {
+    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
+}
+
+// File contracts/mapping-token/interfaces/IHelixSub2EthMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixSub2EthMessageEndpoint is IHelixMessageEndpoint {
+    function fee() external view returns (uint256);
+    function currentDeliveredMessageId() external view returns (uint256);
+    function isMessageDelivered(uint256 messageId) external view returns (bool);
+}
+
+// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControl.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControl.sol)
 
 
 /**
@@ -109,9 +257,9 @@ interface IAccessControl {
     function renounceRole(bytes32 role, address account) external;
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControlEnumerable.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControlEnumerable.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (access/IAccessControlEnumerable.sol)
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
 
 
 /**
@@ -139,9 +287,34 @@ interface IAccessControlEnumerable is IAccessControl {
     function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Strings.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/Context.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/Strings.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+// File @zeppelin-solidity-4.4.0/contracts/utils/Strings.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/Strings.sol)
 
 
 /**
@@ -149,6 +322,7 @@ interface IAccessControlEnumerable is IAccessControl {
  */
 library Strings {
     bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+    uint8 private constant _ADDRESS_LENGTH = 20;
 
     /**
      * @dev Converts a `uint256` to its ASCII `string` decimal representation.
@@ -205,36 +379,18 @@ library Strings {
         require(value == 0, "Strings: hex length insufficient");
         return string(buffer);
     }
-}
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Context.sol@v4.4.0-rc.0
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
+    /**
+     * @dev Converts an `address` with fixed length of 20 bytes to its not checksummed ASCII `string` hexadecimal representation.
+     */
+    function toHexString(address addr) internal pure returns (string memory) {
+        return toHexString(uint256(uint160(addr)), _ADDRESS_LENGTH);
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/IERC165.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/IERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/introspection/IERC165.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 
 
 /**
@@ -258,9 +414,9 @@ interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/ERC165.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/ERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/introspection/ERC165.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
 
 
 /**
@@ -286,9 +442,9 @@ abstract contract ERC165 is IERC165 {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/AccessControl.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/access/AccessControl.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (access/AccessControl.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (access/AccessControl.sol)
 
 
 
@@ -353,7 +509,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * _Available since v4.1._
      */
     modifier onlyRole(bytes32 role) {
-        _checkRole(role, _msgSender());
+        _checkRole(role);
         _;
     }
 
@@ -367,8 +523,20 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
     /**
      * @dev Returns `true` if `account` has been granted `role`.
      */
-    function hasRole(bytes32 role, address account) public view override returns (bool) {
+    function hasRole(bytes32 role, address account) public view virtual override returns (bool) {
         return _roles[role].members[account];
+    }
+
+    /**
+     * @dev Revert with a standard message if `_msgSender()` is missing `role`.
+     * Overriding this function changes the behavior of the {onlyRole} modifier.
+     *
+     * Format of the revert message is described in {_checkRole}.
+     *
+     * _Available since v4.6._
+     */
+    function _checkRole(bytes32 role) internal view virtual {
+        _checkRole(role, _msgSender());
     }
 
     /**
@@ -378,7 +546,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      *
      *  /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
      */
-    function _checkRole(bytes32 role, address account) internal view {
+    function _checkRole(bytes32 role, address account) internal view virtual {
         if (!hasRole(role, account)) {
             revert(
                 string(
@@ -399,7 +567,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      *
      * To change a role's admin, use {_setRoleAdmin}.
      */
-    function getRoleAdmin(bytes32 role) public view override returns (bytes32) {
+    function getRoleAdmin(bytes32 role) public view virtual override returns (bytes32) {
         return _roles[role].adminRole;
     }
 
@@ -412,6 +580,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * Requirements:
      *
      * - the caller must have ``role``'s admin role.
+     *
+     * May emit a {RoleGranted} event.
      */
     function grantRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
         _grantRole(role, account);
@@ -425,6 +595,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * Requirements:
      *
      * - the caller must have ``role``'s admin role.
+     *
+     * May emit a {RoleRevoked} event.
      */
     function revokeRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
         _revokeRole(role, account);
@@ -443,6 +615,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * Requirements:
      *
      * - the caller must be `account`.
+     *
+     * May emit a {RoleRevoked} event.
      */
     function renounceRole(bytes32 role, address account) public virtual override {
         require(account == _msgSender(), "AccessControl: can only renounce roles for self");
@@ -456,6 +630,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * If `account` had not been already granted `role`, emits a {RoleGranted}
      * event. Note that unlike {grantRole}, this function doesn't perform any
      * checks on the calling account.
+     *
+     * May emit a {RoleGranted} event.
      *
      * [WARNING]
      * ====
@@ -487,6 +663,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * @dev Grants `role` to `account`.
      *
      * Internal function without access restriction.
+     *
+     * May emit a {RoleGranted} event.
      */
     function _grantRole(bytes32 role, address account) internal virtual {
         if (!hasRole(role, account)) {
@@ -499,6 +677,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * @dev Revokes `role` from `account`.
      *
      * Internal function without access restriction.
+     *
+     * May emit a {RoleRevoked} event.
      */
     function _revokeRole(bytes32 role, address account) internal virtual {
         if (hasRole(role, account)) {
@@ -508,9 +688,9 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/structs/EnumerableSet.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/structs/EnumerableSet.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/structs/EnumerableSet.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/structs/EnumerableSet.sol)
 
 
 /**
@@ -536,6 +716,14 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
  *
  * As of v3.3.0, sets of type `bytes32` (`Bytes32Set`), `address` (`AddressSet`)
  * and `uint256` (`UintSet`) are supported.
+ *
+ * [WARNING]
+ * ====
+ *  Trying to delete such a structure from storage will likely result in data corruption, rendering the structure unusable.
+ *  See https://github.com/ethereum/solidity/pull/11843[ethereum/solidity#11843] for more info.
+ *
+ *  In order to clean an EnumerableSet, you can either remove all elements one by one or create a fresh instance using an array of EnumerableSet.
+ * ====
  */
 library EnumerableSet {
     // To implement this library for multiple types with as little code
@@ -593,12 +781,12 @@ library EnumerableSet {
             uint256 lastIndex = set._values.length - 1;
 
             if (lastIndex != toDeleteIndex) {
-                bytes32 lastvalue = set._values[lastIndex];
+                bytes32 lastValue = set._values[lastIndex];
 
                 // Move the last value to the index where the value to delete is
-                set._values[toDeleteIndex] = lastvalue;
+                set._values[toDeleteIndex] = lastValue;
                 // Update the index for the moved value
-                set._indexes[lastvalue] = valueIndex; // Replace lastvalue's index to valueIndex
+                set._indexes[lastValue] = valueIndex; // Replace lastValue's index to valueIndex
             }
 
             // Delete the slot where the moved value was stored
@@ -785,6 +973,7 @@ library EnumerableSet {
         bytes32[] memory store = _values(set._inner);
         address[] memory result;
 
+        /// @solidity memory-safe-assembly
         assembly {
             result := store
         }
@@ -858,6 +1047,7 @@ library EnumerableSet {
         bytes32[] memory store = _values(set._inner);
         uint256[] memory result;
 
+        /// @solidity memory-safe-assembly
         assembly {
             result := store
         }
@@ -866,9 +1056,9 @@ library EnumerableSet {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/AccessControlEnumerable.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/access/AccessControlEnumerable.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (access/AccessControlEnumerable.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (access/AccessControlEnumerable.sol)
 
 
 
@@ -900,7 +1090,7 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
      * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
      * for more information.
      */
-    function getRoleMember(bytes32 role, uint256 index) public view override returns (address) {
+    function getRoleMember(bytes32 role, uint256 index) public view virtual override returns (address) {
         return _roleMembers[role].at(index);
     }
 
@@ -908,46 +1098,30 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
      * @dev Returns the number of accounts that have `role`. Can be used
      * together with {getRoleMember} to enumerate all bearers of a role.
      */
-    function getRoleMemberCount(bytes32 role) public view override returns (uint256) {
+    function getRoleMemberCount(bytes32 role) public view virtual override returns (uint256) {
         return _roleMembers[role].length();
     }
 
     /**
-     * @dev Overload {grantRole} to track enumerable memberships
+     * @dev Overload {_grantRole} to track enumerable memberships
      */
-    function grantRole(bytes32 role, address account) public virtual override(AccessControl, IAccessControl) {
-        super.grantRole(role, account);
+    function _grantRole(bytes32 role, address account) internal virtual override {
+        super._grantRole(role, account);
         _roleMembers[role].add(account);
     }
 
     /**
-     * @dev Overload {revokeRole} to track enumerable memberships
+     * @dev Overload {_revokeRole} to track enumerable memberships
      */
-    function revokeRole(bytes32 role, address account) public virtual override(AccessControl, IAccessControl) {
-        super.revokeRole(role, account);
+    function _revokeRole(bytes32 role, address account) internal virtual override {
+        super._revokeRole(role, account);
         _roleMembers[role].remove(account);
-    }
-
-    /**
-     * @dev Overload {renounceRole} to track enumerable memberships
-     */
-    function renounceRole(bytes32 role, address account) public virtual override(AccessControl, IAccessControl) {
-        super.renounceRole(role, account);
-        _roleMembers[role].remove(account);
-    }
-
-    /**
-     * @dev Overload {_setupRole} to track enumerable memberships
-     */
-    function _setupRole(bytes32 role, address account) internal virtual override {
-        super._setupRole(role, account);
-        _roleMembers[role].add(account);
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/security/Pausable.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/security/Pausable.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (security/Pausable.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
 
 
 /**
@@ -980,13 +1154,6 @@ abstract contract Pausable is Context {
     }
 
     /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
      * @dev Modifier to make a function callable only when the contract is not paused.
      *
      * Requirements:
@@ -994,7 +1161,7 @@ abstract contract Pausable is Context {
      * - The contract must not be paused.
      */
     modifier whenNotPaused() {
-        require(!paused(), "Pausable: paused");
+        _requireNotPaused();
         _;
     }
 
@@ -1006,8 +1173,29 @@ abstract contract Pausable is Context {
      * - The contract must be paused.
      */
     modifier whenPaused() {
-        require(paused(), "Pausable: not paused");
+        _requirePaused();
         _;
+    }
+
+    /**
+     * @dev Returns true if the contract is paused, and false otherwise.
+     */
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Throws if the contract is paused.
+     */
+    function _requireNotPaused() internal view virtual {
+        require(!paused(), "Pausable: paused");
+    }
+
+    /**
+     * @dev Throws if the contract is not paused.
+     */
+    function _requirePaused() internal view virtual {
+        require(paused(), "Pausable: not paused");
     }
 
     /**
@@ -1085,16 +1273,259 @@ contract AccessController is AccessControlEnumerable, Pausable {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/proxy/utils/Initializable.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/Address.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (proxy/utils/Initializable.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
+
+
+/**
+ * @dev Collection of functions related to the address type
+ */
+library Address {
+    /**
+     * @dev Returns true if `account` is a contract.
+     *
+     * [IMPORTANT]
+     * ====
+     * It is unsafe to assume that an address for which this function returns
+     * false is an externally-owned account (EOA) and not a contract.
+     *
+     * Among others, `isContract` will return false for the following
+     * types of addresses:
+     *
+     *  - an externally-owned account
+     *  - a contract in construction
+     *  - an address where a contract will be created
+     *  - an address where a contract lived, but was destroyed
+     * ====
+     *
+     * [IMPORTANT]
+     * ====
+     * You shouldn't rely on `isContract` to protect against flash loan attacks!
+     *
+     * Preventing calls from contracts is highly discouraged. It breaks composability, breaks support for smart wallets
+     * like Gnosis Safe, and does not provide security since it can be circumvented by calling from a contract
+     * constructor.
+     * ====
+     */
+    function isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize/address.code.length, which returns 0
+        // for contracts in construction, since the code is only stored at the end
+        // of the constructor execution.
+
+        return account.code.length > 0;
+    }
+
+    /**
+     * @dev Replacement for Solidity's `transfer`: sends `amount` wei to
+     * `recipient`, forwarding all available gas and reverting on errors.
+     *
+     * https://eips.ethereum.org/EIPS/eip-1884[EIP1884] increases the gas cost
+     * of certain opcodes, possibly making contracts go over the 2300 gas limit
+     * imposed by `transfer`, making them unable to receive funds via
+     * `transfer`. {sendValue} removes this limitation.
+     *
+     * https://diligence.consensys.net/posts/2019/09/stop-using-soliditys-transfer-now/[Learn more].
+     *
+     * IMPORTANT: because control is transferred to `recipient`, care must be
+     * taken to not create reentrancy vulnerabilities. Consider using
+     * {ReentrancyGuard} or the
+     * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
+     */
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+
+    /**
+     * @dev Performs a Solidity function call using a low level `call`. A
+     * plain `call` is an unsafe replacement for a function call: use this
+     * function instead.
+     *
+     * If `target` reverts with a revert reason, it is bubbled up by this
+     * function (like regular Solidity function calls).
+     *
+     * Returns the raw returned data. To convert to the expected return value,
+     * use https://solidity.readthedocs.io/en/latest/units-and-global-variables.html?highlight=abi.decode#abi-encoding-and-decoding-functions[`abi.decode`].
+     *
+     * Requirements:
+     *
+     * - `target` must be a contract.
+     * - calling `target` with `data` must not revert.
+     *
+     * _Available since v3.1._
+     */
+    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
+        return functionCall(target, data, "Address: low-level call failed");
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`], but with
+     * `errorMessage` as a fallback revert reason when `target` reverts.
+     *
+     * _Available since v3.1._
+     */
+    function functionCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, 0, errorMessage);
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
+     * but also transferring `value` wei to `target`.
+     *
+     * Requirements:
+     *
+     * - the calling contract must have an ETH balance of at least `value`.
+     * - the called Solidity function must be `payable`.
+     *
+     * _Available since v3.1._
+     */
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value
+    ) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCallWithValue-address-bytes-uint256-}[`functionCallWithValue`], but
+     * with `errorMessage` as a fallback revert reason when `target` reverts.
+     *
+     * _Available since v3.1._
+     */
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
+        require(address(this).balance >= value, "Address: insufficient balance for call");
+        require(isContract(target), "Address: call to non-contract");
+
+        (bool success, bytes memory returndata) = target.call{value: value}(data);
+        return verifyCallResult(success, returndata, errorMessage);
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
+     * but performing a static call.
+     *
+     * _Available since v3.3._
+     */
+    function functionStaticCall(address target, bytes memory data) internal view returns (bytes memory) {
+        return functionStaticCall(target, data, "Address: low-level static call failed");
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-string-}[`functionCall`],
+     * but performing a static call.
+     *
+     * _Available since v3.3._
+     */
+    function functionStaticCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal view returns (bytes memory) {
+        require(isContract(target), "Address: static call to non-contract");
+
+        (bool success, bytes memory returndata) = target.staticcall(data);
+        return verifyCallResult(success, returndata, errorMessage);
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
+     * but performing a delegate call.
+     *
+     * _Available since v3.4._
+     */
+    function functionDelegateCall(address target, bytes memory data) internal returns (bytes memory) {
+        return functionDelegateCall(target, data, "Address: low-level delegate call failed");
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-string-}[`functionCall`],
+     * but performing a delegate call.
+     *
+     * _Available since v3.4._
+     */
+    function functionDelegateCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
+        require(isContract(target), "Address: delegate call to non-contract");
+
+        (bool success, bytes memory returndata) = target.delegatecall(data);
+        return verifyCallResult(success, returndata, errorMessage);
+    }
+
+    /**
+     * @dev Tool to verifies that a low level call was successful, and revert if it wasn't, either by bubbling the
+     * revert reason using the provided one.
+     *
+     * _Available since v4.3._
+     */
+    function verifyCallResult(
+        bool success,
+        bytes memory returndata,
+        string memory errorMessage
+    ) internal pure returns (bytes memory) {
+        if (success) {
+            return returndata;
+        } else {
+            // Look for revert reason and bubble it up if present
+            if (returndata.length > 0) {
+                // The easiest way to bubble the revert reason is using memory via assembly
+                /// @solidity memory-safe-assembly
+                assembly {
+                    let returndata_size := mload(returndata)
+                    revert(add(32, returndata), returndata_size)
+                }
+            } else {
+                revert(errorMessage);
+            }
+        }
+    }
+}
+
+// File @zeppelin-solidity-4.4.0/contracts/proxy/utils/Initializable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (proxy/utils/Initializable.sol)
 
 
 /**
  * @dev This is a base contract to aid in writing upgradeable contracts, or any kind of contract that will be deployed
- * behind a proxy. Since a proxied contract can't have a constructor, it's common to move constructor logic to an
+ * behind a proxy. Since proxied contracts do not make use of a constructor, it's common to move constructor logic to an
  * external initializer function, usually called `initialize`. It then becomes necessary to protect this initializer
  * function so it can only be called once. The {initializer} modifier provided by this contract will have this effect.
+ *
+ * The initialization functions use a version number. Once a version number is used, it is consumed and cannot be
+ * reused. This mechanism prevents re-execution of each "step" but allows the creation of new initialization steps in
+ * case an upgrade adds a module that needs to be initialized.
+ *
+ * For example:
+ *
+ * [.hljs-theme-light.nopadding]
+ * ```
+ * contract MyToken is ERC20Upgradeable {
+ *     function initialize() initializer public {
+ *         __ERC20_init("MyToken", "MTK");
+ *     }
+ * }
+ * contract MyTokenV2 is MyToken, ERC20PermitUpgradeable {
+ *     function initializeV2() reinitializer(2) public {
+ *         __ERC20Permit_init("MyToken");
+ *     }
+ * }
+ * ```
  *
  * TIP: To avoid leaving the proxy in an uninitialized state, the initializer function should be called as early as
  * possible by providing the encoded function call as the `_data` argument to {ERC1967Proxy-constructor}.
@@ -1107,21 +1538,24 @@ contract AccessController is AccessControlEnumerable, Pausable {
  * Avoid leaving a contract uninitialized.
  *
  * An uninitialized contract can be taken over by an attacker. This applies to both a proxy and its implementation
- * contract, which may impact the proxy. To initialize the implementation contract, you can either invoke the
- * initializer manually, or you can include a constructor to automatically mark it as initialized when it is deployed:
+ * contract, which may impact the proxy. To prevent the implementation contract from being used, you should invoke
+ * the {_disableInitializers} function in the constructor to automatically lock it when it is deployed:
  *
  * [.hljs-theme-light.nopadding]
  * ```
  * /// @custom:oz-upgrades-unsafe-allow constructor
- * constructor() initializer {}
+ * constructor() {
+ *     _disableInitializers();
+ * }
  * ```
  * ====
  */
 abstract contract Initializable {
     /**
      * @dev Indicates that the contract has been initialized.
+     * @custom:oz-retyped-from bool
      */
-    bool private _initialized;
+    uint8 private _initialized;
 
     /**
      * @dev Indicates that the contract is in the process of being initialized.
@@ -1129,21 +1563,72 @@ abstract contract Initializable {
     bool private _initializing;
 
     /**
-     * @dev Modifier to protect an initializer function from being invoked twice.
+     * @dev Triggered when the contract has been initialized or reinitialized.
+     */
+    event Initialized(uint8 version);
+
+    /**
+     * @dev A modifier that defines a protected initializer function that can be invoked at most once. In its scope,
+     * `onlyInitializing` functions can be used to initialize parent contracts. Equivalent to `reinitializer(1)`.
      */
     modifier initializer() {
-        require(_initializing || !_initialized, "Initializable: contract is already initialized");
-
         bool isTopLevelCall = !_initializing;
+        require(
+            (isTopLevelCall && _initialized < 1) || (!Address.isContract(address(this)) && _initialized == 1),
+            "Initializable: contract is already initialized"
+        );
+        _initialized = 1;
         if (isTopLevelCall) {
             _initializing = true;
-            _initialized = true;
         }
-
         _;
-
         if (isTopLevelCall) {
             _initializing = false;
+            emit Initialized(1);
+        }
+    }
+
+    /**
+     * @dev A modifier that defines a protected reinitializer function that can be invoked at most once, and only if the
+     * contract hasn't been initialized to a greater version before. In its scope, `onlyInitializing` functions can be
+     * used to initialize parent contracts.
+     *
+     * `initializer` is equivalent to `reinitializer(1)`, so a reinitializer may be used after the original
+     * initialization step. This is essential to configure modules that are added through upgrades and that require
+     * initialization.
+     *
+     * Note that versions can jump in increments greater than 1; this implies that if multiple reinitializers coexist in
+     * a contract, executing them in the right order is up to the developer or operator.
+     */
+    modifier reinitializer(uint8 version) {
+        require(!_initializing && _initialized < version, "Initializable: contract is already initialized");
+        _initialized = version;
+        _initializing = true;
+        _;
+        _initializing = false;
+        emit Initialized(version);
+    }
+
+    /**
+     * @dev Modifier to protect an initialization function so that it can only be invoked by functions with the
+     * {initializer} and {reinitializer} modifiers, directly or indirectly.
+     */
+    modifier onlyInitializing() {
+        require(_initializing, "Initializable: contract is not initializing");
+        _;
+    }
+
+    /**
+     * @dev Locks the contract, preventing any future reinitialization. This cannot be part of an initializer call.
+     * Calling this in the constructor of a contract will prevent that contract from being initialized or reinitialized
+     * to any version. It is recommended to use this to lock implementation contracts that are designed to be called
+     * through proxies.
+     */
+    function _disableInitializers() internal virtual {
+        require(!_initializing, "Initializable: contract is initializing");
+        if (_initialized < type(uint8).max) {
+            _initialized = type(uint8).max;
+            emit Initialized(type(uint8).max);
         }
     }
 }
@@ -1183,89 +1668,6 @@ contract Backing is AccessController, Initializable {
     }
 }
 
-// File contracts/utils/DailyLimit.sol
-// License-Identifier: MIT
-
-
-/// @title relay with daily limit - Allows the relay to mint token in a daily limit.
-contract DailyLimit {
-
-    event DailyLimitChange(address token, uint dailyLimit);
-
-    mapping(address => uint) public dailyLimit;
-    // deprecated, slot for upgrade
-    mapping(address => uint) public _slotReserved;
-    mapping(address => uint) public spentToday;
-
-    uint constant public SPEND_BIT_LENGTH = 192;
-    uint constant public LASTDAY_BIT_LENGTH = 64;
-
-    /// ==== Internal functions ==== 
-
-    /// @dev Contract constructor sets initial owners, required number of confirmations and daily mint limit.
-    /// @param _token Token address.
-    /// @param _dailyLimit Amount in wei, which can be mint without confirmations on a daily basis.
-    function _setDailyLimit(address _token, uint _dailyLimit)
-        internal
-    {
-        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
-        dailyLimit[_token] = _dailyLimit;
-    }
-
-    /// @dev Allows to change the daily limit.
-    /// @param _token Token address.
-    /// @param _dailyLimit Amount in wei.
-    function _changeDailyLimit(address _token, uint _dailyLimit)
-        internal
-    {
-        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
-        dailyLimit[_token] = _dailyLimit;
-        emit DailyLimitChange(_token, _dailyLimit);
-    }
-
-    /// @dev Allows to change the daily limit.
-    /// @param token Token address.
-    /// @param amount Amount in wei.
-    function expendDailyLimit(address token, uint amount)
-        internal
-    {
-        uint spentInfo = spentToday[token];
-        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
-        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
-        if (block.timestamp > lastday + 24 hours) {
-            require(amount <= dailyLimit[token], "DailyLimit: amount exceed daily limit");
-            spentToday[token] = (block.timestamp << SPEND_BIT_LENGTH) + amount;
-            return;
-        }
-        require(lastspent + amount <= dailyLimit[token] && amount <= dailyLimit[token], "DailyLimit: exceed daily limit");
-        spentToday[token] = spentInfo + amount;
-    }
-
-    /// ==== Web3 call functions ==== 
-
-    /// @dev Returns maximum withdraw amount.
-    /// @param token Token address.
-    /// @return Returns amount.
-    function calcMaxWithdraw(address token)
-        public
-        view
-        returns (uint)
-    {
-        uint spentInfo = spentToday[token];
-        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
-        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
-        if (block.timestamp > lastday + 24 hours) {
-          return dailyLimit[token];
-        }
-
-        if (dailyLimit[token] < lastspent) {
-          return 0;
-        }
-
-        return dailyLimit[token] - lastspent;
-    }
-}
-
 // File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
 // License-Identifier: MIT
 
@@ -1287,49 +1689,6 @@ interface IErc20MappingTokenFactory {
     ) external;
 }
 
-// File contracts/mapping-token/interfaces/IGuard.sol
-// License-Identifier: MIT
-
-
-interface IGuard {
-  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
-}
-
-// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixMessageEndpoint {
-    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
-}
-
-// File contracts/mapping-token/interfaces/IHelixSub2EthMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixSub2EthMessageEndpoint is IHelixMessageEndpoint {
-    function fee() external view returns (uint256);
-    function currentDeliveredMessageId() external view returns (uint256);
-    function isMessageDelivered(uint256 messageId) external view returns (bool);
-}
-
-// File contracts/mapping-token/interfaces/IBacking.sol
-// License-Identifier: MIT
-
-
-interface IBacking {
-    function unlockFromRemote(
-        address originalToken,
-        address recipient,
-        uint256 amount) external;
-}
-
-interface IBackingSupportNative {
-    function unlockFromRemoteNative(
-        address recipient,
-        uint256 amount) external;
-}
-
 // File contracts/mapping-token/interfaces/IWToken.sol
 // License-Identifier: MIT
 
@@ -1339,39 +1698,29 @@ interface IWToken {
     function withdraw(uint wad) external;
 }
 
-// File contracts/mapping-token/interfaces/IHelixApp.sol
+// File @zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
-
-
-interface IHelixAppSupportWithdrawFailed {
-    function handleUnlockFailureFromRemote(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-    function handleUnlockFailureFromRemoteNative(
-        uint256 messageId,
-        address sender,
-        uint256 amount
-    ) external;
-    function handleIssuingFailureFromRemote(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol@v4.4.0-rc.0
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (token/ERC20/IERC20.sol)
+// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
 
 
 /**
  * @dev Interface of the ERC20 standard as defined in the EIP.
  */
 interface IERC20 {
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
     /**
      * @dev Returns the amount of tokens in existence.
      */
@@ -1383,13 +1732,13 @@ interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
 
     /**
-     * @dev Moves `amount` tokens from the caller's account to `recipient`.
+     * @dev Moves `amount` tokens from the caller's account to `to`.
      *
      * Returns a boolean value indicating whether the operation succeeded.
      *
      * Emits a {Transfer} event.
      */
-    function transfer(address recipient, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
 
     /**
      * @dev Returns the remaining number of tokens that `spender` will be
@@ -1417,7 +1766,7 @@ interface IERC20 {
     function approve(address spender, uint256 amount) external returns (bool);
 
     /**
-     * @dev Moves `amount` tokens from `sender` to `recipient` using the
+     * @dev Moves `amount` tokens from `from` to `to` using the
      * allowance mechanism. `amount` is then deducted from the caller's
      * allowance.
      *
@@ -1426,29 +1775,15 @@ interface IERC20 {
      * Emits a {Transfer} event.
      */
     function transferFrom(
-        address sender,
-        address recipient,
+        address from,
+        address to,
         uint256 amount
     ) external returns (bool);
-
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
-
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/structs/BitMaps.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/structs/BitMaps.sol)
 
 /**
  * @dev Library for managing uint256 to bool mapping in a compact and efficient way, providing the keys are sequential.

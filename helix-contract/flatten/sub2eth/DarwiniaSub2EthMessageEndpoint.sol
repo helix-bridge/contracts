@@ -15,129 +15,14 @@
  * 
  * https://helixbridge.app/
  *
- * 9/24/2022
+ * 9/27/2022
  **/
 
 pragma solidity ^0.8.10;
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Context.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControl.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/security/Pausable.sol@v4.4.0-rc.0
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (security/Pausable.sol)
-
-
-/**
- * @dev Contract module which allows children to implement an emergency stop
- * mechanism that can be triggered by an authorized account.
- *
- * This module is used through inheritance. It will make available the
- * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
- * simply including this module, only once the modifiers are put in place.
- */
-abstract contract Pausable is Context {
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        require(!paused(), "Pausable: paused");
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        require(paused(), "Pausable: not paused");
-        _;
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
-    }
-}
-
-// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControl.sol@v4.4.0-rc.0
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (access/IAccessControl.sol)
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControl.sol)
 
 
 /**
@@ -224,9 +109,9 @@ interface IAccessControl {
     function renounceRole(bytes32 role, address account) external;
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControlEnumerable.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/access/IAccessControlEnumerable.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (access/IAccessControlEnumerable.sol)
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
 
 
 /**
@@ -254,9 +139,34 @@ interface IAccessControlEnumerable is IAccessControl {
     function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/Strings.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/Context.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/Strings.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+// File @zeppelin-solidity-4.4.0/contracts/utils/Strings.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/Strings.sol)
 
 
 /**
@@ -264,6 +174,7 @@ interface IAccessControlEnumerable is IAccessControl {
  */
 library Strings {
     bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
+    uint8 private constant _ADDRESS_LENGTH = 20;
 
     /**
      * @dev Converts a `uint256` to its ASCII `string` decimal representation.
@@ -320,11 +231,18 @@ library Strings {
         require(value == 0, "Strings: hex length insufficient");
         return string(buffer);
     }
+
+    /**
+     * @dev Converts an `address` with fixed length of 20 bytes to its not checksummed ASCII `string` hexadecimal representation.
+     */
+    function toHexString(address addr) internal pure returns (string memory) {
+        return toHexString(uint256(uint160(addr)), _ADDRESS_LENGTH);
+    }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/IERC165.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/IERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/introspection/IERC165.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 
 
 /**
@@ -348,9 +266,9 @@ interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/ERC165.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/introspection/ERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/introspection/ERC165.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
 
 
 /**
@@ -376,9 +294,9 @@ abstract contract ERC165 is IERC165 {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/AccessControl.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/access/AccessControl.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (access/AccessControl.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (access/AccessControl.sol)
 
 
 
@@ -443,7 +361,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * _Available since v4.1._
      */
     modifier onlyRole(bytes32 role) {
-        _checkRole(role, _msgSender());
+        _checkRole(role);
         _;
     }
 
@@ -457,8 +375,20 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
     /**
      * @dev Returns `true` if `account` has been granted `role`.
      */
-    function hasRole(bytes32 role, address account) public view override returns (bool) {
+    function hasRole(bytes32 role, address account) public view virtual override returns (bool) {
         return _roles[role].members[account];
+    }
+
+    /**
+     * @dev Revert with a standard message if `_msgSender()` is missing `role`.
+     * Overriding this function changes the behavior of the {onlyRole} modifier.
+     *
+     * Format of the revert message is described in {_checkRole}.
+     *
+     * _Available since v4.6._
+     */
+    function _checkRole(bytes32 role) internal view virtual {
+        _checkRole(role, _msgSender());
     }
 
     /**
@@ -468,7 +398,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      *
      *  /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
      */
-    function _checkRole(bytes32 role, address account) internal view {
+    function _checkRole(bytes32 role, address account) internal view virtual {
         if (!hasRole(role, account)) {
             revert(
                 string(
@@ -489,7 +419,7 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      *
      * To change a role's admin, use {_setRoleAdmin}.
      */
-    function getRoleAdmin(bytes32 role) public view override returns (bytes32) {
+    function getRoleAdmin(bytes32 role) public view virtual override returns (bytes32) {
         return _roles[role].adminRole;
     }
 
@@ -502,6 +432,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * Requirements:
      *
      * - the caller must have ``role``'s admin role.
+     *
+     * May emit a {RoleGranted} event.
      */
     function grantRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
         _grantRole(role, account);
@@ -515,6 +447,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * Requirements:
      *
      * - the caller must have ``role``'s admin role.
+     *
+     * May emit a {RoleRevoked} event.
      */
     function revokeRole(bytes32 role, address account) public virtual override onlyRole(getRoleAdmin(role)) {
         _revokeRole(role, account);
@@ -533,6 +467,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * Requirements:
      *
      * - the caller must be `account`.
+     *
+     * May emit a {RoleRevoked} event.
      */
     function renounceRole(bytes32 role, address account) public virtual override {
         require(account == _msgSender(), "AccessControl: can only renounce roles for self");
@@ -546,6 +482,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * If `account` had not been already granted `role`, emits a {RoleGranted}
      * event. Note that unlike {grantRole}, this function doesn't perform any
      * checks on the calling account.
+     *
+     * May emit a {RoleGranted} event.
      *
      * [WARNING]
      * ====
@@ -577,6 +515,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * @dev Grants `role` to `account`.
      *
      * Internal function without access restriction.
+     *
+     * May emit a {RoleGranted} event.
      */
     function _grantRole(bytes32 role, address account) internal virtual {
         if (!hasRole(role, account)) {
@@ -589,6 +529,8 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
      * @dev Revokes `role` from `account`.
      *
      * Internal function without access restriction.
+     *
+     * May emit a {RoleRevoked} event.
      */
     function _revokeRole(bytes32 role, address account) internal virtual {
         if (hasRole(role, account)) {
@@ -598,9 +540,9 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/utils/structs/EnumerableSet.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/utils/structs/EnumerableSet.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (utils/structs/EnumerableSet.sol)
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/structs/EnumerableSet.sol)
 
 
 /**
@@ -626,6 +568,14 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
  *
  * As of v3.3.0, sets of type `bytes32` (`Bytes32Set`), `address` (`AddressSet`)
  * and `uint256` (`UintSet`) are supported.
+ *
+ * [WARNING]
+ * ====
+ *  Trying to delete such a structure from storage will likely result in data corruption, rendering the structure unusable.
+ *  See https://github.com/ethereum/solidity/pull/11843[ethereum/solidity#11843] for more info.
+ *
+ *  In order to clean an EnumerableSet, you can either remove all elements one by one or create a fresh instance using an array of EnumerableSet.
+ * ====
  */
 library EnumerableSet {
     // To implement this library for multiple types with as little code
@@ -683,12 +633,12 @@ library EnumerableSet {
             uint256 lastIndex = set._values.length - 1;
 
             if (lastIndex != toDeleteIndex) {
-                bytes32 lastvalue = set._values[lastIndex];
+                bytes32 lastValue = set._values[lastIndex];
 
                 // Move the last value to the index where the value to delete is
-                set._values[toDeleteIndex] = lastvalue;
+                set._values[toDeleteIndex] = lastValue;
                 // Update the index for the moved value
-                set._indexes[lastvalue] = valueIndex; // Replace lastvalue's index to valueIndex
+                set._indexes[lastValue] = valueIndex; // Replace lastValue's index to valueIndex
             }
 
             // Delete the slot where the moved value was stored
@@ -875,6 +825,7 @@ library EnumerableSet {
         bytes32[] memory store = _values(set._inner);
         address[] memory result;
 
+        /// @solidity memory-safe-assembly
         assembly {
             result := store
         }
@@ -948,6 +899,7 @@ library EnumerableSet {
         bytes32[] memory store = _values(set._inner);
         uint256[] memory result;
 
+        /// @solidity memory-safe-assembly
         assembly {
             result := store
         }
@@ -956,9 +908,9 @@ library EnumerableSet {
     }
 }
 
-// File @zeppelin-solidity-4.4.0/contracts/access/AccessControlEnumerable.sol@v4.4.0-rc.0
+// File @zeppelin-solidity-4.4.0/contracts/access/AccessControlEnumerable.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.0-rc.0 (access/AccessControlEnumerable.sol)
+// OpenZeppelin Contracts (last updated v4.5.0) (access/AccessControlEnumerable.sol)
 
 
 
@@ -990,7 +942,7 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
      * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
      * for more information.
      */
-    function getRoleMember(bytes32 role, uint256 index) public view override returns (address) {
+    function getRoleMember(bytes32 role, uint256 index) public view virtual override returns (address) {
         return _roleMembers[role].at(index);
     }
 
@@ -998,40 +950,128 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
      * @dev Returns the number of accounts that have `role`. Can be used
      * together with {getRoleMember} to enumerate all bearers of a role.
      */
-    function getRoleMemberCount(bytes32 role) public view override returns (uint256) {
+    function getRoleMemberCount(bytes32 role) public view virtual override returns (uint256) {
         return _roleMembers[role].length();
     }
 
     /**
-     * @dev Overload {grantRole} to track enumerable memberships
+     * @dev Overload {_grantRole} to track enumerable memberships
      */
-    function grantRole(bytes32 role, address account) public virtual override(AccessControl, IAccessControl) {
-        super.grantRole(role, account);
+    function _grantRole(bytes32 role, address account) internal virtual override {
+        super._grantRole(role, account);
         _roleMembers[role].add(account);
     }
 
     /**
-     * @dev Overload {revokeRole} to track enumerable memberships
+     * @dev Overload {_revokeRole} to track enumerable memberships
      */
-    function revokeRole(bytes32 role, address account) public virtual override(AccessControl, IAccessControl) {
-        super.revokeRole(role, account);
+    function _revokeRole(bytes32 role, address account) internal virtual override {
+        super._revokeRole(role, account);
         _roleMembers[role].remove(account);
+    }
+}
+
+// File @zeppelin-solidity-4.4.0/contracts/security/Pausable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
+
+
+/**
+ * @dev Contract module which allows children to implement an emergency stop
+ * mechanism that can be triggered by an authorized account.
+ *
+ * This module is used through inheritance. It will make available the
+ * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
+ * the functions of your contract. Note that they will not be pausable by
+ * simply including this module, only once the modifiers are put in place.
+ */
+abstract contract Pausable is Context {
+    /**
+     * @dev Emitted when the pause is triggered by `account`.
+     */
+    event Paused(address account);
+
+    /**
+     * @dev Emitted when the pause is lifted by `account`.
+     */
+    event Unpaused(address account);
+
+    bool private _paused;
+
+    /**
+     * @dev Initializes the contract in unpaused state.
+     */
+    constructor() {
+        _paused = false;
     }
 
     /**
-     * @dev Overload {renounceRole} to track enumerable memberships
+     * @dev Modifier to make a function callable only when the contract is not paused.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
      */
-    function renounceRole(bytes32 role, address account) public virtual override(AccessControl, IAccessControl) {
-        super.renounceRole(role, account);
-        _roleMembers[role].remove(account);
+    modifier whenNotPaused() {
+        _requireNotPaused();
+        _;
     }
 
     /**
-     * @dev Overload {_setupRole} to track enumerable memberships
+     * @dev Modifier to make a function callable only when the contract is paused.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
      */
-    function _setupRole(bytes32 role, address account) internal virtual override {
-        super._setupRole(role, account);
-        _roleMembers[role].add(account);
+    modifier whenPaused() {
+        _requirePaused();
+        _;
+    }
+
+    /**
+     * @dev Returns true if the contract is paused, and false otherwise.
+     */
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Throws if the contract is paused.
+     */
+    function _requireNotPaused() internal view virtual {
+        require(!paused(), "Pausable: paused");
+    }
+
+    /**
+     * @dev Throws if the contract is not paused.
+     */
+    function _requirePaused() internal view virtual {
+        require(paused(), "Pausable: not paused");
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function _pause() internal virtual whenNotPaused {
+        _paused = true;
+        emit Paused(_msgSender());
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function _unpause() internal virtual whenPaused {
+        _paused = false;
+        emit Unpaused(_msgSender());
     }
 }
 
@@ -1085,6 +1125,28 @@ contract AccessController is AccessControlEnumerable, Pausable {
     }
 }
 
+// File contracts/mapping-token/interfaces/ICrossChainFilter.sol
+// License-Identifier: MIT
+
+
+/**
+ * @title A interface for message layer to filter unsafe message
+ * @author echo
+ * @notice The app layer must implement the interface `ICrossChainFilter`
+ */
+interface ICrossChainFilter {
+    /**
+     * @notice Verify the source sender and payload of source chain messages,
+     * Generally, app layer cross-chain messages require validation of sourceAccount
+     * @param bridgedChainPosition The source chain position which send the message
+     * @param bridgedLanePosition The source lane position which send the message
+     * @param sourceAccount The source contract address which send the message
+     * @param payload The calldata which encoded by ABI Encoding
+     * @return Can call target contract if returns true
+     */
+    function cross_chain_filter(uint32 bridgedChainPosition, uint32 bridgedLanePosition, address sourceAccount, bytes calldata payload) external view returns (bool);
+}
+
 // File contracts/mapping-token/interfaces/IHelixApp.sol
 // License-Identifier: MIT
 
@@ -1109,6 +1171,27 @@ interface IHelixAppSupportWithdrawFailed {
     ) external;
 }
 
+// File contracts/mapping-token/interfaces/IFeeMarket.sol
+// License-Identifier: MIT
+
+pragma abicoder v2;
+
+interface IFeeMarket {
+    //  Relayer which delivery the messages
+    struct DeliveredRelayer {
+        // relayer account
+        address relayer;
+        // encoded message key begin
+        uint256 begin;
+        // encoded message key end
+        uint256 end;
+    }
+    function market_fee() external view returns (uint256 fee);
+
+    function assign(uint256 nonce) external payable returns(bool);
+    function settle(DeliveredRelayer[] calldata delivery_relayers, address confirm_relayer) external returns(bool);
+}
+
 // File contracts/mapping-token/interfaces/IInboundLane.sol
 // License-Identifier: MIT
 
@@ -1129,28 +1212,6 @@ interface IInboundLane {
     function encodeMessageKey(uint64 nonce) view external returns(uint256);
 }
 
-// File contracts/mapping-token/interfaces/ICrossChainFilter.sol
-// License-Identifier: MIT
-
-
-/**
- * @title A interface for message layer to filter unsafe message
- * @author echo
- * @notice The app layer must implement the interface `ICrossChainFilter`
- */
-interface ICrossChainFilter {
-    /**
-     * @notice Verify the source sender and payload of source chain messages,
-     * Generally, app layer cross-chain messages require validation of sourceAccount
-     * @param bridgedChainPosition The source chain position which send the message
-     * @param bridgedLanePosition The source lane position which send the message
-     * @param sourceAccount The source contract address which send the message
-     * @param payload The calldata which encoded by ABI Encoding
-     * @return Can call target contract if returns true
-     */
-    function cross_chain_filter(uint32 bridgedChainPosition, uint32 bridgedLanePosition, address sourceAccount, bytes calldata payload) external view returns (bool);
-}
-
 // File contracts/mapping-token/interfaces/IOutboundLane.sol
 // License-Identifier: MIT
 
@@ -1165,27 +1226,6 @@ interface IOutboundLane {
     function outboundLaneNonce() view external returns(OutboundLaneNonce memory);
 
     function send_message(address targetContract, bytes calldata encoded) external payable returns (uint64);
-}
-
-// File contracts/mapping-token/interfaces/IFeeMarket.sol
-// License-Identifier: MIT
-
-pragma abicoder v2;
-
-interface IFeeMarket {
-    //  Relayer which delivery the messages
-    struct DeliveredRelayer {
-        // relayer account
-        address relayer;
-        // encoded message key begin
-        uint256 begin;
-        // encoded message key end
-        uint256 end;
-    }
-    function market_fee() external view returns (uint256 fee);
-
-    function assign(uint256 nonce) external payable returns(bool);
-    function settle(DeliveredRelayer[] calldata delivery_relayers, address confirm_relayer) external returns(bool);
 }
 
 // File contracts/mapping-token/v2/message-endpoints/DarwiniaSub2EthMessageEndpoint.sol

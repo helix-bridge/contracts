@@ -50,6 +50,10 @@ contract Guard is GuardRegistry, Pausable {
         operator = newOperator;
     }
 
+    function setMaxUnclaimableTime(uint256 _maxUnclaimableTime) external onlyOperator {
+        maxUnclaimableTime = _maxUnclaimableTime;
+    }
+
     /**
       * @dev deposit token to guard, waiting to claim, only allowed depositor
       * @param id the id of the operation, should be siged later by guards

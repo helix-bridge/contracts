@@ -13,7 +13,6 @@
  * | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
- * https://helixbridge.app/
  *
  * 9/27/2022
  **/
@@ -100,6 +99,156 @@ contract DailyLimit {
         }
 
         return dailyLimit[token] - lastspent;
+    }
+}
+
+// File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
+// License-Identifier: MIT
+
+
+interface IErc20MappingTokenFactory {
+    function newErc20Contract(
+        uint32 tokenType,
+        address originalToken,
+        string memory bridgedChainName,
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        uint256 dailyLimit
+    ) external returns (address mappingToken);
+    function issueMappingToken(
+        address originalToken,
+        address recipient,
+        uint256 amount
+    ) external;
+}
+
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
+
+
+/**
+ * @dev Contract module which allows children to implement an emergency stop
+ * mechanism that can be triggered by an authorized account.
+ *
+ * This module is used through inheritance. It will make available the
+ * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
+ * the functions of your contract. Note that they will not be pausable by
+ * simply including this module, only once the modifiers are put in place.
+ */
+abstract contract Pausable is Context {
+    /**
+     * @dev Emitted when the pause is triggered by `account`.
+     */
+    event Paused(address account);
+
+    /**
+     * @dev Emitted when the pause is lifted by `account`.
+     */
+    event Unpaused(address account);
+
+    bool private _paused;
+
+    /**
+     * @dev Initializes the contract in unpaused state.
+     */
+    constructor() {
+        _paused = false;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is not paused.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    modifier whenNotPaused() {
+        _requireNotPaused();
+        _;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is paused.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    modifier whenPaused() {
+        _requirePaused();
+        _;
+    }
+
+    /**
+     * @dev Returns true if the contract is paused, and false otherwise.
+     */
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Throws if the contract is paused.
+     */
+    function _requireNotPaused() internal view virtual {
+        require(!paused(), "Pausable: paused");
+    }
+
+    /**
+     * @dev Throws if the contract is not paused.
+     */
+    function _requirePaused() internal view virtual {
+        require(paused(), "Pausable: not paused");
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function _pause() internal virtual whenNotPaused {
+        _paused = true;
+        emit Paused(_msgSender());
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function _unpause() internal virtual whenPaused {
+        _paused = false;
+        emit Unpaused(_msgSender());
     }
 }
 
@@ -192,29 +341,34 @@ interface IAccessControl {
     function renounceRole(bytes32 role, address account) external;
 }
 
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
 
 
 /**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
+ * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
  */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
+interface IAccessControlEnumerable is IAccessControl {
+    /**
+     * @dev Returns one of the accounts that have `role`. `index` must be a
+     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     *
+     * Role bearers are not sorted in any particular way, and their ordering may
+     * change at any point.
+     *
+     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
+     * you perform all queries on the same block. See the following
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * for more information.
+     */
+    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
 
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
+    /**
+     * @dev Returns the number of accounts that have `role`. Can be used
+     * together with {getRoleMember} to enumerate all bearers of a role.
+     */
+    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
@@ -591,36 +745,6 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
             emit RoleRevoked(role, account, _msgSender());
         }
     }
-}
-
-// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
-
-
-/**
- * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
- */
-interface IAccessControlEnumerable is IAccessControl {
-    /**
-     * @dev Returns one of the accounts that have `role`. `index` must be a
-     * value between 0 and {getRoleMemberCount}, non-inclusive.
-     *
-     * Role bearers are not sorted in any particular way, and their ordering may
-     * change at any point.
-     *
-     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
-     * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-     * for more information.
-     */
-    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
-
-    /**
-     * @dev Returns the number of accounts that have `role`. Can be used
-     * together with {getRoleMember} to enumerate all bearers of a role.
-     */
-    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
@@ -1051,110 +1175,6 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
     function _revokeRole(bytes32 role, address account) internal virtual override {
         super._revokeRole(role, account);
         _roleMembers[role].remove(account);
-    }
-}
-
-// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
-
-
-/**
- * @dev Contract module which allows children to implement an emergency stop
- * mechanism that can be triggered by an authorized account.
- *
- * This module is used through inheritance. It will make available the
- * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
- * simply including this module, only once the modifiers are put in place.
- */
-abstract contract Pausable is Context {
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        _requireNotPaused();
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        _requirePaused();
-        _;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Throws if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        require(!paused(), "Pausable: paused");
-    }
-
-    /**
-     * @dev Throws if the contract is not paused.
-     */
-    function _requirePaused() internal view virtual {
-        require(paused(), "Pausable: not paused");
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
     }
 }
 
@@ -1620,51 +1640,12 @@ interface IBackingSupportNative {
         uint256 amount) external;
 }
 
-// File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
-// License-Identifier: MIT
-
-
-interface IErc20MappingTokenFactory {
-    function newErc20Contract(
-        uint32 tokenType,
-        address originalToken,
-        string memory bridgedChainName,
-        string memory name,
-        string memory symbol,
-        uint8 decimals,
-        uint256 dailyLimit
-    ) external returns (address mappingToken);
-    function issueMappingToken(
-        address originalToken,
-        address recipient,
-        uint256 amount
-    ) external;
-}
-
 // File contracts/mapping-token/interfaces/IGuard.sol
 // License-Identifier: MIT
 
 
 interface IGuard {
   function deposit(uint256 id, address token, address recipient, uint256 amount) external;
-}
-
-// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixMessageEndpoint {
-    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
-}
-
-// File contracts/mapping-token/interfaces/IHelixSub2EthMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixSub2EthMessageEndpoint is IHelixMessageEndpoint {
-    function fee() external view returns (uint256);
-    function currentDeliveredMessageId() external view returns (uint256);
-    function isMessageDelivered(uint256 messageId) external view returns (bool);
 }
 
 // File contracts/mapping-token/interfaces/IHelixApp.sol
@@ -1698,6 +1679,24 @@ interface IHelixAppSupportWithdrawFailed {
 interface IWToken {
     function deposit() external payable;
     function withdraw(uint wad) external;
+}
+
+// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixMessageEndpoint {
+    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
+}
+
+// File contracts/mapping-token/interfaces/IHelixSub2EthMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixSub2EthMessageEndpoint is IHelixMessageEndpoint {
+    function fee() external view returns (uint256);
+    function currentDeliveredMessageId() external view returns (uint256);
+    function isMessageDelivered(uint256 messageId) external view returns (bool);
 }
 
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3

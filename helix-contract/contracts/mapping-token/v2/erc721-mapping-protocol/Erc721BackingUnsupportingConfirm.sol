@@ -10,7 +10,7 @@ pragma solidity ^0.8.10;
 // The AttributesSerializer must implement interfaces in IErc721AttrSerializer.
 // It only receive message from messageEndpoint, and send message by messageEndpoint
 
-import "@zeppelin-solidity-4.4.0/contracts/token/ERC721/IERC721.sol";
+import "@zeppelin-solidity/contracts/token/ERC721/IERC721.sol";
 import "../Backing.sol";
 import "../../interfaces/IErc721AttrSerializer.sol";
 import "../../interfaces/IErc721Backing.sol";

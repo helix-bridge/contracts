@@ -2,9 +2,9 @@
 
 pragma solidity >=0.8.10;
 
-import "@zeppelin-solidity-4.4.0/contracts/security/Pausable.sol";
-import "@zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol";
-import "@zeppelin-solidity-4.4.0/contracts/utils/math/SafeMath.sol";
+import "@zeppelin-solidity/contracts/security/Pausable.sol";
+import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
 import "./GuardRegistry.sol";
 import "../interfaces/IWToken.sol";
 
@@ -48,6 +48,10 @@ contract Guard is GuardRegistry, Pausable {
     function setOperator(address newOperator, bytes[] memory signatures) external {
         verifyGuardSignatures(msg.sig, abi.encode(newOperator), signatures);
         operator = newOperator;
+    }
+
+    function setMaxUnclaimableTime(uint256 _maxUnclaimableTime) external onlyOperator {
+        maxUnclaimableTime = _maxUnclaimableTime;
     }
 
     /**

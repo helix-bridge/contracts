@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "@zeppelin-solidity-4.4.0/contracts/utils/math/SafeMath.sol";
-import "@zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol";
+import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
+import "@zeppelin-solidity/contracts/utils/structs/BitMaps.sol";
 import "../Backing.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IERC20.sol";

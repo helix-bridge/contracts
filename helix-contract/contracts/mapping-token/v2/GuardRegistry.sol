@@ -3,7 +3,7 @@
 pragma solidity >=0.8.10;
 pragma experimental ABIEncoderV2;
 
-import "@zeppelin-solidity-4.4.0/contracts/utils/cryptography/ECDSA.sol";
+import "@zeppelin-solidity/contracts/utils/cryptography/ECDSA.sol";
 
 /**
  * @title Manages a set of guards and a threshold to double-check BEEFY commitment

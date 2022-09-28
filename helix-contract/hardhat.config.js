@@ -164,7 +164,6 @@ subtask("flat:get-flattened-sources", "Returns all contracts and their dependenc
  * | '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
- * https://helixbridge.app/
  *
  * ${(new Date()).toLocaleDateString()}\n **/\n\n${flattened}`
         flattened = `// SPDX-License-Identifier: MIT\n\n${flattened}`

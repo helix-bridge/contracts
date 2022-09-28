@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "@zeppelin-solidity-4.4.0/contracts/token/ERC20/IERC20.sol";
-import "@zeppelin-solidity-4.4.0/contracts/utils/structs/BitMaps.sol";
+import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import "@zeppelin-solidity/contracts/utils/structs/BitMaps.sol";
 import "../Backing.sol";
 import "../../interfaces/IBacking.sol";
 import "../../interfaces/IErc20MappingTokenFactory.sol";

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.10;
 
 import "../AccessController.sol";
-import "@darwinia/contracts-periphery/contracts/s2s/MessageEndpoint.sol";
+import "@darwinia/contracts-periphery/contracts/s2s/endpoints/MessageEndpoint.sol";
 
 contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
     constructor() {
@@ -48,7 +48,7 @@ contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
         return _remoteExecute(remoteSpecVersion, receiver, callPayload, remoteReceiveGasLimit);
     }
 
-    function _canBeExecuted(address callReceiver, bytes calldata) internal view override whenNotPaused returns (bool) {
+    function _approved(address callReceiver, bytes calldata) internal view override whenNotPaused returns (bool) {
         return hasRole(CALLEE_ROLE, callReceiver);
     }
 }

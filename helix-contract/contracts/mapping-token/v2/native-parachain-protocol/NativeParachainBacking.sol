@@ -2,10 +2,10 @@
 pragma solidity ^0.8.10;
 
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import "@zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol";
 import "@darwinia/contracts-periphery/contracts/s2s/types/PalletHelixBridge.sol";
 import "../Backing.sol";
 import "../../interfaces/IHelix2ParaMessageEndpoint.sol";
+import "../../../utils/BoundedVec.sol";
 
 contract NativeParachainBacking is Backing {
     struct LockedInfo {
@@ -20,7 +20,7 @@ contract NativeParachainBacking is Backing {
 
     // (nonce => lockedInfo)
     mapping(uint64 => LockedInfo) public lockedMessages;
-    EnumerableSet.UintSet acceptedNonces;
+    BoundedVec.Uint64Vec acceptedNonces;
     uint64 public minReservedLockedMessageNonce;
 
     event TokenLocked(uint64 nonce, address sender, bytes32 recipient, uint256 amount, uint256 fee);
@@ -46,6 +46,10 @@ contract NativeParachainBacking is Backing {
         kPrunSize = _kPrunSize;
     }
 
+    function setAcceptNonceAllowSize(uint256 _size) external onlyAdmin {
+        BoundedVec.setCapacity(acceptedNonces, _size);
+    }
+
     function setHelixFee(uint256 _helixFee) external onlyAdmin {
         helixFee = _helixFee;
     }
@@ -63,7 +67,7 @@ contract NativeParachainBacking is Backing {
     ) internal nonReentrant returns(uint64, uint256) {
         uint256 bridgeFee = IHelix2ParaMessageEndpoint(messageEndpoint).fee();
         uint256 totalFee = bridgeFee + helixFee;
-        require(prepaid >= totalFee, "backing:the fee is not enough");
+        require(prepaid >= totalFee, "Backing:the fee is not enough");
         if (prepaid > totalFee) {
             // refund fee to msgSender
             payable(msg.sender).transfer(prepaid - totalFee);
@@ -88,13 +92,13 @@ contract NativeParachainBacking is Backing {
         uint256 amount
     ) external payable whenNotPaused {
         require(msg.value > amount, "Backing: invalid msg.value");
-        uint256 size = EnumerableSet.length(acceptedNonces);
+        uint256 size = BoundedVec.length(acceptedNonces);
         if (size > kPrunSize) {
             size = kPrunSize;
         }
         uint64[] memory prunedNonces = new uint64[](size);
         for (uint256 index = 0; index < size; index++) {
-            prunedNonces[index] = uint64(EnumerableSet.at(acceptedNonces, index));
+            prunedNonces[index] = uint64(BoundedVec.at(acceptedNonces, index));
         }
         PalletHelixBridge.IssueFromRemoteCall memory issueFromRemoteCall = PalletHelixBridge.IssueFromRemoteCall(
             remoteIssuingIndex,
@@ -123,9 +127,9 @@ contract NativeParachainBacking is Backing {
         uint64 minReservedBurnNonce
     ) public onlyMessageEndpoint whenNotPaused {
         uint64 nonce = IHelix2ParaMessageEndpoint(messageEndpoint).lastDeliveredMessageNonce() + 1;
-        require(EnumerableSet.contains(acceptedNonces, nonce) == false, "Backing:message has been accepted");
-        EnumerableSet.add(acceptedNonces, nonce);
+        require(BoundedVec.contains(acceptedNonces, nonce) == false, "Backing:message has been accepted");
         prunMessage(prunNonces, minReservedBurnNonce);
+        BoundedVec.push(acceptedNonces, nonce);
         payable(recipient).transfer(amount);
         emit TokenUnlocked(nonce, recipient, amount);
     }
@@ -136,16 +140,16 @@ contract NativeParachainBacking is Backing {
         uint64 failureTransferNonce
     ) external payable whenNotPaused {
         // must not exist in successful issue list
-        require(EnumerableSet.contains(acceptedNonces, failureTransferNonce) == false, "Backing:success message can't refund for failed");
+        require(BoundedVec.contains(acceptedNonces, failureTransferNonce) == false, "Backing:success message can't refund for failed");
         bool messageChecked = IHelix2ParaMessageEndpoint(messageEndpoint).isMessageDeliveredByNonce(failureTransferNonce);
         require(messageChecked, "Backing:the message is not checked by message layer");
-        uint256 size = EnumerableSet.length(acceptedNonces);
+        uint256 size = BoundedVec.length(acceptedNonces);
         if (size > kPrunSize) {
             size = kPrunSize;
         }
         uint64[] memory prunedNonces = new uint64[](size);
         for (uint256 index = 0; index < size; index++) {
-            prunedNonces[index] = uint64(EnumerableSet.at(acceptedNonces, index));
+            prunedNonces[index] = uint64(BoundedVec.at(acceptedNonces, index));
         }
 
         PalletHelixBridge.HandleIssuingFailureFromRemoteCall memory handleIssuingFailureFromRemoteCall = PalletHelixBridge.HandleIssuingFailureFromRemoteCall(
@@ -190,15 +194,23 @@ contract NativeParachainBacking is Backing {
         if (minReservedNonce > 0) {
             minReservedLockedMessageNonce = minReservedNonce + 1;
         }
-        uint256 receivedSize = EnumerableSet.length(acceptedNonces);
+        uint256 receivedSize = BoundedVec.length(acceptedNonces);
         for (uint index = 0; index < receivedSize; index++) {
-            uint256 receivedNonce = EnumerableSet.at(acceptedNonces, index);
+            uint256 receivedNonce = BoundedVec.at(acceptedNonces, 0);
             if (receivedNonce < minReservedBurnNonce) {
-                EnumerableSet.remove(acceptedNonces, receivedNonce);
+                BoundedVec.pop(acceptedNonces);
             } else {
                 break;
             }
         }
+    }
+
+    function acceptNonceSize() view external returns(uint256) {
+        return BoundedVec.length(acceptedNonces);
+    }
+
+    function acceptNonceAt(uint256 index) view external returns(uint64) {
+        return uint64(BoundedVec.at(acceptedNonces, index));
     }
 
     /**

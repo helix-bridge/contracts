@@ -2,19 +2,20 @@
 pragma solidity ^0.8.10;
 
 import "@darwinia/contracts-periphery/contracts/s2s/endpoints/RemoteDispatchEndpoint.sol";
+import "@darwinia/contracts-periphery/contracts/s2s/SmartChainXLib.sol";
 import "../AccessController.sol";
 
 contract Darwinia2ParaMessageEndpoint is AccessController, RemoteDispatchEndpoint {
     address public backing;
+    // this address need to be calculated by getDerivedRemoteAddress
+    address public remoteDerivedIssuingAddress;
     constructor() {
         _initialize(msg.sender);
     }
 
-    modifier onlyRemoteCaller() {
+    modifier onlyRemoteIssuing() {
+        require(remoteDerivedIssuingAddress == msg.sender, "Darwinia2ParaMessageEndpoint:Invalid remote caller");
         _;
-        // TODO
-        // address derivedIssuing = xxx(remoteIssuing)
-        // require(derivedIssuing == msg.sender)
     }
 
     function setBacking(address _backing) external onlyAdmin {
@@ -23,6 +24,18 @@ contract Darwinia2ParaMessageEndpoint is AccessController, RemoteDispatchEndpoin
 
     function setLocalChainId(bytes4 _chainId) external onlyAdmin {
         chainId = _chainId;
+    }
+
+    function setRemoteDerivedIssuingAddress(
+        address _remoteDerivedIssuingAddress) external onlyAdmin {
+        remoteDerivedIssuingAddress = _remoteDerivedIssuingAddress;
+    }
+
+    function getDerivedRemoteAddress(
+        bytes4 _srcChainId,
+        bytes32 _messageSender
+    ) public view returns (address) {
+        return SmartChainXLib.deriveSenderFromAccountId(_srcChainId, _messageSender);
     }
 
     function setLocalAddress(address _storageAddress, address _dispatchAddress) external onlyAdmin {
@@ -58,7 +71,7 @@ contract Darwinia2ParaMessageEndpoint is AccessController, RemoteDispatchEndpoin
 
     function recvMessage(
         bytes calldata message
-    ) external onlyRemoteCaller whenNotPaused {
+    ) external onlyRemoteIssuing whenNotPaused {
         (bool result,) = backing.call(message);
         require(result, "Darwinia2ParaMessageEndpoint:call app failed");
     }

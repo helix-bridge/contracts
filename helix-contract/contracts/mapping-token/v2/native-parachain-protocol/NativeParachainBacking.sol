@@ -21,7 +21,7 @@ contract NativeParachainBacking is Backing {
     // (nonce => lockedInfo)
     mapping(uint64 => LockedInfo) public lockedMessages;
     EnumerableSet.UintSet acceptedNonces;
-    uint64 minReservedLockedMessageNonce;
+    uint64 public minReservedLockedMessageNonce;
 
     event TokenLocked(uint64 nonce, address sender, bytes32 recipient, uint256 amount, uint256 fee);
     event TokenUnlocked(uint64 nonce, address recipient, uint256 amount);
@@ -33,6 +33,17 @@ contract NativeParachainBacking is Backing {
     // !!! admin must check the nonce of the newEndpoint is larger than the old one
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
         _setMessageEndpoint(_messageEndpoint);
+    }
+
+    function setRemoteIssuingIndex(
+        bytes2 _remoteIssuingIndex,
+        bytes2 _remoteHandleIssuingForFailureIndex) external onlyAdmin {
+        remoteIssuingIndex = _remoteIssuingIndex;
+        remoteHandleIssuingForFailureIndex = _remoteHandleIssuingForFailureIndex;
+    }
+
+    function setPrunSize(uint256 _kPrunSize) external onlyAdmin {
+        kPrunSize = _kPrunSize;
     }
 
     function setHelixFee(uint256 _helixFee) external onlyAdmin {
@@ -77,8 +88,12 @@ contract NativeParachainBacking is Backing {
         uint256 amount
     ) external payable whenNotPaused {
         require(msg.value > amount, "Backing: invalid msg.value");
-        uint64[] memory prunedNonces = new uint64[](kPrunSize);
-        for (uint256 index = 0; index < kPrunSize; index++) {
+        uint256 size = EnumerableSet.length(acceptedNonces);
+        if (size > kPrunSize) {
+            size = kPrunSize;
+        }
+        uint64[] memory prunedNonces = new uint64[](size);
+        for (uint256 index = 0; index < size; index++) {
             prunedNonces[index] = uint64(EnumerableSet.at(acceptedNonces, index));
         }
         PalletHelixBridge.IssueFromRemoteCall memory issueFromRemoteCall = PalletHelixBridge.IssueFromRemoteCall(
@@ -107,7 +122,7 @@ contract NativeParachainBacking is Backing {
         uint64[] memory prunNonces,
         uint64 minReservedBurnNonce
     ) public onlyMessageEndpoint whenNotPaused {
-        uint64 nonce = IHelix2ParaMessageEndpoint(messageEndpoint).currentDeliveredMessageNonce();
+        uint64 nonce = IHelix2ParaMessageEndpoint(messageEndpoint).lastDeliveredMessageNonce() + 1;
         require(EnumerableSet.contains(acceptedNonces, nonce) == false, "Backing:message has been accepted");
         EnumerableSet.add(acceptedNonces, nonce);
         prunMessage(prunNonces, minReservedBurnNonce);
@@ -124,8 +139,12 @@ contract NativeParachainBacking is Backing {
         require(EnumerableSet.contains(acceptedNonces, failureTransferNonce) == false, "Backing:success message can't refund for failed");
         bool messageChecked = IHelix2ParaMessageEndpoint(messageEndpoint).isMessageDeliveredByNonce(failureTransferNonce);
         require(messageChecked, "Backing:the message is not checked by message layer");
-        uint64[] memory prunedNonces = new uint64[](kPrunSize);
-        for (uint256 index = 0; index < kPrunSize; index++) {
+        uint256 size = EnumerableSet.length(acceptedNonces);
+        if (size > kPrunSize) {
+            size = kPrunSize;
+        }
+        uint64[] memory prunedNonces = new uint64[](size);
+        for (uint256 index = 0; index < size; index++) {
             prunedNonces[index] = uint64(EnumerableSet.at(acceptedNonces, index));
         }
 

@@ -4,10 +4,9 @@ pragma solidity ^0.8.10;
 import "@darwinia/contracts-periphery/contracts/s2s/endpoints/RemoteDispatchEndpoint.sol";
 import "../AccessController.sol";
 
-contract DarwiniaSub2SubMessageEndpoint is AccessController, RemoteDispatchEndpoint {
-    address public immutable backing;
-    constructor(address _backing) {
-        backing = _backing;
+contract Darwinia2ParaMessageEndpoint is AccessController, RemoteDispatchEndpoint {
+    address public backing;
+    constructor() {
         _initialize(msg.sender);
     }
 
@@ -16,6 +15,14 @@ contract DarwiniaSub2SubMessageEndpoint is AccessController, RemoteDispatchEndpo
         // TODO
         // address derivedIssuing = xxx(remoteIssuing)
         // require(derivedIssuing == msg.sender)
+    }
+
+    function setBacking(address _backing) external onlyAdmin {
+        backing = _backing;
+    }
+
+    function setLocalChainId(bytes4 _chainId) external onlyAdmin {
+        chainId = _chainId;
     }
 
     function setLocalAddress(address _storageAddress, address _dispatchAddress) external onlyAdmin {

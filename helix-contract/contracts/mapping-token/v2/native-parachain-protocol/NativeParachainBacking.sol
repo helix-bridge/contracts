@@ -185,10 +185,9 @@ contract NativeParachainBacking is Backing {
     function prunMessage(uint64[] memory prunNonces, uint64 minReservedBurnNonce) internal {
         uint64 minReservedNonce = 0;
         for (uint index = 0; index < prunNonces.length; index++) {
-            uint64 nonce = prunNonces[index];
-            if (lockedMessages[nonce].amount > 0) {
-                delete lockedMessages[nonce];
-                minReservedNonce = nonce;
+            minReservedNonce = prunNonces[index];
+            if (lockedMessages[minReservedNonce].amount > 0) {
+                delete lockedMessages[minReservedNonce];
             }
         }
         if (minReservedNonce > 0) {

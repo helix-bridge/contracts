@@ -177,8 +177,23 @@ contract NativeParachainBacking is Backing {
         LockedInfo memory lockedMessage = lockedMessages[failureNonce];
         require(lockedMessage.amount > 0 && lockedMessage.sender != address(0), "Backing: the locked message has been refund");
         delete(lockedMessages[failureNonce]);
-        lockedMessage.sender.transfer(lockedMessage.amount);
         prunMessage(prunNonces, minReservedBurnNonce);
+        lockedMessage.sender.transfer(lockedMessage.amount);
+        emit TokenUnlockedForFailed(failureNonce, lockedMessage.sender, lockedMessage.amount);
+    }
+
+    /**
+     * @notice we can call this refund when the latest reserved nonce bigger than failure nonce and the failure is not pruned
+     * @param failureNonce the failure nonce to be unlocked
+     */
+    function handleUnlockFailureLocal(
+        uint64 failureNonce
+    ) external {
+        require(failureNonce < minReservedLockedMessageNonce, "Backing: the failure nonce invalid");
+        LockedInfo memory lockedMessage = lockedMessages[failureNonce];
+        require(lockedMessage.amount > 0 && lockedMessage.sender != address(0), "Backing: the locked message has been refund");
+        delete(lockedMessages[failureNonce]);
+        lockedMessage.sender.transfer(lockedMessage.amount);
         emit TokenUnlockedForFailed(failureNonce, lockedMessage.sender, lockedMessage.amount);
     }
 

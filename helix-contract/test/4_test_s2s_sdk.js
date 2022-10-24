@@ -11,24 +11,21 @@ describe("sub<>sub mapping token tests", () => {
   it("test_s2s_with_sdk_erc20", async function () {
       const remoteReceiveGasLimit = 1000000;
       const remoteSpecVersion = 1902;
+      const fee = ethers.utils.parseEther("1.0");
 
-      // deploy kton contract
-      const erc20Contract = await ethers.getContractFactory("MappingERC20");
-      const wkton = await erc20Contract.deploy();
-      await wkton.deployed();
-      await wkton.initialize("Darwinia wkton", "WKTON", 18);
-
-      const mappingToken = await erc20Contract.deploy();
-      await mappingToken.deployed();
+      // deploy wCRAB contract
+      const wTokenContract = await ethers.getContractFactory("WToken");
+      const wCrab = await wTokenContract.deploy("Wrapped Crab Token", "wCRAB", 18);
+      await wCrab.deployed();
 
       const [owner] = await ethers.getSigners();
-      wkton.mint(owner.address, 10000);
+      await wCrab.deposit({ value: 10000 });
 
       // deploy message handle 
       // backing -> mtf message nonce
       const backingStartNonce = 100;
       // mtf -> backing message nonce
-      const mtfStartNonce = 0;
+      const mtfStartNonce = 200;
       const messageHandleContract = await ethers.getContractFactory("MockSub2SubMessageEndpoint");
       const backingMessageHandle = await messageHandleContract.deploy(backingStartNonce, mtfStartNonce);
       await backingMessageHandle.deployed();
@@ -36,6 +33,7 @@ describe("sub<>sub mapping token tests", () => {
       await mtfMessageHandle.deployed();
       await backingMessageHandle.setRemoteHelix(mtfMessageHandle.address);
       await mtfMessageHandle.setRemoteHelix(backingMessageHandle.address);
+      console.log("finish deploy & config endpoint");
 
       // deploy backing
       const backingContract = await ethers.getContractFactory("Erc20Sub2SubBacking");
@@ -43,9 +41,11 @@ describe("sub<>sub mapping token tests", () => {
       await backing.deployed();
       await backing.initialize(backingMessageHandle.address);
       //await backing.setMessageHandle(backingMessageHandle.address);
-      await backing.setChainName("pangolin smart");
+      await backing.setChainName("crab smart chain");
       await backingMessageHandle.grantRole(backingMessageHandle.CALLER_ROLE(), backing.address);
       await backing.grantRole(backing.OPERATOR_ROLE(), owner.address);
+      await backing.setWToken(wCrab.address);
+      console.log("finish deploy & config backing");
 
       // deploy mapping token factory
       const mtfContract = await ethers.getContractFactory("Erc20Sub2SubMappingTokenFactory");
@@ -53,9 +53,8 @@ describe("sub<>sub mapping token tests", () => {
       await mtf.deployed();
       await mtf.initialize(mtfMessageHandle.address);
       //await mtf.setMessageHandle(mtfMessageHandle.address);
-      await mtf.setTokenContractLogic(1, mappingToken.address);
-      await mtf.setTokenContractLogic(2, mappingToken.address);
       await mtfMessageHandle.grantRole(mtfMessageHandle.CALLER_ROLE(), mtf.address);
+      console.log("finish deploy & config mtf");
 
       await backing.setRemoteMappingTokenFactory(mtf.address);
       await mtf.setRemoteBacking(backing.address);
@@ -65,92 +64,98 @@ describe("sub<>sub mapping token tests", () => {
       await backing.register(
           remoteSpecVersion,
           remoteReceiveGasLimit,
-          wkton.address,
-          await wkton.name(),
-          await wkton.symbol(),
-          await wkton.decimals(),
+          wCrab.address,
+          await wCrab.name(),
+          await wCrab.symbol(),
+          await wCrab.decimals(),
           10000,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       );
 
       expect(await mtf.tokenLength()).to.equal(1);
       const mappingWktonAddress = await mtf.allMappingTokens(0);
-      var mappedToken = await ethers.getContractAt("MappingERC20", mappingWktonAddress);
+      await mtf.setMappingNativeWrappedToken(mappingWktonAddress);
+      var mappedToken = await ethers.getContractAt("Erc20", mappingWktonAddress);
+      console.log("finish register token");
       // lock and remote issue
       // 1. failed on source chain
       const receiver = owner.address;
       await expect(backing.lockAndRemoteIssuing(
         remoteSpecVersion,
         remoteReceiveGasLimit,
-        wkton.address,
+        wCrab.address,
         receiver,
         1000,
-        { value: ethers.utils.parseEther("1.0") }
-      )).to.be.revertedWith("ERC20: transfer amount exceeds allowance");
+        { value: fee }
+      )).to.be.revertedWith("Transaction reverted without a reason string");
+      console.log("test lock revert finished");
       // 2. success
       // must approve first
-      await wkton.approve(backing.address, 100000);
+      await wCrab.approve(backing.address, 100000);
       // change daily limit
       // backing: nonce += 2
       await backing.lockAndRemoteIssuing(
         remoteSpecVersion,
         remoteReceiveGasLimit,
-        wkton.address,
+        wCrab.address,
         receiver,
         1000,
-        { value: ethers.utils.parseEther("1.0") }
+        { value: fee }
       );
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000);
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
+      console.log("test lock success finished");
       // 3. test failed and unlock failed, update daily limit
       // 3.1 unlock the successed remote message should be failed
       await expect(mtf.remoteUnlockFailure(
           remoteSpecVersion,
           remoteReceiveGasLimit,
           backingStartNonce + 2,
-          wkton.address,
+          wCrab.address,
           owner.address,
           1000,
-          { value: ethers.utils.parseEther("1.0") }
-      )).to.be.revertedWith("MappingTokenFactory:success message can't refund for failed");
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
+          { value: fee }
+      )).to.be.revertedWith("MTF:success message can't refund for failed");
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000);
+      console.log("test lock refund failed finished");
       // 3.2 unlock the failed remote message should be success
       await mtf.changeDailyLimit(mappingWktonAddress, 0);
       // backing: nonce += 2
       await backing.lockAndRemoteIssuing(
         remoteSpecVersion,
         remoteReceiveGasLimit,
-        wkton.address,
+        wCrab.address,
         receiver,
         1000,
-        { value: ethers.utils.parseEther("1.0") }
+        { value: fee }
       );
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 2000);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 2000);
       expect(await mappedToken.balanceOf(receiver)).to.equal(1000);
+      console.log("test lock success finished");
       
       // mtf: nonce += 0
       await mtf.remoteUnlockFailure(
           remoteSpecVersion,
           remoteReceiveGasLimit,
           backingStartNonce + 3,
-          wkton.address,
+          wCrab.address,
           owner.address,
           1000,
           { value: ethers.utils.parseEther("1.2") }
       );
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000);
       // retry failed
       // mtf: nonce += 1
       await mtf.remoteUnlockFailure(
           remoteSpecVersion,
           remoteReceiveGasLimit,
           backingStartNonce + 3,
-          wkton.address,
+          wCrab.address,
           owner.address,
           1000,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       );
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000);
 
       // burn and unlock
       // 1. success
@@ -162,9 +167,9 @@ describe("sub<>sub mapping token tests", () => {
           mappingWktonAddress,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       );
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
 
       // 2. unlock when failed
@@ -176,10 +181,10 @@ describe("sub<>sub mapping token tests", () => {
           mappedToken.address,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       )).to.be.revertedWith("Backing:success message can't refund for failed");
       // 2.2 can unlock when failed
-      await backing.changeDailyLimit(wkton.address, 0);
+      await backing.changeDailyLimit(wCrab.address, 0);
       // mtf: nonce += 3
       await mtf.burnAndRemoteUnlock(
           remoteSpecVersion,
@@ -187,7 +192,7 @@ describe("sub<>sub mapping token tests", () => {
           mappingWktonAddress,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       );
       backing.remoteIssuingFailure(
           remoteSpecVersion,
@@ -196,9 +201,9 @@ describe("sub<>sub mapping token tests", () => {
           mappedToken.address,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       )
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // retry failed
       backing.remoteIssuingFailure(
@@ -208,9 +213,9 @@ describe("sub<>sub mapping token tests", () => {
           mappedToken.address,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       )
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
 
       // mtf: nonce += 5
@@ -220,10 +225,10 @@ describe("sub<>sub mapping token tests", () => {
           mappingWktonAddress,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       );
 
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
 
       // test update laneId
@@ -239,9 +244,9 @@ describe("sub<>sub mapping token tests", () => {
           mappedToken.address,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       )
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
 
       // 2. new message can be proved by new transferId
@@ -252,9 +257,9 @@ describe("sub<>sub mapping token tests", () => {
           mappingWktonAddress,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       );
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
       await backing.remoteIssuingFailure(
           remoteSpecVersion,
@@ -263,23 +268,23 @@ describe("sub<>sub mapping token tests", () => {
           mappedToken.address,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       )
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 100);
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 100);
 
       // 3. new message can be accepted
-      await backing.changeDailyLimit(wkton.address, 1000);
+      await backing.changeDailyLimit(wCrab.address, 1000);
       await mtf.burnAndRemoteUnlock(
           remoteSpecVersion,
           remoteReceiveGasLimit,
           mappingWktonAddress,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       );
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 200);
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 200);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 200);
 
       // collision test
       // new laneId nonce = 3
@@ -290,10 +295,106 @@ describe("sub<>sub mapping token tests", () => {
           mappingWktonAddress,
           owner.address,
           100,
-          { value: ethers.utils.parseEther("1.0") }
+          { value: fee }
       );
       expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 300);
-      expect(await wkton.balanceOf(owner.address)).to.equal(10000 - 1000 + 300);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 300);
+
+      console.log("start to test native token");
+
+      // restore laneId
+      await backingMessageHandle.setInboundLane("0x00000000");
+      await backingMessageHandle.setOutboundLane("0x00000000");
+      await mtfMessageHandle.setInboundLane("0x00000000");
+      await mtfMessageHandle.setOutboundLane("0x00000000");
+      // test native token lock
+      await mtf.changeDailyLimit(mappingWktonAddress, 10000);
+      await backing.changeDailyLimit(wCrab.address, 10000);
+      await expect(backing.lockAndRemoteIssuingNative(
+        remoteSpecVersion,
+        remoteReceiveGasLimit,
+        receiver,
+        1000,
+        { value: fee }
+      )).to.be.revertedWith("Backing:the fee is not enough");
+
+      await backing.lockAndRemoteIssuingNative(
+        remoteSpecVersion,
+        remoteReceiveGasLimit,
+        receiver,
+        1000,
+        { value: ethers.utils.parseEther("1.1") }
+      );
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 300);
+      expect(await mappedToken.balanceOf(receiver)).to.equal(1000 - 300 + 1000);
+      console.log("finish test lock native token");
+      // test native token burn
+      const newReceiver = "0x85E566c75207095b117e91e4890e016Af05dc048";
+      await mtf.burnAndRemoteUnlockNative(
+          remoteSpecVersion,
+          remoteReceiveGasLimit,
+          newReceiver,
+          123,
+          { value: fee }
+      );
+      expect(await ethers.provider.getBalance(newReceiver)).to.equal(123);
+      expect(await wCrab.balanceOf(owner.address)).to.equal(10000 - 1000 + 300);
+      expect(await mappedToken.balanceOf(owner.address)).to.equal(1000 - 300 + 1000 - 123);
+      console.log("finish test burn native token");
+      // test native token lock failed
+      await mtf.changeDailyLimit(mappingWktonAddress, 0);
+      
+      const balanceBefore = await ethers.provider.getBalance(owner.address);
+      const transaction01 = await backing.lockAndRemoteIssuingNative(
+        remoteSpecVersion,
+        remoteReceiveGasLimit,
+        receiver,
+        1000,
+        { value: ethers.utils.parseEther("1.1") }
+      );
+      expect(await mappedToken.balanceOf(receiver)).to.equal(1000 - 300 + 1000 - 123);
+
+      const balance01 = await ethers.provider.getBalance(owner.address);
+      let receipt01 = await transaction01.wait();
+      let gasFee01 = receipt01.cumulativeGasUsed.mul(receipt01.effectiveGasPrice);
+      expect(balance01.add(gasFee01).add(1000).add(fee)).to.equal(balanceBefore);
+      // lock refund
+      const transaction02 = await mtf.remoteUnlockFailureNative(
+          remoteSpecVersion,
+          remoteReceiveGasLimit,
+          backingStartNonce + 7,
+          owner.address,
+          1000,
+          { value: fee }
+      );
+      const balance02 = await ethers.provider.getBalance(owner.address);
+      let receipt02 = await transaction02.wait();
+      let gasFee02 = receipt02.cumulativeGasUsed.mul(receipt02.effectiveGasPrice);
+      expect(balance01.sub(balance02).sub(fee).add(1000)).to.equal(gasFee02);
+      console.log("finish test refund native token");
+      // refund failed(duplicate)
+      const transaction03 = await mtf.remoteUnlockFailureNative(
+          remoteSpecVersion,
+          remoteReceiveGasLimit,
+          backingStartNonce + 7,
+          owner.address,
+          1000,
+          { value: fee }
+      );
+      const balance03 = await ethers.provider.getBalance(owner.address);
+      let receipt03 = await transaction03.wait();
+      let gasFee03 = receipt03.cumulativeGasUsed.mul(receipt03.effectiveGasPrice);
+      expect(balance02.sub(balance03).sub(fee)).to.equal(gasFee03);
+      // invalid nonce
+      await expect(mtf.remoteUnlockFailureNative(
+          remoteSpecVersion,
+          remoteReceiveGasLimit,
+          backingStartNonce + 8,
+          owner.address,
+          1000,
+          { value: fee }
+      )).to.be.revertedWith("MTF:the message is not checked by message layer");
+      console.log("finish test s2s mapping token");
   });
 
   it("test_s2s_migration", async function () {

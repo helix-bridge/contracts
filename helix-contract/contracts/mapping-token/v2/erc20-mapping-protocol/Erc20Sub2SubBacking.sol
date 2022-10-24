@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
+import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
 import "@zeppelin-solidity/contracts/utils/structs/BitMaps.sol";
 import "../Backing.sol";
 import "../../interfaces/IBacking.sol";
-import "../../interfaces/IERC20.sol";
+import "../../interfaces/IErc20MappingTokenFactory.sol";
 import "../../interfaces/IGuard.sol";
 import "../../interfaces/IHelixApp.sol";
 import "../../interfaces/IHelixSub2SubMessageEndpoint.sol";
-import "../../interfaces/IErc20MappingTokenFactory.sol";
+import "../../interfaces/IWToken.sol";
 import "../../../utils/DailyLimit.sol";
 
 contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
@@ -20,21 +21,22 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         bool hasRefundForFailed;
     }
 
-    uint32 public constant NATIVE_TOKEN_TYPE = 0;
-    uint32 public constant ERC20_TOKEN_TYPE = 1;
     address public guard;
     string public chainName;
     uint256 public helixFee;
+    address wToken;
 
     // (transferId => LockedInfo)
     mapping(uint256 => LockedInfo) lockedMessages;
     BitMaps.BitMap unlockedMessages;
 
     event NewErc20TokenRegistered(uint256 transferId, address token);
-    event TokenLocked(uint256 transferId, bytes32 hash, address token, address sender, address recipient, uint256 amount, uint256 fee);
-    event TokenUnlocked(uint256 transferId, address token, address recipient, uint256 amount);
-    event RemoteIssuingFailure(uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
-    event TokenUnlockedForFailed(uint256 transferId, address token, address recipient, uint256 amount);
+    event TokenLocked(uint256 transferId, bool isNative, address token, address sender, address recipient, uint256 amount, uint256 fee);
+    event TokenUnlocked(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
+    event RemoteIssuingFailure(uint256 refundId, uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
+    event TokenUnlockedForFailed(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
+
+    receive() external payable {}
 
     function setMessageEndpoint(address _messageEndpoint) external onlyAdmin {
         _setMessageEndpoint(_messageEndpoint);
@@ -56,6 +58,10 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         guard = newGuard;
     }
 
+    function setWToken(address _wToken) external onlyAdmin {
+        wToken = _wToken;
+    }
+
     function fee() external view returns(uint256) {
         return IHelixSub2SubMessageEndpoint(messageEndpoint).fee() + helixFee;
     }
@@ -63,14 +69,15 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     function _sendMessage(
         uint32  remoteSpecVersion,
         uint256 remoteReceiveGasLimit,
-        bytes memory message
+        bytes memory message,
+        uint256 prepaid
     ) internal nonReentrant returns(uint256, uint256) {
         uint256 bridgeFee = IHelixSub2SubMessageEndpoint(messageEndpoint).fee();
         uint256 totalFee = bridgeFee + helixFee;
-        require(msg.value >= totalFee, "backing:the fee is not enough");
-        if (msg.value > totalFee) {
+        require(prepaid >= totalFee, "Backing:the fee is not enough");
+        if (prepaid > totalFee) {
             // refund fee to msgSender
-            payable(msg.sender).transfer(msg.value - totalFee);
+            payable(msg.sender).transfer(prepaid - totalFee);
         }
         uint256 transferId = IHelixSub2SubMessageEndpoint(messageEndpoint).sendMessage{value: bridgeFee}(
             remoteSpecVersion,
@@ -98,7 +105,6 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     ) external payable onlyOperator {
         bytes memory newErc20Contract = abi.encodeWithSelector(
             IErc20MappingTokenFactory.newErc20Contract.selector,
-            ERC20_TOKEN_TYPE,
             token,
             chainName,
             name,
@@ -109,11 +115,40 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         (uint256 transferId,) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
-            newErc20Contract
+            newErc20Contract,
+            msg.value
         );
         _changeDailyLimit(token, dailyLimit);
         emit NewErc20TokenRegistered(transferId, token);
     }
+
+    function _lockAndRemoteIssuing(
+        uint32  remoteSpecVersion,
+        uint256 remoteReceiveGasLimit,
+        address token,
+        address recipient,
+        uint256 amount,
+        uint256 prepaid,
+        bool isNative
+    ) internal whenNotPaused {
+        bytes memory issueMappingToken = abi.encodeWithSelector(
+            IErc20MappingTokenFactory.issueMappingToken.selector,
+            token,
+            recipient,
+            amount
+        );
+        (uint256 transferId, uint256 totalFee) = _sendMessage(
+            remoteSpecVersion,
+            remoteReceiveGasLimit,
+            issueMappingToken,
+            prepaid
+        );
+        require(lockedMessages[transferId].hash == bytes32(0), "backing: message exist");
+        bytes32 lockMessageHash = hash(abi.encodePacked(transferId, token, msg.sender, amount));
+        lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
+        emit TokenLocked(transferId, isNative, token, msg.sender, recipient, amount, totalFee);
+    }
+
 
     /**
      * @notice lock original token and issuing mapping token from bridged chain
@@ -129,25 +164,32 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         address recipient,
         uint256 amount
     ) external payable whenNotPaused {
-        uint256 balanceBefore = IERC20(token).balanceOf(address(this));
         require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Backing:transfer tokens failed");
-        uint256 balanceAfter = IERC20(token).balanceOf(address(this));
-        require(balanceBefore.add(amount) == balanceAfter, "Backing:Transfer amount is invalid");
-        bytes memory issueMappingToken = abi.encodeWithSelector(
-            IErc20MappingTokenFactory.issueMappingToken.selector,
-            token,
-            recipient,
-            amount
-        );
-        (uint256 transferId, uint256 totalFee) = _sendMessage(
+        _lockAndRemoteIssuing(
             remoteSpecVersion,
             remoteReceiveGasLimit,
-            issueMappingToken
-        );
-        require(lockedMessages[transferId].hash == bytes32(0), "backing: message exist");
-        bytes32 lockMessageHash = hash(abi.encodePacked(transferId, token, msg.sender, amount));
-        lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
-        emit TokenLocked(transferId, lockMessageHash, token, msg.sender, recipient, amount, totalFee);
+            token,
+            recipient,
+            amount,
+            msg.value,
+            false);
+    }
+
+    function lockAndRemoteIssuingNative(
+        uint32  remoteSpecVersion,
+        uint256 remoteReceiveGasLimit,
+        address recipient,
+        uint256 amount
+    ) external payable whenNotPaused {
+        IWToken(wToken).deposit{value: amount}();
+        _lockAndRemoteIssuing(
+            remoteSpecVersion,
+            remoteReceiveGasLimit,
+            wToken,
+            recipient,
+            amount,
+            msg.value - amount,
+            true);
     }
 
     /**
@@ -172,29 +214,77 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         } else {
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");
         }
-        emit TokenUnlocked(transferId, token, recipient, amount);
+        emit TokenUnlocked(transferId, false, token, recipient, amount);
+    }
+
+    /**
+     * @notice this will be called by inboundLane when the remote mapping token burned and want to unlock the original native token
+     * @param recipient the recipient who will receive the unlocked token
+     * @param amount amount of the unlocked token
+     */
+    function unlockFromRemoteNative(
+        address payable recipient,
+        uint256 amount
+    ) public onlyMessageEndpoint whenNotPaused {
+        expendDailyLimit(wToken, amount);
+        uint256 transferId = IHelixSub2SubMessageEndpoint(messageEndpoint).lastDeliveredMessageId() + 1;
+        require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:message has been accepted");
+        BitMaps.set(unlockedMessages, transferId);
+        if (guard != address(0)) {
+            uint allowance = IERC20(wToken).allowance(address(this), guard);
+            require(IERC20(wToken).approve(guard, amount + allowance), "Backing:approve token transfer to guard failed");
+            IGuard(guard).deposit(transferId, wToken, recipient, amount);
+        } else {
+            IWToken(wToken).withdraw(amount);
+            recipient.transfer(amount);
+        }
+        emit TokenUnlocked(transferId, true, wToken, recipient, amount);
+    }
+
+    function _handleUnlockFailureFromRemote(
+        uint256 transferId,
+        address token,
+        address originSender,
+        uint256 amount
+    ) internal whenNotPaused {
+        LockedInfo memory lockedMessage = lockedMessages[transferId];
+        require(lockedMessage.hasRefundForFailed == false, "Backing: the locked message has been refund");
+        bytes32 messageHash = hash(abi.encodePacked(transferId, token, originSender, amount));
+        require(lockedMessage.hash == messageHash, "Backing: message is not matched");
+        lockedMessages[transferId].hasRefundForFailed = true;
     }
 
     /**
      * @notice this will be called by messageEndpoint when the remote issue failed and want to unlock the original token
      * @param token the original token address
-     * @param origin_sender the origin_sender who will receive the unlocked token
+     * @param originSender the originSender who will receive the unlocked token
      * @param amount amount of the unlocked token
      */
     function handleUnlockFailureFromRemote(
         uint256 transferId,
         address token,
-        address origin_sender,
+        address originSender,
         uint256 amount
     ) external onlyMessageEndpoint whenNotPaused {
-        LockedInfo memory lockedMessage = lockedMessages[transferId];
-        require(lockedMessage.hasRefundForFailed == false, "Backing: the locked message has been refund");
-        bytes32 messageHash = hash(abi.encodePacked(transferId, token, origin_sender, amount));
-        require(lockedMessage.hash == messageHash, "Backing: message is not matched");
-        lockedMessages[transferId].hasRefundForFailed = true;
-        // send token
-        require(IERC20(token).transfer(origin_sender, amount), "Backing:unlock transfer failed");
-        emit TokenUnlockedForFailed(transferId, token, origin_sender, amount);
+        _handleUnlockFailureFromRemote(transferId, token, originSender, amount);
+        require(IERC20(token).transfer(originSender, amount), "Backing:unlock transfer failed");
+        emit TokenUnlockedForFailed(transferId, false, token, originSender, amount);
+    }
+
+    /**
+     * @notice this will be called by messageEndpoint when the remote issue failed and want to unlock the original native token
+     * @param originSender the originSender who will receive the unlocked token
+     * @param amount amount of the unlocked token
+     */
+    function handleUnlockFailureFromRemoteNative(
+        uint256 transferId,
+        address originSender,
+        uint256 amount
+    ) external onlyMessageEndpoint {
+        _handleUnlockFailureFromRemote(transferId, wToken, originSender, amount);
+        IWToken(wToken).withdraw(amount);
+        payable(originSender).transfer(amount);
+        emit TokenUnlockedForFailed(transferId, true, wToken, originSender, amount);
     }
 
     function remoteIssuingFailure(
@@ -217,12 +307,13 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             originalSender,
             amount
         );
-        (, uint256 totalFee) = _sendMessage(
+        (uint256 refundId, uint256 totalFee) = _sendMessage(
             remoteSpecVersion,
             remoteReceiveGasLimit,
-            unlockForFailed
+            unlockForFailed,
+            msg.value
         );
-        emit RemoteIssuingFailure(transferId, mappingToken, originalSender, amount, totalFee);
+        emit RemoteIssuingFailure(refundId, transferId, mappingToken, originalSender, amount, totalFee);
     }
 
     /**

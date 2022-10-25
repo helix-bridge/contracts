@@ -2,7 +2,6 @@
 pragma solidity ^0.8.10;
 
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
 import "@zeppelin-solidity/contracts/utils/structs/BitMaps.sol";
 import "../Backing.sol";
 import "../../interfaces/IBacking.sol";
@@ -14,20 +13,18 @@ import "../../interfaces/IWToken.sol";
 import "../../../utils/DailyLimit.sol";
 
 contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
-    using SafeMath for uint256;
-
     struct LockedInfo {
         bytes32 hash;
         bool hasRefundForFailed;
     }
 
     address public guard;
-    string public chainName;
+    string  public chainName;
     uint256 public helixFee;
-    address wToken;
+    address public wToken;
 
     // (transferId => LockedInfo)
-    mapping(uint256 => LockedInfo) lockedMessages;
+    mapping(uint256 => LockedInfo) public lockedMessages;
     BitMaps.BitMap unlockedMessages;
 
     event NewErc20TokenRegistered(uint256 transferId, address token);

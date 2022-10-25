@@ -24,9 +24,9 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
     // guard
     address public guard;
     uint256 public helixFee;
-    address xwToken;
+    address public xwToken;
 
-    mapping(uint256 => BurnInfo) burnMessages;
+    mapping(uint256 => BurnInfo) public burnMessages;
     BitMaps.BitMap issueMessages;
 
     event NewLogicSetted(uint32 tokenType, address addr);

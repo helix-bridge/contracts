@@ -13,5 +13,21 @@
         "mappingTokenFactoryProxy": "0x8738A64392b71617aF4C685d0E827855c741fDF7",
         "xWRING": "0x273131F7CB50ac002BDd08cA721988731F7e1092",
         "xRINGMigrate": "0xdED6Edd731f5F59fEB2555Ec3f1b6C085Dc6E42E"
+    },
+    {
+        "crab2darwinia_sub2sub_darwinia": {
+            "messageEndpoint": "0xaA78A346d00d693D2d31B73e405Cc68099bE7433",
+            "mappingTokenFactoryLogic": "0x6CFC08770423182F3a58A93ED3d802Bd69c6E0B2",
+            "mappingTokenFactoryAdmin": "0xdf214d9aC1808533B11cB311158c3363aEF2e770",
+            "mappingTokenFactoryProxy": "0xc9454EAc2815cd7677Ca7f237e8aDB226676DDbA",
+            "xWCRAB": "0xbc2a8439694BdE33E401b6a8ccaEA632bA003b44"
+        },
+        "crab2darwinia_sub2sub_crab": {
+            "messageEndpoint": "0xb3BF74703976BdD817bf2b82660D24A777111981",
+            "backingLogic": "0x9e4830665e4000dc318D2A457Cf45Cf9BE3Df33C",
+            "backingAdmin": "0x17cb61BfEf35CE0a73bF3eb7C1E44Ac256e97137",
+            "backingProxy": "0xE0E888cA28738Fa2667b095d66bBAD15Fec5245E",
+            "WCRAB": "0x2D2b97EA380b0185e9fDF8271d1AFB5d2Bf18329"
+        }
     }
 }

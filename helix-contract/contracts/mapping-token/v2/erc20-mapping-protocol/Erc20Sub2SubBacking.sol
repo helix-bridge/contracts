@@ -30,7 +30,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     event NewErc20TokenRegistered(uint256 transferId, address token);
     event TokenLocked(uint256 transferId, bool isNative, address token, address sender, address recipient, uint256 amount, uint256 fee);
     event TokenUnlocked(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
-    event RemoteIssuingFailure(uint256 refundId, uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteIssuingFailure(uint256 refundId, uint256 transferId, uint256 fee);
     event TokenUnlockedForFailed(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
 
     receive() external payable {}
@@ -127,7 +127,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         uint256 amount,
         uint256 prepaid,
         bool isNative
-    ) internal whenNotPaused {
+    ) internal {
         bytes memory issueMappingToken = abi.encodeWithSelector(
             IErc20MappingTokenFactory.issueMappingToken.selector,
             token,
@@ -243,7 +243,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         address token,
         address originSender,
         uint256 amount
-    ) internal whenNotPaused {
+    ) internal {
         LockedInfo memory lockedMessage = lockedMessages[transferId];
         require(lockedMessage.hasRefundForFailed == false, "Backing: the locked message has been refund");
         bytes32 messageHash = hash(abi.encodePacked(transferId, token, originSender, amount));
@@ -277,7 +277,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         uint256 transferId,
         address originSender,
         uint256 amount
-    ) external onlyMessageEndpoint {
+    ) external onlyMessageEndpoint whenNotPaused {
         _handleUnlockFailureFromRemote(transferId, wToken, originSender, amount);
         IWToken(wToken).withdraw(amount);
         payable(originSender).transfer(amount);
@@ -310,7 +310,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             unlockForFailed,
             msg.value
         );
-        emit RemoteIssuingFailure(refundId, transferId, mappingToken, originalSender, amount, totalFee);
+        emit RemoteIssuingFailure(refundId, transferId, totalFee);
     }
 
     /**

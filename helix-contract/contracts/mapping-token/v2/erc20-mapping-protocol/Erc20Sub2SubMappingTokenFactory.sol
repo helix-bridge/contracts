@@ -65,7 +65,6 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         _changeDailyLimit(mappingToken, amount);
     }
 
-
     function setHelixFee(uint256 _helixFee) external onlyAdmin {
         helixFee = _helixFee;
     }
@@ -169,7 +168,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         uint256 amount,
         bytes memory remoteUnlockCall,
         bool isNative
-    ) internal whenNotPaused {
+    ) internal {
         require(amount > 0, "MTF:can not transfer amount zero");
         // transfer to this and then burn
         require(IERC20(mappingToken).transferFrom(msg.sender, address(this), amount), "MTF:transfer token failed");
@@ -223,7 +222,7 @@ contract Erc20Sub2SubMappingTokenFactory is DailyLimit, IErc20MappingTokenFactor
         uint256 remoteReceiveGasLimit,
         address recipient,
         uint256 amount
-    ) external payable {
+    ) external payable whenNotPaused {
         require(amount > 0, "MTF:can not transfer amount zero");
         address originalToken = mappingToken2OriginalToken[xwToken];
         require(originalToken != address(0), "MTF:token is not created by factory");

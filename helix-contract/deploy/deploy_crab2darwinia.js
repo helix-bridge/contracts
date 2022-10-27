@@ -40,17 +40,18 @@ async function lockAndRemoteIssueNative(wethAddress, backingAddress, amount, wal
         { value: ethers.utils.parseEther("235.0") });
 }
 
-async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWallet) {
-    const xweth = await ethers.getContractAt("Erc20", xwethAddress, mtfWallet);
+async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, wallet) {
+    const xweth = await ethers.getContractAt("Erc20", xwethAddress, wallet);
     await xweth.approve(mtfAddress, amount);
-    const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
-    return await mtf.burnAndRemoteUnlock(
-        28160,
+    const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, wallet);
+    //const tx = await mtf.callStatic.burnAndRemoteUnlockNative(
+    return await mtf.burnAndRemoteUnlockNative(
+        1240,
         1000000,
-        xwethAddress,
         wallet.address,
         amount,
-        { value: ethers.utils.parseEther("100.0") });
+        { value: ethers.utils.parseEther("40.1") });
+    //console.log(tx);
 }
 
 async function remoteUnlockFailure(transferId, wethAddress, mtfAddress, amount, mtfWallet) {
@@ -63,6 +64,18 @@ async function remoteUnlockFailure(transferId, wethAddress, mtfAddress, amount, 
         wallet.address,
         amount,
         { value: ethers.utils.parseEther("100.0") });
+}
+
+async function remoteIssuingFailure(transferId, xwethAddress, backingAddress, amount, wallet) {
+    const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, wallet);
+    return await backing.remoteIssuingFailure(
+        1243,
+        1000000,
+        transferId,
+        xwethAddress,
+        wallet.address,
+        amount,
+        { value: ethers.utils.parseEther("235.0") });
 }
 
 function wait(ms) {
@@ -212,26 +225,28 @@ async function main() {
 	const backingWallet = wallets[0];
 	const mtfWallet = wallets[1];
 
-	const deployed = await deploy(backingWallet, mtfWallet);
-	console.log(deployed);
+	//const deployed = await deploy(backingWallet, mtfWallet);
+	//console.log(deployed);
 
-    //const backingAddress = "0x35A314e53e2fdDfeCA7b743042AaCfB1ABAF0aDe";
+    const mtfAddress = "0xc9454EAc2815cd7677Ca7f237e8aDB226676DDbA";
+    const backingAddress = "0xE0E888cA28738Fa2667b095d66bBAD15Fec5245E";
+    const wethAddress = "0x2D2b97EA380b0185e9fDF8271d1AFB5d2Bf18329";
+
     //const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, backingWallet);
     //console.log(await backing.messageEndpoint());
-    //await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);
+    //await lockAndRemoteIssueNative(wethAddress, backingAddress, ethers.utils.parseEther("1.1"), backingWallet);
     // the deployed addresses
-	//const mtfAddress = "0xc876D0873e4060472334E297b2db200Ca10cc806";
-	//const backingAddress = "0xcEEA9fF9d924a3023E5a59610F1ee7cbE287116F";
-    //const wethAddress = "0x2D2b97EA380b0185e9fDF8271d1AFB5d2Bf18329";
 
     // 1. lock and remote issue
-	//const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
-	//console.log(await mtf.tokenLength());
+    const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
+    //console.log(await mtf.tokenLength());
 	//await lockAndRemoteIssueNative(wethAddress, backingAddress, ethers.utils.parseEther("1.3"), backingWallet);
+    const xwethAddress = await mtf.allMappingTokens(0);
+    await remoteIssuingFailure(670, xwethAddress, backingAddress, ethers.utils.parseEther("0.4"), backingWallet);
 
-    /*
     // 2. burn and remote unlock
-    const tx = await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
+    //const tx = await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("0.4"), mtfWallet);
+    /*
     await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
     await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);
     await burnAndRemoteUnlockNative(await mtf.allMappingTokens(0), mtfAddress, ethers.utils.parseEther("1.3"), mtfWallet);

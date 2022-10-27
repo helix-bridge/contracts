@@ -14,10 +14,142 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 10/25/2022
+ * 2022/10/27
  **/
 
 pragma solidity ^0.8.10;
+
+// File contracts/utils/DailyLimit.sol
+// License-Identifier: MIT
+
+
+/// @title relay with daily limit - Allows the relay to mint token in a daily limit.
+contract DailyLimit {
+
+    event DailyLimitChange(address token, uint dailyLimit);
+
+    mapping(address => uint) public dailyLimit;
+    // deprecated, slot for upgrade
+    mapping(address => uint) public _slotReserved;
+    mapping(address => uint) public spentToday;
+
+    uint constant public SPEND_BIT_LENGTH = 192;
+    uint constant public LASTDAY_BIT_LENGTH = 64;
+
+    /// ==== Internal functions ==== 
+
+    /// @dev Contract constructor sets initial owners, required number of confirmations and daily mint limit.
+    /// @param _token Token address.
+    /// @param _dailyLimit Amount in wei, which can be mint without confirmations on a daily basis.
+    function _setDailyLimit(address _token, uint _dailyLimit)
+        internal
+    {
+        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
+        dailyLimit[_token] = _dailyLimit;
+    }
+
+    /// @dev Allows to change the daily limit.
+    /// @param _token Token address.
+    /// @param _dailyLimit Amount in wei.
+    function _changeDailyLimit(address _token, uint _dailyLimit)
+        internal
+    {
+        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
+        dailyLimit[_token] = _dailyLimit;
+        emit DailyLimitChange(_token, _dailyLimit);
+    }
+
+    /// @dev Allows to change the daily limit.
+    /// @param token Token address.
+    /// @param amount Amount in wei.
+    function expendDailyLimit(address token, uint amount)
+        internal
+    {
+        uint spentInfo = spentToday[token];
+        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
+        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
+        if (block.timestamp > lastday + 24 hours) {
+            require(amount <= dailyLimit[token], "DailyLimit: amount exceed daily limit");
+            spentToday[token] = (block.timestamp << SPEND_BIT_LENGTH) + amount;
+            return;
+        }
+        require(lastspent + amount <= dailyLimit[token] && amount <= dailyLimit[token], "DailyLimit: exceed daily limit");
+        spentToday[token] = spentInfo + amount;
+    }
+
+    /// ==== Web3 call functions ==== 
+
+    /// @dev Returns maximum withdraw amount.
+    /// @param token Token address.
+    /// @return Returns amount.
+    function calcMaxWithdraw(address token)
+        public
+        view
+        returns (uint)
+    {
+        uint spentInfo = spentToday[token];
+        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
+        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
+        if (block.timestamp > lastday + 24 hours) {
+          return dailyLimit[token];
+        }
+
+        if (dailyLimit[token] < lastspent) {
+          return 0;
+        }
+
+        return dailyLimit[token] - lastspent;
+    }
+}
+
+// File contracts/mapping-token/interfaces/IBacking.sol
+// License-Identifier: MIT
+
+
+interface IBacking {
+    function unlockFromRemote(
+        address originalToken,
+        address recipient,
+        uint256 amount) external;
+}
+
+interface IBackingSupportNative {
+    function unlockFromRemoteNative(
+        address recipient,
+        uint256 amount) external;
+}
+
+// File contracts/mapping-token/interfaces/IGuard.sol
+// License-Identifier: MIT
+
+
+interface IGuard {
+  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
+}
+
+// File contracts/mapping-token/interfaces/IHelixApp.sol
+// License-Identifier: MIT
+
+
+interface IHelixAppSupportWithdrawFailed {
+    function handleUnlockFailureFromRemote(
+        uint256 messageId,
+        address token,
+        address sender,
+        uint256 amount
+    ) external;
+    function handleUnlockFailureFromRemoteNative(
+        uint256 messageId,
+        address sender,
+        uint256 amount
+    ) external;
+    function handleIssuingFailureFromRemote(
+        uint256 messageId,
+        address token,
+        address sender,
+        uint256 amount
+    ) external;
+}
 
 // File @zeppelin-solidity/contracts/access/IAccessControl.sol@v4.7.3
 // License-Identifier: MIT
@@ -136,31 +268,6 @@ interface IAccessControlEnumerable is IAccessControl {
      * together with {getRoleMember} to enumerate all bearers of a role.
      */
     function getRoleMemberCount(bytes32 role) external view returns (uint256);
-}
-
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
 }
 
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
@@ -290,6 +397,31 @@ abstract contract ERC165 is IERC165 {
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IERC165).interfaceId;
+    }
+}
+
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
     }
 }
 
@@ -1519,106 +1651,6 @@ contract Backing is AccessController, Initializable {
     }
 }
 
-// File contracts/utils/DailyLimit.sol
-// License-Identifier: MIT
-
-
-/// @title relay with daily limit - Allows the relay to mint token in a daily limit.
-contract DailyLimit {
-
-    event DailyLimitChange(address token, uint dailyLimit);
-
-    mapping(address => uint) public dailyLimit;
-    // deprecated, slot for upgrade
-    mapping(address => uint) public _slotReserved;
-    mapping(address => uint) public spentToday;
-
-    uint constant public SPEND_BIT_LENGTH = 192;
-    uint constant public LASTDAY_BIT_LENGTH = 64;
-
-    /// ==== Internal functions ==== 
-
-    /// @dev Contract constructor sets initial owners, required number of confirmations and daily mint limit.
-    /// @param _token Token address.
-    /// @param _dailyLimit Amount in wei, which can be mint without confirmations on a daily basis.
-    function _setDailyLimit(address _token, uint _dailyLimit)
-        internal
-    {
-        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
-        dailyLimit[_token] = _dailyLimit;
-    }
-
-    /// @dev Allows to change the daily limit.
-    /// @param _token Token address.
-    /// @param _dailyLimit Amount in wei.
-    function _changeDailyLimit(address _token, uint _dailyLimit)
-        internal
-    {
-        require(_dailyLimit < type(uint192).max, "DaliyLimit: overflow uint192");
-        dailyLimit[_token] = _dailyLimit;
-        emit DailyLimitChange(_token, _dailyLimit);
-    }
-
-    /// @dev Allows to change the daily limit.
-    /// @param token Token address.
-    /// @param amount Amount in wei.
-    function expendDailyLimit(address token, uint amount)
-        internal
-    {
-        uint spentInfo = spentToday[token];
-        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
-        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
-        if (block.timestamp > lastday + 24 hours) {
-            require(amount <= dailyLimit[token], "DailyLimit: amount exceed daily limit");
-            spentToday[token] = (block.timestamp << SPEND_BIT_LENGTH) + amount;
-            return;
-        }
-        require(lastspent + amount <= dailyLimit[token] && amount <= dailyLimit[token], "DailyLimit: exceed daily limit");
-        spentToday[token] = spentInfo + amount;
-    }
-
-    /// ==== Web3 call functions ==== 
-
-    /// @dev Returns maximum withdraw amount.
-    /// @param token Token address.
-    /// @return Returns amount.
-    function calcMaxWithdraw(address token)
-        public
-        view
-        returns (uint)
-    {
-        uint spentInfo = spentToday[token];
-        uint lastday = spentInfo >> SPEND_BIT_LENGTH;
-        uint lastspent = spentInfo << LASTDAY_BIT_LENGTH >> LASTDAY_BIT_LENGTH;
-        if (block.timestamp > lastday + 24 hours) {
-          return dailyLimit[token];
-        }
-
-        if (dailyLimit[token] < lastspent) {
-          return 0;
-        }
-
-        return dailyLimit[token] - lastspent;
-    }
-}
-
-// File contracts/mapping-token/interfaces/IBacking.sol
-// License-Identifier: MIT
-
-
-interface IBacking {
-    function unlockFromRemote(
-        address originalToken,
-        address recipient,
-        uint256 amount) external;
-}
-
-interface IBackingSupportNative {
-    function unlockFromRemoteNative(
-        address recipient,
-        uint256 amount) external;
-}
-
 // File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
 // License-Identifier: MIT
 
@@ -1662,38 +1694,6 @@ interface IHelixSub2SubMessageEndpoint is IHelixMessageEndpoint {
         bytes calldata encoded) external payable returns (uint256);
 }
 
-// File contracts/mapping-token/interfaces/IGuard.sol
-// License-Identifier: MIT
-
-
-interface IGuard {
-  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
-}
-
-// File contracts/mapping-token/interfaces/IHelixApp.sol
-// License-Identifier: MIT
-
-
-interface IHelixAppSupportWithdrawFailed {
-    function handleUnlockFailureFromRemote(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-    function handleUnlockFailureFromRemoteNative(
-        uint256 messageId,
-        address sender,
-        uint256 amount
-    ) external;
-    function handleIssuingFailureFromRemote(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-}
-
 // File contracts/mapping-token/interfaces/IWToken.sol
 // License-Identifier: MIT
 
@@ -1701,6 +1701,62 @@ interface IHelixAppSupportWithdrawFailed {
 interface IWToken {
     function deposit() external payable;
     function withdraw(uint wad) external;
+}
+
+// File @zeppelin-solidity/contracts/utils/structs/BitMaps.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/structs/BitMaps.sol)
+
+/**
+ * @dev Library for managing uint256 to bool mapping in a compact and efficient way, providing the keys are sequential.
+ * Largelly inspired by Uniswap's https://github.com/Uniswap/merkle-distributor/blob/master/contracts/MerkleDistributor.sol[merkle-distributor].
+ */
+library BitMaps {
+    struct BitMap {
+        mapping(uint256 => uint256) _data;
+    }
+
+    /**
+     * @dev Returns whether the bit at `index` is set.
+     */
+    function get(BitMap storage bitmap, uint256 index) internal view returns (bool) {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        return bitmap._data[bucket] & mask != 0;
+    }
+
+    /**
+     * @dev Sets the bit at `index` to the boolean `value`.
+     */
+    function setTo(
+        BitMap storage bitmap,
+        uint256 index,
+        bool value
+    ) internal {
+        if (value) {
+            set(bitmap, index);
+        } else {
+            unset(bitmap, index);
+        }
+    }
+
+    /**
+     * @dev Sets the bit at `index`.
+     */
+    function set(BitMap storage bitmap, uint256 index) internal {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        bitmap._data[bucket] |= mask;
+    }
+
+    /**
+     * @dev Unsets the bit at `index`.
+     */
+    function unset(BitMap storage bitmap, uint256 index) internal {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        bitmap._data[bucket] &= ~mask;
+    }
 }
 
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
@@ -1786,62 +1842,6 @@ interface IERC20 {
     ) external returns (bool);
 }
 
-// File @zeppelin-solidity/contracts/utils/structs/BitMaps.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/structs/BitMaps.sol)
-
-/**
- * @dev Library for managing uint256 to bool mapping in a compact and efficient way, providing the keys are sequential.
- * Largelly inspired by Uniswap's https://github.com/Uniswap/merkle-distributor/blob/master/contracts/MerkleDistributor.sol[merkle-distributor].
- */
-library BitMaps {
-    struct BitMap {
-        mapping(uint256 => uint256) _data;
-    }
-
-    /**
-     * @dev Returns whether the bit at `index` is set.
-     */
-    function get(BitMap storage bitmap, uint256 index) internal view returns (bool) {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        return bitmap._data[bucket] & mask != 0;
-    }
-
-    /**
-     * @dev Sets the bit at `index` to the boolean `value`.
-     */
-    function setTo(
-        BitMap storage bitmap,
-        uint256 index,
-        bool value
-    ) internal {
-        if (value) {
-            set(bitmap, index);
-        } else {
-            unset(bitmap, index);
-        }
-    }
-
-    /**
-     * @dev Sets the bit at `index`.
-     */
-    function set(BitMap storage bitmap, uint256 index) internal {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        bitmap._data[bucket] |= mask;
-    }
-
-    /**
-     * @dev Unsets the bit at `index`.
-     */
-    function unset(BitMap storage bitmap, uint256 index) internal {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        bitmap._data[bucket] &= ~mask;
-    }
-}
-
 // File contracts/mapping-token/v2/erc20-mapping-protocol/Erc20Sub2SubBacking.sol
 // License-Identifier: MIT
 
@@ -1872,7 +1872,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     event NewErc20TokenRegistered(uint256 transferId, address token);
     event TokenLocked(uint256 transferId, bool isNative, address token, address sender, address recipient, uint256 amount, uint256 fee);
     event TokenUnlocked(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
-    event RemoteIssuingFailure(uint256 refundId, uint256 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteIssuingFailure(uint256 refundId, uint256 transferId, uint256 fee);
     event TokenUnlockedForFailed(uint256 transferId, bool isNative, address token, address recipient, uint256 amount);
 
     receive() external payable {}
@@ -1969,7 +1969,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         uint256 amount,
         uint256 prepaid,
         bool isNative
-    ) internal whenNotPaused {
+    ) internal {
         bytes memory issueMappingToken = abi.encodeWithSelector(
             IErc20MappingTokenFactory.issueMappingToken.selector,
             token,
@@ -2048,7 +2048,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedMessages, transferId);
         if (guard != address(0)) {
-            require(IERC20(token).approve(guard, amount), "Backing:approve token transfer to guard failed");
+            uint allowance = IERC20(token).allowance(address(this), guard);
+            require(IERC20(token).approve(guard, amount + allowance), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, token, recipient, amount);
         } else {
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");
@@ -2085,7 +2086,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         address token,
         address originSender,
         uint256 amount
-    ) internal whenNotPaused {
+    ) internal {
         LockedInfo memory lockedMessage = lockedMessages[transferId];
         require(lockedMessage.hasRefundForFailed == false, "Backing: the locked message has been refund");
         bytes32 messageHash = hash(abi.encodePacked(transferId, token, originSender, amount));
@@ -2119,7 +2120,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         uint256 transferId,
         address originSender,
         uint256 amount
-    ) external onlyMessageEndpoint {
+    ) external onlyMessageEndpoint whenNotPaused {
         _handleUnlockFailureFromRemote(transferId, wToken, originSender, amount);
         IWToken(wToken).withdraw(amount);
         payable(originSender).transfer(amount);
@@ -2152,7 +2153,7 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
             unlockForFailed,
             msg.value
         );
-        emit RemoteIssuingFailure(refundId, transferId, mappingToken, originalSender, amount, totalFee);
+        emit RemoteIssuingFailure(refundId, transferId, totalFee);
     }
 
     /**

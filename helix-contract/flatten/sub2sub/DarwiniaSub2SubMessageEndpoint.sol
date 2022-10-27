@@ -14,10 +14,139 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 10/25/2022
+ * 2022/10/27
  **/
 
 pragma solidity ^0.8.10;
+
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
+
+
+/**
+ * @dev Contract module which allows children to implement an emergency stop
+ * mechanism that can be triggered by an authorized account.
+ *
+ * This module is used through inheritance. It will make available the
+ * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
+ * the functions of your contract. Note that they will not be pausable by
+ * simply including this module, only once the modifiers are put in place.
+ */
+abstract contract Pausable is Context {
+    /**
+     * @dev Emitted when the pause is triggered by `account`.
+     */
+    event Paused(address account);
+
+    /**
+     * @dev Emitted when the pause is lifted by `account`.
+     */
+    event Unpaused(address account);
+
+    bool private _paused;
+
+    /**
+     * @dev Initializes the contract in unpaused state.
+     */
+    constructor() {
+        _paused = false;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is not paused.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    modifier whenNotPaused() {
+        _requireNotPaused();
+        _;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is paused.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    modifier whenPaused() {
+        _requirePaused();
+        _;
+    }
+
+    /**
+     * @dev Returns true if the contract is paused, and false otherwise.
+     */
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Throws if the contract is paused.
+     */
+    function _requireNotPaused() internal view virtual {
+        require(!paused(), "Pausable: paused");
+    }
+
+    /**
+     * @dev Throws if the contract is not paused.
+     */
+    function _requirePaused() internal view virtual {
+        require(paused(), "Pausable: not paused");
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function _pause() internal virtual whenNotPaused {
+        _paused = true;
+        emit Paused(_msgSender());
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function _unpause() internal virtual whenPaused {
+        _paused = false;
+        emit Unpaused(_msgSender());
+    }
+}
 
 // File @zeppelin-solidity/contracts/access/IAccessControl.sol@v4.7.3
 // License-Identifier: MIT
@@ -136,31 +265,6 @@ interface IAccessControlEnumerable is IAccessControl {
      * together with {getRoleMember} to enumerate all bearers of a role.
      */
     function getRoleMemberCount(bytes32 role) external view returns (uint256);
-}
-
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
 }
 
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
@@ -970,110 +1074,6 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
     }
 }
 
-// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
-
-
-/**
- * @dev Contract module which allows children to implement an emergency stop
- * mechanism that can be triggered by an authorized account.
- *
- * This module is used through inheritance. It will make available the
- * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
- * simply including this module, only once the modifiers are put in place.
- */
-abstract contract Pausable is Context {
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        _requireNotPaused();
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        _requirePaused();
-        _;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Throws if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        require(!paused(), "Pausable: paused");
-    }
-
-    /**
-     * @dev Throws if the contract is not paused.
-     */
-    function _requirePaused() internal view virtual {
-        require(paused(), "Pausable: not paused");
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
-    }
-}
-
 // File contracts/mapping-token/v2/AccessController.sol
 // License-Identifier: MIT
 
@@ -1392,202 +1392,6 @@ library Bytes {
 
         return outbytes;
     }
-}
-
-// File @darwinia/contracts-utils/contracts/ScaleCodec.sol@v1.0.3
-// License-Identifier: MIT
-
-library ScaleCodec {
-    // Decodes a SCALE encoded uint256 by converting bytes (bid endian) to little endian format
-    function decodeUint256(bytes memory data) internal pure returns (uint256) {
-        uint256 number;
-        for (uint256 i = data.length; i > 0; i--) {
-            number = number + uint256(uint8(data[i - 1])) * (2**(8 * (i - 1)));
-        }
-        return number;
-    }
-
-    // Decodes a SCALE encoded compact unsigned integer
-    function decodeUintCompact(bytes memory data)
-        internal 
-        pure
-        returns (uint256 v, uint8 m)
-    {
-        uint8 b = readByteAtIndex(data, 0); // read the first byte
-        uint8 mode = b & 3; // bitwise operation
-
-        uint256 value;
-        if (mode == 0) {
-            // [0, 63]
-            value = b >> 2; // right shift to remove mode bits
-        } else if (mode == 1) {
-            // [64, 16383]
-            uint8 bb = readByteAtIndex(data, 1); // read the second byte
-            uint64 r = bb; // convert to uint64
-            r <<= 6; // multiply by * 2^6
-            r += b >> 2; // right shift to remove mode bits
-            value = r;
-        } else if (mode == 2) {
-            // [16384, 1073741823]
-            uint8 b2 = readByteAtIndex(data, 1); // read the next 3 bytes
-            uint8 b3 = readByteAtIndex(data, 2);
-            uint8 b4 = readByteAtIndex(data, 3);
-
-            uint32 x1 = uint32(b) | (uint32(b2) << 8); // convert to little endian
-            uint32 x2 = x1 | (uint32(b3) << 16);
-            uint32 x3 = x2 | (uint32(b4) << 24);
-
-            x3 >>= 2; // remove the last 2 mode bits
-            value = uint256(x3);
-        } else if (mode == 3) {
-            // [1073741824, 4503599627370496]
-            uint8 l = b >> 2; // remove mode bits
-            require(
-                l > 32,
-                "Not supported: number cannot be greater than 32 bytes"
-            );
-        } else {
-            revert("Code should be unreachable");
-        }
-        return (value, mode);
-    }
-
-    // The biggest compact supported uint is 2 ** 536 - 1. 
-    // But the biggest value supported by this method is 2 ** 256 - 1(max of uint256)
-    function encodeUintCompact(uint256 v) internal pure returns (bytes memory) {
-        if ( v < 64 ) {
-            return abi.encodePacked(uint8(v << 2));
-        } else if ( v < 2 ** 14 ) {
-            return abi.encodePacked(reverse16(uint16(((v << 2) + 1))));
-        } else if ( v < 2 ** 30 ) {
-            return abi.encodePacked(reverse32(uint32(((v << 2) + 2))));
-        } else {
-            bytes memory valueBytes = 
-                Bytes.removeEndingZero(abi.encodePacked(reverse256(v)));
-
-            uint length = valueBytes.length;
-            uint8 prefix = uint8(((length - 4) << 2) + 3);
-
-            return abi.encodePacked(prefix, valueBytes);
-        }
-    }
-
-    // Read a byte at a specific index and return it as type uint8
-    function readByteAtIndex(bytes memory data, uint8 index)
-        internal
-        pure
-        returns (uint8)
-    {
-        return uint8(data[index]);
-    }
-
-    // Sources:
-    //   * https://ethereum.stackexchange.com/questions/15350/how-to-convert-an-bytes-to-address-in-solidity/50528
-    //   * https://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
-
-    function reverse256(uint256 input) internal pure returns (uint256 v) {
-        v = input;
-
-        // swap bytes
-        v = ((v & 0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
-            ((v & 0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = ((v & 0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
-            ((v & 0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
-
-        // swap 4-byte long pairs
-        v = ((v & 0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000) >> 32) |
-            ((v & 0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF) << 32);
-
-        // swap 8-byte long pairs
-        v = ((v & 0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000) >> 64) |
-            ((v & 0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF) << 64);
-
-        // swap 16-byte long pairs
-        v = (v >> 128) | (v << 128);
-    }
-
-    function reverse128(uint128 input) internal pure returns (uint128 v) {
-        v = input;
-
-        // swap bytes
-        v = ((v & 0xFF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
-            ((v & 0x00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = ((v & 0xFFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
-            ((v & 0x0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
-
-        // swap 4-byte long pairs
-        v = ((v & 0xFFFFFFFF00000000FFFFFFFF00000000) >> 32) |
-            ((v & 0x00000000FFFFFFFF00000000FFFFFFFF) << 32);
-
-        // swap 8-byte long pairs
-        v = (v >> 64) | (v << 64);
-    }
-
-    function reverse64(uint64 input) internal pure returns (uint64 v) {
-        v = input;
-
-        // swap bytes
-        v = ((v & 0xFF00FF00FF00FF00) >> 8) |
-            ((v & 0x00FF00FF00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = ((v & 0xFFFF0000FFFF0000) >> 16) |
-            ((v & 0x0000FFFF0000FFFF) << 16);
-
-        // swap 4-byte long pairs
-        v = (v >> 32) | (v << 32);
-    }
-
-    function reverse32(uint32 input) internal pure returns (uint32 v) {
-        v = input;
-
-        // swap bytes
-        v = ((v & 0xFF00FF00) >> 8) |
-            ((v & 0x00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = (v >> 16) | (v << 16);
-    }
-
-    function reverse16(uint16 input) internal pure returns (uint16 v) {
-        v = input;
-
-        // swap bytes
-        v = (v >> 8) | (v << 8);
-    }
-
-    function encode256(uint256 input) internal pure returns (bytes32) {
-        return bytes32(reverse256(input));
-    }
-
-    function encode128(uint128 input) internal pure returns (bytes16) {
-        return bytes16(reverse128(input));
-    }
-
-    function encode64(uint64 input) internal pure returns (bytes8) {
-        return bytes8(reverse64(input));
-    }
-
-    function encode32(uint32 input) internal pure returns (bytes4) {
-        return bytes4(reverse32(input));
-    }
-
-    function encode16(uint16 input) internal pure returns (bytes2) {
-        return bytes2(reverse16(input));
-    }
-
-    function encodeBytes(bytes memory input) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            encodeUintCompact(input.length),
-            input
-        );
-    }
-
-    
 }
 
 // File @darwinia/contracts-utils/contracts/AccountId.sol@v1.0.3
@@ -1975,6 +1779,210 @@ library Hash {
         bytes16 out = blake2b128(src);
         return abi.encodePacked(out, src);
     }
+}
+
+// File @darwinia/contracts-utils/contracts/ScaleCodec.sol@v1.0.3
+// License-Identifier: MIT
+
+library ScaleCodec {
+    // Decodes a SCALE encoded uint256 by converting bytes (bid endian) to little endian format
+    function decodeUint256(bytes memory data) internal pure returns (uint256) {
+        uint256 number;
+        for (uint256 i = data.length; i > 0; i--) {
+            number = number + uint256(uint8(data[i - 1])) * (2**(8 * (i - 1)));
+        }
+        return number;
+    }
+
+    // Decodes a SCALE encoded compact unsigned integer
+    function decodeUintCompact(bytes memory data)
+        internal 
+        pure
+        returns (uint256 v, uint8 m)
+    {
+        uint8 b = readByteAtIndex(data, 0); // read the first byte
+        uint8 mode = b & 3; // bitwise operation
+
+        uint256 value;
+        if (mode == 0) {
+            // [0, 63]
+            value = b >> 2; // right shift to remove mode bits
+        } else if (mode == 1) {
+            // [64, 16383]
+            uint8 bb = readByteAtIndex(data, 1); // read the second byte
+            uint64 r = bb; // convert to uint64
+            r <<= 6; // multiply by * 2^6
+            r += b >> 2; // right shift to remove mode bits
+            value = r;
+        } else if (mode == 2) {
+            // [16384, 1073741823]
+            uint8 b2 = readByteAtIndex(data, 1); // read the next 3 bytes
+            uint8 b3 = readByteAtIndex(data, 2);
+            uint8 b4 = readByteAtIndex(data, 3);
+
+            uint32 x1 = uint32(b) | (uint32(b2) << 8); // convert to little endian
+            uint32 x2 = x1 | (uint32(b3) << 16);
+            uint32 x3 = x2 | (uint32(b4) << 24);
+
+            x3 >>= 2; // remove the last 2 mode bits
+            value = uint256(x3);
+        } else if (mode == 3) {
+            // [1073741824, 4503599627370496]
+            uint8 l = b >> 2; // remove mode bits
+            require(
+                l > 32,
+                "Not supported: number cannot be greater than 32 bytes"
+            );
+        } else {
+            revert("Code should be unreachable");
+        }
+        return (value, mode);
+    }
+
+    // The biggest compact supported uint is 2 ** 536 - 1. 
+    // But the biggest value supported by this method is 2 ** 256 - 1(max of uint256)
+    function encodeUintCompact(uint256 v) internal pure returns (bytes memory) {
+        if ( v < 64 ) {
+            return abi.encodePacked(uint8(v << 2));
+        } else if ( v < 2 ** 14 ) {
+            return abi.encodePacked(reverse16(uint16(((v << 2) + 1))));
+        } else if ( v < 2 ** 30 ) {
+            return abi.encodePacked(reverse32(uint32(((v << 2) + 2))));
+        } else {
+            bytes memory valueBytes = 
+                Bytes.removeEndingZero(abi.encodePacked(reverse256(v)));
+
+            uint length = valueBytes.length;
+            uint8 prefix = uint8(((length - 4) << 2) + 3);
+
+            return abi.encodePacked(prefix, valueBytes);
+        }
+    }
+
+    // Read a byte at a specific index and return it as type uint8
+    function readByteAtIndex(bytes memory data, uint8 index)
+        internal
+        pure
+        returns (uint8)
+    {
+        return uint8(data[index]);
+    }
+
+    // Sources:
+    //   * https://ethereum.stackexchange.com/questions/15350/how-to-convert-an-bytes-to-address-in-solidity/50528
+    //   * https://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
+
+    function reverse256(uint256 input) internal pure returns (uint256 v) {
+        v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
+            ((v & 0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = ((v & 0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
+            ((v & 0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
+
+        // swap 4-byte long pairs
+        v = ((v & 0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000) >> 32) |
+            ((v & 0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF) << 32);
+
+        // swap 8-byte long pairs
+        v = ((v & 0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000) >> 64) |
+            ((v & 0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF) << 64);
+
+        // swap 16-byte long pairs
+        v = (v >> 128) | (v << 128);
+    }
+
+    function reverse128(uint128 input) internal pure returns (uint128 v) {
+        v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
+            ((v & 0x00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = ((v & 0xFFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
+            ((v & 0x0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
+
+        // swap 4-byte long pairs
+        v = ((v & 0xFFFFFFFF00000000FFFFFFFF00000000) >> 32) |
+            ((v & 0x00000000FFFFFFFF00000000FFFFFFFF) << 32);
+
+        // swap 8-byte long pairs
+        v = (v >> 64) | (v << 64);
+    }
+
+    function reverse64(uint64 input) internal pure returns (uint64 v) {
+        v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00FF00FF00) >> 8) |
+            ((v & 0x00FF00FF00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = ((v & 0xFFFF0000FFFF0000) >> 16) |
+            ((v & 0x0000FFFF0000FFFF) << 16);
+
+        // swap 4-byte long pairs
+        v = (v >> 32) | (v << 32);
+    }
+
+    function reverse32(uint32 input) internal pure returns (uint32 v) {
+        v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00) >> 8) |
+            ((v & 0x00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = (v >> 16) | (v << 16);
+    }
+
+    function reverse16(uint16 input) internal pure returns (uint16 v) {
+        v = input;
+
+        // swap bytes
+        v = (v >> 8) | (v << 8);
+    }
+
+    function encode256(uint256 input) internal pure returns (bytes32) {
+        return bytes32(reverse256(input));
+    }
+
+    function encode128(uint128 input) internal pure returns (bytes16) {
+        return bytes16(reverse128(input));
+    }
+
+    function encode64(uint64 input) internal pure returns (bytes8) {
+        return bytes8(reverse64(input));
+    }
+
+    function encode32(uint32 input) internal pure returns (bytes4) {
+        return bytes4(reverse32(input));
+    }
+
+    function encode16(uint16 input) internal pure returns (bytes2) {
+        return bytes2(reverse16(input));
+    }
+
+    function encodeBytes(bytes memory input) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            encodeUintCompact(input.length),
+            input
+        );
+    }
+
+    
+}
+
+// File @darwinia/contracts-periphery/contracts/s2s/interfaces/IStateStorage.sol@v2.0.3
+// License-Identifier: MIT
+
+
+interface IStateStorage {
+    function state_storage(bytes memory key) external view returns (bytes memory);
 }
 
 // File hardhat/console.sol@v2.12.0
@@ -3853,14 +3861,6 @@ library PalletBridgeMessages {
                 ScaleCodec.encode128(_call.deliveryAndDispatchFee)
             );
     }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/interfaces/IStateStorage.sol@v2.0.3
-// License-Identifier: MIT
-
-
-interface IStateStorage {
-    function state_storage(bytes memory key) external view returns (bytes memory);
 }
 
 // File @darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol@v2.0.3

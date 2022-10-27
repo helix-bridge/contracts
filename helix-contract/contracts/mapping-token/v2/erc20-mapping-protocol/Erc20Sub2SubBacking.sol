@@ -206,7 +206,8 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
         require(BitMaps.get(unlockedMessages, transferId) == false, "Backing:message has been accepted");
         BitMaps.set(unlockedMessages, transferId);
         if (guard != address(0)) {
-            require(IERC20(token).approve(guard, amount), "Backing:approve token transfer to guard failed");
+            uint allowance = IERC20(token).allowance(address(this), guard);
+            require(IERC20(token).approve(guard, amount + allowance), "Backing:approve token transfer to guard failed");
             IGuard(guard).deposit(transferId, token, recipient, amount);
         } else {
             require(IERC20(token).transfer(recipient, amount), "Backing:unlock transfer failed");

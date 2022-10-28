@@ -16,17 +16,17 @@
     },
     {
         "crab2darwinia_sub2sub_darwinia": {
-            "messageEndpoint": "0xaA78A346d00d693D2d31B73e405Cc68099bE7433",
-            "mappingTokenFactoryLogic": "0x6CFC08770423182F3a58A93ED3d802Bd69c6E0B2",
-            "mappingTokenFactoryAdmin": "0xdf214d9aC1808533B11cB311158c3363aEF2e770",
-            "mappingTokenFactoryProxy": "0xc9454EAc2815cd7677Ca7f237e8aDB226676DDbA",
-            "xWCRAB": "0xbc2a8439694BdE33E401b6a8ccaEA632bA003b44"
+            "messageEndpoint": "0x58c16265Ba9Cb71AfCEC1B71831714138BdC344C",
+            "mappingTokenFactoryLogic": "0xcc357d5A8E5dBD52bC508E0FE491137d912F6bc8",
+            "mappingTokenFactoryAdmin": "0xBCec81c041De755F5030Ae368bc6D38C8A6d90d8",
+            "mappingTokenFactoryProxy": "0x8c585F9791EE5b4B23fe82888cE576DBB69607eB",
+            "xWCRAB": "0x656567Eb75b765FC320783cc6EDd86bD854b2305"
         },
         "crab2darwinia_sub2sub_crab": {
-            "messageEndpoint": "0xb3BF74703976BdD817bf2b82660D24A777111981",
-            "backingLogic": "0x9e4830665e4000dc318D2A457Cf45Cf9BE3Df33C",
-            "backingAdmin": "0x17cb61BfEf35CE0a73bF3eb7C1E44Ac256e97137",
-            "backingProxy": "0xE0E888cA28738Fa2667b095d66bBAD15Fec5245E",
+            "messageEndpoint": "0xc876D0873e4060472334E297b2db200Ca10cc806",
+            "backingLogic": "0x3d33856dCf74f110690f5a2647C7dFb9BB5Ff2d0",
+            "backingAdmin": "0xdA84D53Bb0e11016A0462a72Bd577368153a722F",
+            "backingProxy": "0xCF8923ebF4244cedC647936a0281dd10bDFCBF18",
             "WCRAB": "0x2D2b97EA380b0185e9fDF8271d1AFB5d2Bf18329"
         }
     }

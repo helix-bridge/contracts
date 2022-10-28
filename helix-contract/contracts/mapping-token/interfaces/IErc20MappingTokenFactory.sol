@@ -4,7 +4,6 @@ pragma solidity >=0.8.10;
 
 interface IErc20MappingTokenFactory {
     function newErc20Contract(
-        uint32 tokenType,
         address originalToken,
         string memory bridgedChainName,
         string memory name,

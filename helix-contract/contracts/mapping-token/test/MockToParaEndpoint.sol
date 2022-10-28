@@ -17,14 +17,14 @@ contract MockDarwinia2ParaMessageEndpoint {
         backing = _backing;
     }
 
-    function fee() external view returns(uint256) {
+    function fee() external pure returns(uint256) {
         return 50;
     }
 
     function sendMessage(
-        uint32 remoteSpecVersion,
-        uint64 targetWeight,
-        bytes calldata callPayload
+        uint32,
+        uint64,
+        bytes calldata
     ) external payable returns(uint64 nonce) {
         outboundNonce += 1;
         return outboundNonce;

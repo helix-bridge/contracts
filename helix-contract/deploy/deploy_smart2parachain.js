@@ -2,21 +2,31 @@ var ProxyDeployer = require("./proxy.js");
 
 const privateKey = '0x...';
 
-// configure for pangolin
 const backingUrl = "https://pangolin-rpc.darwinia.network";
 const precompileStorageAddress = "0x0000000000000000000000000000000000000400";
 const precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
 const backingNetworkId = "0x0000002b"; //43
-const backingBridgeNetworkId = "0x70677061";
-const backingSendmsgIndex = 18179;//0x4703
-const backingOutboundLaneId = "0x706c7061";//0x706c7061
-const backingStorageKeyForMarketFee = "0xfb100650c3bdbe7b8ed495411b1951cc2edb70953213f33a6ef6b8a5e3ffcab2";
-const backingStorageKeyForLatestNonce = "0x492db8fd8188abfb7e5eb22add55deb396c246acb9b55077390e3ca723a0ca1f";
-const backingStorageKeyForLastDeliveredNonce = "0x492db8fd8188abfb7e5eb22add55deb3e5f83cf83f2127eb47afdc35d6e43fab";
+const backingBridgeNetworkId = "0x7061676c";
+// configure for pangolin -> pangolin parachain alpha
+//const backingSendmsgIndex = 18179;//0x4703
+//const backingOutboundLaneId = "0x706c7061";//0x706c7061
+//const backingStorageKeyForMarketFee = "0xfb100650c3bdbe7b8ed495411b1951cc2edb70953213f33a6ef6b8a5e3ffcab2";
+//const backingStorageKeyForLatestNonce = "0x492db8fd8188abfb7e5eb22add55deb396c246acb9b55077390e3ca723a0ca1f";
+//const backingStorageKeyForLastDeliveredNonce = "0x492db8fd8188abfb7e5eb22add55deb3e5f83cf83f2127eb47afdc35d6e43fab";
+//const issuingTransactCallIndex = 6144; //0x1800
+//const issuingTransactFailedCallIndex = 6146; //0x1802
+//const remoteDerivedIssuingAddress = "0x960580d74341BFBC6b699d9135Ecf24886839C52";
+// configure for pangolin -> pangolin parachain alpha end
+// configure for pangolin -> pangolin parachain
+const backingSendmsgIndex = 16131;//0x3f03
+const backingOutboundLaneId = "0x70616c69";//0x70616c69
+const backingStorageKeyForMarketFee = "0x39bf2363dd0720bd6e11a4c86f4949322edb70953213f33a6ef6b8a5e3ffcab2";
+const backingStorageKeyForLatestNonce = "0xdcdffe6202217f0ecb0ec75d8a09b32c96c246acb9b55077390e3ca723a0ca1f";
+const backingStorageKeyForLastDeliveredNonce = "0xdcdffe6202217f0ecb0ec75d8a09b32ce5f83cf83f2127eb47afdc35d6e43fab";
 const issuingTransactCallIndex = 6144; //0x1800
 const issuingTransactFailedCallIndex = 6146; //0x1802
 const remoteDerivedIssuingAddress = "0x960580d74341BFBC6b699d9135Ecf24886839C52";
-// configure for pangolin end
+// configure for pangolin -> pangolin parachain end
 
 async function deployMessageEndpoint(wallet) {
     const handleContract = await ethers.getContractFactory("Darwinia2ParaMessageEndpoint", wallet);
@@ -27,12 +37,14 @@ async function deployMessageEndpoint(wallet) {
 
 async function lockAndRemoteIssueNative(backingAddress, amount, wallet) {
     const backing = await ethers.getContractAt("NativeParachainBacking", backingAddress, wallet);
+    //const tx = await backing.callStatic.lockAndRemoteIssuing(
     await backing.lockAndRemoteIssuing(
-        5330,
-        500000000,
+        5340,
+        600000000,
         "0x922b6854052ba1084c74dd323ee70047d58ae4eb068f20bc251831f1ec109030",
         amount,
         { value: ethers.utils.parseEther("1000.0") });
+    //console.log(tx);
 }
 
 async function remoteIssuingFailure(backingAddress, nonce, wallet) {
@@ -113,14 +125,29 @@ async function main() {
     const backingWallet = wallet();
 
     // deploy
-    const deployedInfo = await deploy(backingWallet);
+    //const deployedInfo = await deploy(backingWallet);
     //console.log(deployedInfo);
     //const backingAddress = deployedInfo.backingProxy;
 
     // test
-    //const backingAddress = "0x53309b52bdF480d77d0A463025D10307a89B86b6";
-    //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("1.5"), backingWallet);
+    const backingAddress = "0x35A314e53e2fdDfeCA7b743042AaCfB1ABAF0aDe";
+    //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("12.5"), backingWallet);
+    //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("12.6"), backingWallet);
+    //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("12.7"), backingWallet);
     //await remoteIssuingFailure(backingAddress, 33, backingWallet);
+    const backing = await ethers.getContractAt("NativeParachainBacking", backingAddress, backingWallet);
+    const size = await backing.acceptNonceSize();
+    for (var idx = 0; idx < size; idx++) {
+        console.log(await backing.acceptNonceAt(idx));
+    }
+    console.log(await backing.minReservedLockedMessageNonce());
+
+    //const remoteIssuingAddress = "0x6d6f646c64612f70616169730000000000000000000000000000000000000000";
+    //const endpointAddress = "0x0c2D2918136E8341d630E12Cb8e9C60b453658B0";
+    //const endpoint = await ethers.getContractAt("Darwinia2ParaMessageEndpoint", endpointAddress, backingWallet);
+    //const derivedAddress = await endpoint.getDerivedRemoteAddress("0x70676c70", remoteIssuingAddress);
+    //console.log(derivedAddress);
+    //await endpoint.setRemoteDerivedIssuingAddress(derivedAddress);
 }
 
 main()
@@ -137,4 +164,11 @@ main()
   backingAdmin: '0xD18eb4025a01F53e8399575B9352f210aFE22579',
   backingProxy: '0x53309b52bdF480d77d0A463025D10307a89B86b6'
 }
+{
+  endpoint: '0x0c2D2918136E8341d630E12Cb8e9C60b453658B0',
+  backingLogic: '0x7e204c63BeD3908a92E28358dd1eaa8e9631274a',
+  backingAdmin: '0xCddD3e43dA1e9485d4FcD3782DFba04aADCfC9B2',
+  backingProxy: '0x35A314e53e2fdDfeCA7b743042AaCfB1ABAF0aDe'
+}
 */
+

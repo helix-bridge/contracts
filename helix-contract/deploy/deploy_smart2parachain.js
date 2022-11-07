@@ -2,31 +2,66 @@ var ProxyDeployer = require("./proxy.js");
 
 const privateKey = '0x...';
 
-const backingUrl = "https://pangolin-rpc.darwinia.network";
-const precompileStorageAddress = "0x0000000000000000000000000000000000000400";
-const precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
-const backingNetworkId = "0x0000002b"; //43
-const backingBridgeNetworkId = "0x7061676c";
-// configure for pangolin -> pangolin parachain alpha
-//const backingSendmsgIndex = 18179;//0x4703
-//const backingOutboundLaneId = "0x706c7061";//0x706c7061
-//const backingStorageKeyForMarketFee = "0xfb100650c3bdbe7b8ed495411b1951cc2edb70953213f33a6ef6b8a5e3ffcab2";
-//const backingStorageKeyForLatestNonce = "0x492db8fd8188abfb7e5eb22add55deb396c246acb9b55077390e3ca723a0ca1f";
-//const backingStorageKeyForLastDeliveredNonce = "0x492db8fd8188abfb7e5eb22add55deb3e5f83cf83f2127eb47afdc35d6e43fab";
-//const issuingTransactCallIndex = 6144; //0x1800
-//const issuingTransactFailedCallIndex = 6146; //0x1802
-//const remoteDerivedIssuingAddress = "0x960580d74341BFBC6b699d9135Ecf24886839C52";
-// configure for pangolin -> pangolin parachain alpha end
-// configure for pangolin -> pangolin parachain
-const backingSendmsgIndex = 16131;//0x3f03
-const backingOutboundLaneId = "0x70616c69";//0x70616c69
-const backingStorageKeyForMarketFee = "0x39bf2363dd0720bd6e11a4c86f4949322edb70953213f33a6ef6b8a5e3ffcab2";
-const backingStorageKeyForLatestNonce = "0xdcdffe6202217f0ecb0ec75d8a09b32c96c246acb9b55077390e3ca723a0ca1f";
-const backingStorageKeyForLastDeliveredNonce = "0xdcdffe6202217f0ecb0ec75d8a09b32ce5f83cf83f2127eb47afdc35d6e43fab";
-const issuingTransactCallIndex = 6144; //0x1800
-const issuingTransactFailedCallIndex = 6146; //0x1802
-const remoteDerivedIssuingAddress = "0x960580d74341BFBC6b699d9135Ecf24886839C52";
-// configure for pangolin -> pangolin parachain end
+// global configure variables
+var backingUrl;
+var precompileStorageAddress;
+var precompileDispatchAddress;
+var backingNetworkId;
+var backingBridgeNetworkId;
+
+var backingSendmsgIndex;
+var backingOutboundLaneId;
+var backingStorageKeyForMarketFee;
+var backingStorageKeyForLatestNonce;
+var backingStorageKeyForLastDeliveredNonce;
+var issuingTransactCallIndex;
+var issuingTransactFailedCallIndex;
+var remoteDerivedIssuingAddress;
+
+function initPangolinLocalConfigure() {
+    backingUrl = "https://pangolin-rpc.darwinia.network";
+    precompileStorageAddress = "0x0000000000000000000000000000000000000400";
+    precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
+    backingNetworkId = "0x0000002b"; //43
+    backingBridgeNetworkId = "0x7061676c";
+}
+function initPangolinParachainAlphaChannel() {
+    backingSendmsgIndex = 18179;//0x4703
+    backingOutboundLaneId = "0x706c7061";//0x706c7061
+    backingStorageKeyForMarketFee = "0xfb100650c3bdbe7b8ed495411b1951cc2edb70953213f33a6ef6b8a5e3ffcab2";
+    backingStorageKeyForLatestNonce = "0x492db8fd8188abfb7e5eb22add55deb396c246acb9b55077390e3ca723a0ca1f";
+    backingStorageKeyForLastDeliveredNonce = "0x492db8fd8188abfb7e5eb22add55deb3e5f83cf83f2127eb47afdc35d6e43fab";
+    issuingTransactCallIndex = 6144; //0x1800
+    issuingTransactFailedCallIndex = 6146; //0x1802
+    remoteDerivedIssuingAddress = "0x960580d74341BFBC6b699d9135Ecf24886839C52";
+}
+function initPangolinParachainChannel() {
+    backingSendmsgIndex = 16131;//0x3f03
+    backingOutboundLaneId = "0x70616c69";//0x70616c69
+    backingStorageKeyForMarketFee = "0x39bf2363dd0720bd6e11a4c86f4949322edb70953213f33a6ef6b8a5e3ffcab2";
+    backingStorageKeyForLatestNonce = "0xdcdffe6202217f0ecb0ec75d8a09b32c96c246acb9b55077390e3ca723a0ca1f";
+    backingStorageKeyForLastDeliveredNonce = "0xdcdffe6202217f0ecb0ec75d8a09b32ce5f83cf83f2127eb47afdc35d6e43fab";
+    issuingTransactCallIndex = 6144; //0x1800
+    issuingTransactFailedCallIndex = 6146; //0x1802
+    remoteDerivedIssuingAddress = "0x960580d74341BFBC6b699d9135Ecf24886839C52";
+}
+function initCrabLocalConfigure() {
+    backingUrl = "https://crab-rpc.darwinia.network";
+    precompileStorageAddress = "0x0000000000000000000000000000000000000400";
+    precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
+    backingNetworkId = "0x0000002c"; //44
+    backingBridgeNetworkId = "0x63726162";
+}
+function initCrabParachainChannel() {
+    backingSendmsgIndex = 14339; //0x3803;
+    backingOutboundLaneId = "0x70616372";
+    backingStorageKeyForMarketFee = "0x2158e364c657788d669f15db7687496b2edb70953213f33a6ef6b8a5e3ffcab2";
+    backingStorageKeyForLatestNonce = "0xef3be8173575ddc682e1a72d92ce0b2696c246acb9b55077390e3ca723a0ca1f";
+    backingStorageKeyForLastDeliveredNonce = "0xef3be8173575ddc682e1a72d92ce0b26e5f83cf83f2127eb47afdc35d6e43fab";
+    issuingTransactCallIndex = 6144;
+    issuingTransactFailedCallIndex = 6146;
+    remoteDerivedIssuingAddress = "0x960580d74341BFBC6b699d9135Ecf24886839C52";
+}
 
 async function deployMessageEndpoint(wallet) {
     const handleContract = await ethers.getContractFactory("Darwinia2ParaMessageEndpoint", wallet);
@@ -122,25 +157,29 @@ async function redeployBacking(adminAddress, proxyAddress, backingWallet) {
 }
 
 async function main() {
+    //init
+    initCrabLocalConfigure();
+    initCrabParachainChannel();
+
     const backingWallet = wallet();
 
     // deploy
-    //const deployedInfo = await deploy(backingWallet);
-    //console.log(deployedInfo);
+    const deployedInfo = await deploy(backingWallet);
+    console.log(deployedInfo);
     //const backingAddress = deployedInfo.backingProxy;
 
     // test
-    const backingAddress = "0x35A314e53e2fdDfeCA7b743042AaCfB1ABAF0aDe";
+    //const backingAddress = "0x35A314e53e2fdDfeCA7b743042AaCfB1ABAF0aDe";
     //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("12.5"), backingWallet);
     //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("12.6"), backingWallet);
     //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("12.7"), backingWallet);
     //await remoteIssuingFailure(backingAddress, 33, backingWallet);
-    const backing = await ethers.getContractAt("NativeParachainBacking", backingAddress, backingWallet);
-    const size = await backing.acceptNonceSize();
-    for (var idx = 0; idx < size; idx++) {
-        console.log(await backing.acceptNonceAt(idx));
-    }
-    console.log(await backing.minReservedLockedMessageNonce());
+    //const backing = await ethers.getContractAt("NativeParachainBacking", backingAddress, backingWallet);
+    //const size = await backing.acceptNonceSize();
+    //for (var idx = 0; idx < size; idx++) {
+        //console.log(await backing.acceptNonceAt(idx));
+    //}
+    //console.log(await backing.minReservedLockedMessageNonce());
 
     //const remoteIssuingAddress = "0x6d6f646c64612f70616169730000000000000000000000000000000000000000";
     //const endpointAddress = "0x0c2D2918136E8341d630E12Cb8e9C60b453658B0";

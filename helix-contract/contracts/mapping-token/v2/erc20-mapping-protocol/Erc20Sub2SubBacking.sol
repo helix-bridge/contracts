@@ -21,11 +21,11 @@ contract Erc20Sub2SubBacking is Backing, DailyLimit, IBacking {
     address public guard;
     string  public chainName;
     uint256 public helixFee;
-    address public wToken;
 
     // (transferId => LockedInfo)
     mapping(uint256 => LockedInfo) public lockedMessages;
     BitMaps.BitMap unlockedMessages;
+    address public wToken;
 
     event NewErc20TokenRegistered(uint256 transferId, address token);
     event TokenLocked(uint256 transferId, bool isNative, address token, address sender, address recipient, uint256 amount, uint256 fee);

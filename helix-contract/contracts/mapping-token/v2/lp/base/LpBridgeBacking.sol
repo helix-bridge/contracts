@@ -110,7 +110,6 @@ contract LpBridgeBacking is LpBridgeHelper {
         require(tokens.length > tokenIndex, "lpBridgeBacking:token not registered");
         (TokenInfo memory info, bytes32 transferId) = _lockAndRemoteIssuing(false, nonce, tokenIndex, amount, fee, receiver, issuingNative);
         _safeTransferFrom(info.localToken, msg.sender, address(this), amount + fee);
-        emit TokenLocked(info.remoteChainId, false, issuingNative, nonce, transferId, info.localToken, amount, fee, receiver);
     }
 
     function lockNativeAndRemoteIssuing(
@@ -124,7 +123,6 @@ contract LpBridgeBacking is LpBridgeHelper {
         require(wTokenIndex != INVALID_TOKEN_INDEX, "lpBridgeBacking:not support");
         (TokenInfo memory info, bytes32 transferId) = _lockAndRemoteIssuing(true, nonce, wTokenIndex, amount, fee, receiver, issuingNative);
         IWToken(info.localToken).deposit{value: amount + fee}();
-        emit TokenLocked(info.remoteChainId, true, issuingNative, nonce, transferId, info.localToken, amount, fee, receiver);
     }
 
     function _increaseFee(bytes32 transferId, uint256 fee) internal returns(uint32 tokenIndex) {

@@ -21,6 +21,10 @@ contract LpSub2SubBridge is Initializable, LpAccessController, LpBridgeBacking, 
         _;
     }
 
+    function fee() external view returns(uint256) {
+        return IHelixSub2SubMessageEndpoint(localEndpoint).fee();
+    }
+
     function _sendMessage(
         uint32 remoteSpecVersion,
         uint256 remoteReceiveGasLimit,

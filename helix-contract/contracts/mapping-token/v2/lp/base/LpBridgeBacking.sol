@@ -79,13 +79,13 @@ contract LpBridgeBacking is LpBridgeHelper {
         uint112 fee,
         address receiver,
         bool issuingNative
-    ) internal returns(TokenInfo memory tokenInfo, bytes32 transferId) {
+    ) internal returns(TokenInfo memory tokenInfo) {
         tokenInfo = tokens[tokenIndex];
         require(fee > tokenInfo.helixFee && amount > 0, "lpBridgeBacking:fee or amount is not enough");
         require(!issuingNative || tokenInfo.remoteIsNative, "lpBridgeBacking:remote not native");
         uint256 remoteAmount = uint256(amount) * 10**tokenInfo.remoteDecimals / 10**tokenInfo.localDecimals;
         require(remoteAmount < MAX_TRANSFER_AMOUNT, "lpBridgeBacking:overflow amount");
-        transferId = keccak256(abi.encodePacked(
+        bytes32 transferId = keccak256(abi.encodePacked(
             nonce,
             issuingNative,
             tokenInfo.remoteToken,
@@ -108,7 +108,7 @@ contract LpBridgeBacking is LpBridgeHelper {
         bool issuingNative
     ) external {
         require(tokens.length > tokenIndex, "lpBridgeBacking:token not registered");
-        (TokenInfo memory info, bytes32 transferId) = _lockAndRemoteIssuing(false, nonce, tokenIndex, amount, fee, receiver, issuingNative);
+        TokenInfo memory info = _lockAndRemoteIssuing(false, nonce, tokenIndex, amount, fee, receiver, issuingNative);
         _safeTransferFrom(info.localToken, msg.sender, address(this), amount + fee);
     }
 
@@ -121,7 +121,7 @@ contract LpBridgeBacking is LpBridgeHelper {
     ) external payable {
         require(amount + fee == msg.value, "lpBridgeBacking:amount unmatched");
         require(wTokenIndex != INVALID_TOKEN_INDEX, "lpBridgeBacking:not support");
-        (TokenInfo memory info, bytes32 transferId) = _lockAndRemoteIssuing(true, nonce, wTokenIndex, amount, fee, receiver, issuingNative);
+        TokenInfo memory info = _lockAndRemoteIssuing(true, nonce, wTokenIndex, amount, fee, receiver, issuingNative);
         IWToken(info.localToken).deposit{value: amount + fee}();
     }
 

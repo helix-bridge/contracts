@@ -13,6 +13,20 @@ async function getBlockTimestamp() {
     return block.timestamp;
 }
 
+async function getTransferId(nonce, issuingNative, token, sender, receiver, amount, srcid, dstid) {
+    const encoded = ethers.utils.solidityPack([
+        "uint256",
+        "bool",
+        "address",
+        "address",
+        "address",
+        "uint112",
+        "uint64",
+        "uint64"
+    ], [nonce, issuingNative, token, sender, receiver, amount, srcid, dstid]);
+    return ethUtil.keccak256(encoded);
+}
+
 describe("darwinia<>eth lp bridge tests", () => {
   before(async () => {
   });
@@ -164,6 +178,17 @@ describe("darwinia<>eth lp bridge tests", () => {
       expect(await originalToken.balanceOf(owner.address)).to.equal(10000 - 2000 - 300);
       expect(await originalToken.balanceOf(bridge_on_darwinia.address)).to.equal(2300);
 
+      const transferId01 = getTransferId(
+          1, // nonce
+          false, // issuingNative
+          ethToken.address,
+          owner.address,
+          other.address,
+          2000, // amount
+          31337, // source chain id
+          31337, // dst chain id
+      );
+
       // lock native token
       transaciton = await bridge_on_darwinia.lockNativeAndRemoteIssuing(
           3000, // amount
@@ -186,6 +211,16 @@ describe("darwinia<>eth lp bridge tests", () => {
           31337, // source chain id
           false, // issuingNative
       );
+      const transferId02 = getTransferId(
+          2, // nonce
+          false, // issuingNative
+          ethToken.address,
+          owner.address,
+          other.address,
+          3000, // amount
+          31337, // source chain id
+          31337, // dst chain id
+      );
       receipt = await transaction.wait();
       gasUsed = receipt.cumulativeGasUsed;
       console.log("relay erc20 gas used", gasUsed);
@@ -198,8 +233,8 @@ describe("darwinia<>eth lp bridge tests", () => {
       const liquidityReceiver = "0x1000000000000000000000000000000000000002";
       await bridge_on_eth.connect(relayer).requestWithdrawLiquidity(
           [
-              "0x06d3f7676480a6aecdf65e1f2e43fcb5affc7dc957209b6fbd1cf00bb5f007b1",
-              "0x15a27461434e2ca653f4aef916da467b8864cbd58d8e616341825f97562b4049",
+              transferId01,
+              transferId02,
           ],
           false,
           liquidityReceiver,
@@ -267,6 +302,7 @@ describe("darwinia<>eth lp bridge tests", () => {
       expect(await ethers.provider.getBalance(nativeReceiver)).to.equal(100);
       //fee is 400/2 = 200
       expect(await ethToken.balanceOf(other.address)).to.equal(2000 + 3000 - 420 - 500 + 500 - 200);
+      console.log("lp bridge test finished");
   });
 });
 

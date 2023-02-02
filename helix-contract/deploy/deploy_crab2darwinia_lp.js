@@ -25,6 +25,8 @@ const darwiniaStorageKeyForLastDeliveredNonce = "0xf4e61b17ce395203fe0f3c53a0d39
 
 const WCrabAddress = "0x2D2b97EA380b0185e9fDF8271d1AFB5d2Bf18329";
 const xWCrabAddress = "0x656567Eb75b765FC320783cc6EDd86bD854b2305";
+const WRingAddress = "0xE7578598Aac020abFB918f33A20faD5B71d670b4";
+const xWRingAddress = "0x273131F7CB50ac002BDd08cA721988731F7e1092";
 
 const dao = "0xd2c7008400F54aA70Af01CF8C747a4473246593E";
 
@@ -97,7 +99,7 @@ function wait(ms) {
 
 function wallet() {
     // crab
-    const crabUrl = "https://crab-rpc.darwinia.network";
+    const crabUrl = "https://darwinia-crab.api.onfinality.io/public-https";
     const darwiniaUrl = "https://rpc.darwinia.network";
 
     const crabProvider = new ethers.providers.JsonRpcProvider(crabUrl);
@@ -186,7 +188,7 @@ async function deploy(crabWallet, darwiniaWallet) {
     let tx = await crabLpBridge.registerToken(
         WCrabAddress, // local token address
         xWCrabAddress, // remote token address
-        ethers.utils.parseEther("10"), // helix fee
+        ethers.utils.parseEther("1"), // helix fee
         46, // remote chain id
         18, // local decimals
         18, // remote decimals
@@ -194,16 +196,36 @@ async function deploy(crabWallet, darwiniaWallet) {
     );
     await crabLpBridge.setwTokenIndex(0);
     console.log("transaction is ", tx);
+    tx = await crabLpBridge.registerToken(
+        xWRingAddress, // local token address
+        WRingAddress, // remote token address
+        ethers.utils.parseEther("1"), // helix fee
+        46, // remote chain id
+        18, // local decimals
+        18, // remote decimals
+        true, // remote is native
+    );
 
     tx = await darwiniaLpBridge.registerToken(
         xWCrabAddress, // local token address
         WCrabAddress, // remote token address
-        ethers.utils.parseEther("11"), // helix fee
+        ethers.utils.parseEther("1"), // helix fee
         44, // remote chain id
         18, // local decimals
         18, // remote decimals
         true, // remote is native: wcrab is the remote wrapped native token
     );
+    tx = await darwiniaLpBridge.registerToken(
+        WRingAddress, // local token address
+        xWRingAddress, // remote token address
+        ethers.utils.parseEther("1"), // helix fee
+        44, // remote chain id
+        18, // local decimals
+        18, // remote decimals
+        false, // remote is native
+    );
+    await darwiniaLpBridge.setwTokenIndex(1);
+
     return {
         crabLpBridgeAddress: crabLpBridge.address,
         darwiniaLpBridgeAddress: darwiniaLpBridge.address,
@@ -223,22 +245,28 @@ async function main() {
     //const deployed = await deploy(crabWallet, darwiniaWallet);
     //console.log(deployed);
     //return;
-    const crabLpBridgeAddress = "0x566d9e2bD492d78d238e3150B7a0527b504A74e2";
-    const darwiniaLpBridgeAddress = "0x25bD9707d42FBDEBB2a03D6F50ADD1F84dA18833";
+    const crabLpBridgeAddress = "0x0C2E72C10D2db4BD00960151B114d56E2a2daEc7";
+    const darwiniaLpBridgeAddress = "0x71388920e33021E871b322a50859691a3332A5a3";
 
     // lock wcrab and remote issue xwcrab
-    const amount01 = ethers.utils.parseEther("1.004");
-    const fee01 = ethers.utils.parseEther("13");
-    console.log("lock 001", timestamp);
-    const wcrab = await ethers.getContractAt("WToken", WCrabAddress, crabWallet);
-    await wcrab.deposit({value: amount01.add(fee01)});
+    //const amount01 = ethers.utils.parseEther("1.014");
+    //const fee01 = ethers.utils.parseEther("13");
+    //console.log("lock 001", timestamp);
+    const wcrab = await ethers.getContractAt("WToken", WCrabAddress, crabRelayWallet);
+    await wcrab.deposit({value: ethers.utils.parseEther("10")});
     await wcrab.approve(crabLpBridgeAddress, ethers.utils.parseEther("100000"));
-    
+    const xwcrab = await ethers.getContractAt("Erc20", xWCrabAddress, darwiniaRelayWallet);
+    await xwcrab.approve(darwiniaLpBridgeAddress, ethers.utils.parseEther("100000"));
+
+    const wring = await ethers.getContractAt("WToken", WRingAddress, darwiniaRelayWallet);
+    await wring.deposit({value: ethers.utils.parseEther("10")});
+    await wring.approve(darwiniaLpBridgeAddress, ethers.utils.parseEther("100000"));
+    const xwring = await ethers.getContractAt("Erc20", xWRingAddress, crabRelayWallet);
+    await xwring.approve(crabLpBridgeAddress, ethers.utils.parseEther("100000"));
+
     await lockAndRemoteIssuing(timestamp, 0, crabLpBridgeAddress, crabWallet, amount01, fee01, false);
     console.log("lock and remote issuing");
 
-    const xwcrab = await ethers.getContractAt("Erc20", xWCrabAddress, darwiniaRelayWallet);
-    await xwcrab.approve(darwiniaLpBridgeAddress, ethers.utils.parseEther("100000"));
     await relay(
         timestamp, // nonce
         xWCrabAddress, // token

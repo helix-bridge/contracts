@@ -244,6 +244,8 @@ describe("darwinia<>eth lp bridge tests", () => {
       expect(await originalToken.balanceOf(liquidityReceiver)).to.equal(2000+3000+300*2-123*2);
       expect(await originalToken.balanceOf(bridge_on_darwinia.address)).to.equal(0);
 
+      
+
       // issuing native token
       const nativeReceiver = "0x1000000000000000000000000000000000000003";
       await ethToken.connect(other).approve(bridge_on_eth.address, 1000000);
@@ -302,6 +304,99 @@ describe("darwinia<>eth lp bridge tests", () => {
       expect(await ethers.provider.getBalance(nativeReceiver)).to.equal(100);
       //fee is 400/2 = 200
       expect(await ethToken.balanceOf(other.address)).to.equal(2000 + 3000 - 420 - 500 + 500 - 200);
+
+      // test withdraw native token
+      await bridge_on_darwinia.lockNativeAndRemoteIssuing(
+          1000, // amount
+          300, // fee
+          other.address, // receiver
+          3, // nonce
+          false, // issuingNative
+          {value: 1300}
+      );
+      await bridge_on_eth.connect(relayer).relay(
+          3, // nonce
+          ethToken.address,
+          owner.address,
+          other.address,
+          1000, // amount
+          31337, // source chain id
+          false, // issuingNative
+      );
+      const transferId03 = getTransferId(
+          3, // nonce
+          false, // issuingNative
+          ethToken.address,
+          owner.address,
+          other.address,
+          1000, // amount
+          31337, // source chain id
+          31337, // dst chain id
+      );
+      const balanceBefore = await ethers.provider.getBalance(liquidityReceiver);
+      const balanceOfFeeReceiverBefore = await originalToken.balanceOf(feeReceiver);
+      await bridge_on_eth.connect(relayer).requestWithdrawLiquidity(
+          [
+              transferId03,
+          ],
+          true,
+          liquidityReceiver,
+          {value: ethers.utils.parseEther("10.0")},
+      );
+      // can retry
+      await bridge_on_eth.connect(relayer).requestWithdrawLiquidity(
+          [
+              transferId03,
+          ],
+          true,
+          liquidityReceiver,
+          {value: ethers.utils.parseEther("10.0")},
+      );
+      console.log("we will see a remote call return false above");
+      const balanceAfter = await ethers.provider.getBalance(liquidityReceiver);
+      const balanceOfFeeReceiverAfter = await originalToken.balanceOf(feeReceiver);
+      // amount + fee - helixFee
+      expect(balanceAfter.sub(balanceBefore)).to.equal(1000 + 300 - 123);
+      expect(balanceOfFeeReceiverAfter.sub(balanceOfFeeReceiverBefore)).to.equal(123);
+
+      // test cancel native
+      await bridge_on_darwinia.lockNativeAndRemoteIssuing(
+          1000, // amount
+          400, // fee
+          other.address, // receiver
+          4, // nonce
+          false, // issuingNative
+          {value: 1400}
+      );
+      const balanceBefore01 = await ethers.provider.getBalance(owner.address);
+      await bridge_on_eth.connect(other).requestCancelIssuing(
+          4, // nonce
+          false, //issuingNative
+          ethToken.address,
+          owner.address,
+          other.address,
+          1000,
+          31337, // source chain id
+          true, // withdrawNative
+          { value: ethers.utils.parseEther("10.0")},
+      )
+      const balanceAfter01 = await ethers.provider.getBalance(owner.address);
+      console.log(balanceAfter01.sub(balanceBefore01));
+      // amount + fee - helixFee
+      expect(balanceAfter01.sub(balanceBefore01)).to.equal(1000 + 400 - 123);
+      // can retry
+      await bridge_on_eth.connect(other).requestCancelIssuing(
+          4, // nonce
+          false, //issuingNative
+          ethToken.address,
+          owner.address,
+          other.address,
+          1000,
+          31337, // source chain id
+          true, // withdrawNative
+          { value: ethers.utils.parseEther("10.0")},
+      )
+      console.log("we will see a remote call return false above");
       console.log("lp bridge test finished");
   });
 });

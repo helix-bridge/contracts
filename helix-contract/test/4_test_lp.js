@@ -164,7 +164,7 @@ describe("darwinia<>eth lp bridge tests", () => {
 
       await ethToken.mint(relayer.address, 1000000);
       await ethToken.connect(relayer).approve(bridge_on_eth.address, 1000000);
-      await bridge_on_eth.connect(relayer).relay(
+      transaction = await bridge_on_eth.connect(relayer).relay(
           1, // nonce
           ethToken.address,
           owner.address,
@@ -173,6 +173,9 @@ describe("darwinia<>eth lp bridge tests", () => {
           31337, // source chain id
           false, // issuingNative
       );
+      receipt = await transaction.wait();
+      gasUsed = receipt.cumulativeGasUsed;
+      console.log("relay erc20 gas used", gasUsed);
       expect(await ethToken.balanceOf(relayer.address)).to.equal(1000000 - 2000);
       expect(await ethToken.balanceOf(other.address)).to.equal(2000);
       expect(await originalToken.balanceOf(owner.address)).to.equal(10000 - 2000 - 300);
@@ -243,8 +246,6 @@ describe("darwinia<>eth lp bridge tests", () => {
       expect(await originalToken.balanceOf(feeReceiver)).to.equal(123 * 2);
       expect(await originalToken.balanceOf(liquidityReceiver)).to.equal(2000+3000+300*2-123*2);
       expect(await originalToken.balanceOf(bridge_on_darwinia.address)).to.equal(0);
-
-      
 
       // issuing native token
       const nativeReceiver = "0x1000000000000000000000000000000000000003";
@@ -398,6 +399,135 @@ describe("darwinia<>eth lp bridge tests", () => {
       )
       console.log("we will see a remote call return false above");
       console.log("lp bridge test finished");
+  });
+
+  it("test_withdraw_gas", async function () {
+      // deploy inboundLane
+      const [owner, relayer, other] = await ethers.getSigners();
+      const dao = owner.address;
+      const feeReceiver = "0x1000000000000000000000000000000000000001";
+      //******* deploy lp bridge at ethereum *******
+      const lp_sub2eth_bridge = await ethers.getContractFactory("LpSub2EthBridge");
+      const bridge_on_eth = await lp_sub2eth_bridge.deploy();
+      await bridge_on_eth.deployed();
+      console.log("lp bridge on ethereum address", bridge_on_eth.address);
+      // init
+      await bridge_on_eth.initialize(owner.address, owner.address, dao);
+      await bridge_on_eth.updateFeeReceiver(feeReceiver);
+      //******* deploy lp bridge at ethereum  end *******
+      const wringName = "Darwinia Wrapped Ring";
+      const wringSymbol = "WRING";
+      const wringContract = await ethers.getContractFactory("WToken");
+      const wringToken = await wringContract.deploy(wringName, wringSymbol, 18);
+      await wringToken.deployed();
+
+      // set wToken
+      await bridge_on_eth.registerToken(
+          wringToken.address,
+          wringToken.address,
+          // helix fee
+          123,
+          // remote chain id
+          31337,
+          18, // local decimals
+          18, // remote decimals
+          false
+      );
+      await bridge_on_eth.setwTokenIndex(0);
+      // test native withdraw
+      // 1 message
+      await bridge_on_eth.lockNativeAndRemoteIssuing(
+          3000, // amount
+          300, // fee
+          other.address, // receiver
+          1,
+          false, // issuingNative
+          {value: 3300}
+      );
+
+      const transferId01 = getTransferId(
+          1, // nonce
+          false, // issuingNative
+          wringToken.address,
+          owner.address,
+          other.address,
+          3000, // amount
+          31337, // source chain id
+          31337, // dst chain id
+      );
+      let transaction = await bridge_on_eth.withdrawLiquidity(
+          [transferId01],
+          true,
+          other.address
+      );
+      let receipt = await transaction.wait();
+      let gasUsed = receipt.cumulativeGasUsed;
+      console.log("withdraw native liquidity 1 msg", gasUsed);
+
+      // use endpoint to call
+      const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
+      const ethMessageEndpoint = await messageEndpointContract.deploy(
+          owner.address,
+          owner.address,
+          owner.address
+      );
+      await ethMessageEndpoint.deployed();
+      await bridge_on_eth.updateMessageEndpoint(ethMessageEndpoint.address, ethMessageEndpoint.address);
+      await ethMessageEndpoint.grantRole(ethMessageEndpoint.CALLER_ROLE(), bridge_on_eth.address);
+      await ethMessageEndpoint.grantRole(ethMessageEndpoint.CALLEE_ROLE(), bridge_on_eth.address);
+
+      // lock N msg, the limited gas is 240,000, and the limited size of msg is 20
+      const N = 15;
+      let i;
+      let transferIds = [];
+      await wringToken.approve(bridge_on_eth.address, 1000000000);
+      await wringToken.deposit({value: 1000000000});
+      for (i = 0; i < N; i++) {
+          await bridge_on_eth.lockNativeAndRemoteIssuing(
+              3000, // amount
+              300, // fee
+              other.address, // receiver
+              i + 10,
+              false, // issuingNative
+              {value: 3300}
+          );
+
+          const transferIdi = getTransferId(
+              i + 10, // nonce
+              false, // issuingNative
+              wringToken.address,
+              owner.address,
+              other.address,
+              3000, // amount
+              31337, // source chain id
+              31337, // dst chain id
+          );
+
+          await bridge_on_eth.relay(
+              i + 10, // nonce
+              wringToken.address,
+              owner.address,
+              other.address,
+              3000, // amount
+              31337, // source chain id
+              false, // issuingNative
+          );
+          transferIds.push(transferIdi);
+      }
+      const withdrawCall = await bridge_on_eth._encodeWithdrawLiquidity(
+          transferIds,
+          false,
+          other.address
+      );
+      //transaction = await bridge_on_eth.withdrawLiquidity(
+          //transferIds,
+          //false,
+          //other.address
+      //);
+      transaction = await ethMessageEndpoint.recvMessage(bridge_on_eth.address, withdrawCall);
+      receipt = await transaction.wait();
+      gasUsed = receipt.cumulativeGasUsed;
+      console.log("withdraw native liquidity 2 msg", gasUsed);
   });
 });
 

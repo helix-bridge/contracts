@@ -34,7 +34,7 @@ contract LpBridgeIssuing is LpBridgeHelper {
     function _encodeWithdrawLiquidity(
         bytes32[] memory transferIds,
         bool withdrawNative,
-        address receiver) internal view returns(bytes memory) {
+        address receiver) public view returns(bytes memory) {
         for (uint idx = 0; idx < transferIds.length; idx++) {
             address lpProvider = issuedMessages[transferIds[idx]];
             require(lpProvider == msg.sender, "invalid lpProvider");

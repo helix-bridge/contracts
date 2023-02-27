@@ -8,9 +8,9 @@ import "./base/LpBridgeIssuing.sol";
 import "../../interfaces/IHelixSub2EthMessageEndpoint.sol";
 
 contract LpSub2EthBridge is Initializable, LpAccessController, LpBridgeBacking, LpBridgeIssuing {
-    address localEndpoint;
-    address remoteEndpoint;
-    address remoteBridge;
+    address public localEndpoint;
+    address public remoteEndpoint;
+    address public remoteBridge;
 
     event TransferCanceled(bytes32 transferId, address sender);
 
@@ -19,6 +19,10 @@ contract LpSub2EthBridge is Initializable, LpAccessController, LpBridgeBacking, 
     modifier onlyEndpoint() {
         require(localEndpoint == msg.sender, "LpSub2EthBridge:invalid endpoint");
         _;
+    }
+
+    function fee() external view returns(uint256) {
+        return IHelixSub2EthMessageEndpoint(localEndpoint).fee();
     }
 
     function _sendMessage(bytes memory message, uint256 prepaid) internal returns(uint256) {
@@ -41,6 +45,10 @@ contract LpSub2EthBridge is Initializable, LpAccessController, LpBridgeBacking, 
         _setFeeReceiver(dao);
     }
 
+    function updateMessageEndpoint(address _localEndpoint, address _remoteEndpoint) external onlyDao {
+        localEndpoint = _localEndpoint;
+        remoteEndpoint = _remoteEndpoint;
+    }
 
     function setwTokenIndex(uint32 _wTokenIndex) external onlyDao {
         _setwTokenIndex(_wTokenIndex);
@@ -48,6 +56,10 @@ contract LpSub2EthBridge is Initializable, LpAccessController, LpBridgeBacking, 
 
     function updateFeeReceiver(address _receiver) external onlyDao {
         _setFeeReceiver(_receiver);
+    }
+
+    function updateHelixFee(uint32 _tokenIndex, uint112 _helixFee) external onlyDao {
+        _updateHelixFee(_tokenIndex, _helixFee);
     }
 
     function setRemoteBridge(address _remoteBridge) external onlyDao {

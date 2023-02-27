@@ -115,6 +115,16 @@ function wallet() {
     return [darwiniaWallet, ethereumWallet, darwiniaRelayWallet, ethereumRelayWallet];
 }
 
+async function getLpBridgeInitData(wallet, localEndpoint, remoteEndpoint, dao) {
+    const bridgeContract = await ethers.getContractFactory("LpSub2EthBridge", wallet);
+    const initdata = await ProxyDeployer.getInitializerData(
+        bridgeContract.interface,
+        [localEndpoint, remoteEndpoint, dao],
+        "initialize",
+    );
+    console.log("LpSub2EthBridge init data:", initdata);
+}
+
 async function deployLpBridge(wallet, localEndpoint, remoteEndpoint, dao, proxyAdminAddress) {
     const bridgeContract = await ethers.getContractFactory("LpSub2EthBridge", wallet);
     const lpBridgeLogic = await bridgeContract.deploy();
@@ -210,6 +220,11 @@ async function main() {
     
     const bridgeOnDarwinia = "0x882Bd7aC70C4A4B1d6cE60a6366bC7cB87E0aA95";
     const bridgeOnEthereum = "0xDFF5f2360f88e6bbA7E90e79c57E07f1A9906F69";
+
+
+    await getLpBridgeInitData(ethereumWallet, "0x9C80EdD342b5D179c3a87946fC1F0963BfcaAa09", "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4", "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4");
+    //await getLpBridgeInitData(ethereumWallet, "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4", "0x9C80EdD342b5D179c3a87946fC1F0963BfcaAa09", "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4");
+    return;
 
     //const wring = await ethers.getContractAt("WToken", wringAddress, darwiniaWallet);
     //await wring.deposit({value: ethers.utils.parseEther("10")});

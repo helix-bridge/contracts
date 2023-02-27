@@ -33,7 +33,7 @@ contract LpBridgeBacking is LpBridgeHelper {
         uint112 amount;
         uint112 fee;
     }
-    mapping(bytes32 => LockInfo) lockInfos;
+    mapping(bytes32 => LockInfo) public lockInfos;
     address public feeReceiver;
     uint32 public wTokenIndex = INVALID_TOKEN_INDEX;
 
@@ -53,6 +53,11 @@ contract LpBridgeBacking is LpBridgeHelper {
     function _setFeeReceiver(address _feeReceiver) internal {
         require(_feeReceiver != address(this), "lpBridgeBacking:invalid helix fee receiver");
         feeReceiver = _feeReceiver;
+    }
+
+    function _updateHelixFee(uint32 _tokenIndex, uint112 _helixFee) internal {
+        require(_tokenIndex < tokens.length, "lpBridgeBacking:invalid token index");
+        tokens[_tokenIndex].helixFee = _helixFee;
     }
 
     function _setwTokenIndex(uint32 _wTokenIndex) internal {
@@ -164,7 +169,7 @@ contract LpBridgeBacking is LpBridgeHelper {
             LockInfo memory lockInfo = lockInfos[transferId];
             require(lockInfo.amount > 0 && lockInfo.tokenIndex < tokens.length, "lpBridgeBacking:invalid transferId");
             require(lockInfo.tokenIndex == tokenIndex, "lpBridgeBacking:invalid tokenindex");
-            //delete lockInfos[transferId];
+            //can't delete lockInfos directly
             lockInfos[transferId].tokenIndex = INVALID_TOKEN_INDEX;
             amount += lockInfo.amount;
             fee += lockInfo.fee;
@@ -175,11 +180,12 @@ contract LpBridgeBacking is LpBridgeHelper {
         if (helixFee > fee / 2) {
             helixFee = fee / 2;
         }
+        uint256 lpAmount = amount + fee - helixFee;
         if (withdrawNative && tokenIndex == wTokenIndex) {
-            IWToken(tokenInfo.localToken).withdraw(amount + fee - helixFee);
-            payable(receiver).transfer(amount);
+            IWToken(tokenInfo.localToken).withdraw(lpAmount);
+            payable(receiver).transfer(lpAmount);
         } else {
-            _safeTransfer(tokenInfo.localToken, receiver, amount + fee - helixFee);
+            _safeTransfer(tokenInfo.localToken, receiver, lpAmount);
         }
         _safeTransfer(tokenInfo.localToken, feeReceiver, helixFee);
     }

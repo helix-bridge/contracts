@@ -180,12 +180,12 @@ contract LpBridgeBacking is LpBridgeHelper {
         if (helixFee > fee / 2) {
             helixFee = fee / 2;
         }
-        uint256 lpAmount = amount + fee - helixFee;
+        uint256 lpFee = amount + fee - helixFee;
         if (withdrawNative && tokenIndex == wTokenIndex) {
-            IWToken(tokenInfo.localToken).withdraw(lpAmount);
-            payable(receiver).transfer(lpAmount);
+            IWToken(tokenInfo.localToken).withdraw(lpFee);
+            payable(receiver).transfer(lpFee);
         } else {
-            _safeTransfer(tokenInfo.localToken, receiver, lpAmount);
+            _safeTransfer(tokenInfo.localToken, receiver, lpFee);
         }
         _safeTransfer(tokenInfo.localToken, feeReceiver, helixFee);
     }

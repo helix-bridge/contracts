@@ -4,28 +4,60 @@ pragma solidity ^0.8.10;
 import "../interface/ILpBridgeBacking.sol";
 import "./LpBridgeHelper.sol";
 
+// the segmentation amount = M, the relay total amount = N
+// and N % M = j, N / M = k, then N = k * M + j
+// each time the relayer must relay an amount = m * M + j or amount = m * M
+
 contract LpBridgeIssuing is LpBridgeHelper {
-    mapping(bytes32 => address) public issuedMessages;
+    struct RelayInfo {
+        address firstRelayer;
+        uint32 firstMultiplier;
+        uint32 totalMultiplier;
+        mapping(address => uint32) followers;
+    }
+    mapping(bytes32 => RelayInfo) public issuedMessages;
 
     event TransferRelayed(bytes32 transferId, address relayer);
 
+    // don't refund preamount
     function relay(
         uint256 nonce,
         address token,
         address sender,
         address receiver,
         uint112 amount,
+        uint112 relayAmount,
         uint64 sourceChainId,
         bool issuingNative
     ) payable external {
+        uint256 unitAmount = 10 ** 24;
         bytes32 transferId = keccak256(abi.encodePacked(nonce, issuingNative, token, sender, receiver, amount, sourceChainId, uint64(block.chainid)));
-        require(issuedMessages[transferId] == address(0), "lpBridgeIssuing:message exist");
-        issuedMessages[transferId] = msg.sender;
+        RelayInfo storage relayInfo = issuedMessages[transferId];
+        uint32 totalMultiplier = uint32((amount + unitAmount - 1) / unitAmount);
+        require(relayInfo.totalMultiplier < totalMultiplier, "lpBridgeIssuing:message exist");
+        if (relayInfo.totalMultiplier > 0) {
+            require(relayAmount % unitAmount == 0, "!B");
+            uint32 multiplier = uint32(relayAmount / unitAmount);
+            require(multiplier <= totalMultiplier - relayInfo.totalMultiplier, "exceed amount");
+            if (relayInfo.firstRelayer == msg.sender) {
+                relayInfo.firstMultiplier += multiplier;
+            } else {
+                uint32 hasRelayedMultiplier = relayInfo.followers[msg.sender];
+                relayInfo.followers[msg.sender] = hasRelayedMultiplier + multiplier;
+            }
+            relayInfo.totalMultiplier += multiplier;
+        } else {
+            require(relayAmount % unitAmount == amount % unitAmount && relayAmount <= amount, "!b");
+            uint32 multiplier = uint32((relayAmount + unitAmount - 1) / unitAmount);
+            relayInfo.firstRelayer = msg.sender;
+            relayInfo.firstMultiplier = multiplier;
+            relayInfo.totalMultiplier = multiplier;
+        }
         if (issuingNative) {
             require(msg.value == amount, "lpBridgeIssuing:invalid amount");
-            payable(receiver).transfer(amount);
+            payable(receiver).transfer(relayAmount);
         } else {
-            _safeTransferFrom(token, msg.sender, receiver, uint256(amount));
+            _safeTransferFrom(token, msg.sender, receiver, uint256(relayAmount));
         }
         emit TransferRelayed(transferId, msg.sender);
     }
@@ -34,11 +66,13 @@ contract LpBridgeIssuing is LpBridgeHelper {
     function _encodeWithdrawLiquidity(
         bytes32[] memory transferIds,
         bool withdrawNative,
-        address receiver) public view returns(bytes memory) {
+        address receiver) internal view returns(bytes memory) {
+        /*
         for (uint idx = 0; idx < transferIds.length; idx++) {
             address lpProvider = issuedMessages[transferIds[idx]];
             require(lpProvider == msg.sender, "invalid lpProvider");
         }
+        */
         return abi.encodeWithSelector(ILpBridgeBacking.withdrawLiquidity.selector, transferIds, withdrawNative, receiver);
     }
 
@@ -53,11 +87,13 @@ contract LpBridgeIssuing is LpBridgeHelper {
         uint64 sourceChainId
     ) internal returns(bytes32 transferId) {
         require(sender == msg.sender || receiver == msg.sender, "lpBridgeIssuing:only sender or receiver allowed");
+        /*
         transferId = keccak256(abi.encodePacked(nonce, issuingNative, token, sender, receiver, amount, sourceChainId, uint64(block.chainid)));
         if (issuedMessages[transferId] == msg.sender) {
             return transferId;
         }
         require(issuedMessages[transferId] == address(0), "lpBridgeIssuing:message exist");
         issuedMessages[transferId] = msg.sender;
+        */
     }
 }

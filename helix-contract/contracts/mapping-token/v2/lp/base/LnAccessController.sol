@@ -4,10 +4,10 @@ pragma solidity ^0.8.10;
 import "@zeppelin-solidity/contracts/access/AccessControlEnumerable.sol";
 import "@zeppelin-solidity/contracts/security/Pausable.sol";
 
-/// @title LpAccessController
-/// @notice LpAccessController is a contract to control the access permission 
+/// @title LnAccessController
+/// @notice LnAccessController is a contract to control the access permission 
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LpAccessController is AccessControlEnumerable, Pausable {
+contract LnAccessController is AccessControlEnumerable, Pausable {
     bytes32 public constant DAO_ADMIN_ROLE = keccak256("DAO_ADMIN_ROLE");
     bytes32 public constant OPERATOR_ROLE  = keccak256("OPERATOR_ROLE");
 

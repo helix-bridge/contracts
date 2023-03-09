@@ -19,6 +19,7 @@ contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacki
     function initialize(address dao) public initializer {
         _initialize(dao);
         _setFeeReceiver(dao);
+        _setwTokenIndex(INVALID_TOKEN_INDEX);
     }
 
     function setwTokenIndex(uint32 _wTokenIndex) external onlyDao {

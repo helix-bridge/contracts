@@ -45,7 +45,10 @@ async function lockAndRemoteIssue(tokenAddress, backingAddress, amount, wallet, 
         tokenAddress,
         wallet.address,
         amount,
-        { value: ethers.utils.parseEther(fee) });
+        {
+            value: ethers.utils.parseEther(fee),
+            gasLimit: 200000,
+        });
 }
 
 async function lockAndRemoteIssueNative(backingAddress, amount, wallet, fee) {
@@ -53,7 +56,10 @@ async function lockAndRemoteIssueNative(backingAddress, amount, wallet, fee) {
     const tx = await backing.lockAndRemoteIssuingNative(
         wallet.address,
         amount,
-        { value: ethers.utils.parseEther(fee).add(amount) });
+        {
+            value: ethers.utils.parseEther(fee).add(amount),
+            gasLimit: 200000,
+        });
 }
 
 async function burnAndRemoteUnlock(mappingTokenAddress, mtfAddress, amount, mtfWallet, fee) {
@@ -92,7 +98,7 @@ function wait(ms) {
 };
 
 function wallet() {
-    const privateKey = '0x...';
+    const privateKey = process.env.PRIKEY
     const backingUrl = "https://pangoro-rpc.darwinia.network";
     //const backingUrl = "g2.pangoro-p2p.darwinia.network:9933";
     //const mtfUrl = "https://eth-goerli.g.alchemy.com/v2/WerPq7On62-wy_ARssv291ZPg1TGR5vi";
@@ -353,15 +359,14 @@ async function main() {
     const backingWallet = wallets[0];
     const mtfWallet = wallets[1];
 
-    const deployed = await deploy(backingWallet, mtfWallet);
+    //const deployed = await deploy(backingWallet, mtfWallet);
     ////const deployed = await deployWithExistContract(backingWallet, mtfWallet);
-    console.log(deployed);
+    //console.log(deployed);
     //const backingInfo = deployed.pangoro2goerli_sub2eth_pangoro;
     //const mtfInfo = deployed.pangoro2goerli_sub2eth_goerli;
     //await lockAndRemoteIssue(backingInfo.WRING, backingInfo.backingProxy, ethers.utils.parseEther("1.1"), backingWallet, "30");
     //await lockAndRemoteIssueNative(backingInfo.backingProxy, ethers.utils.parseEther("1.2"), backingWallet, "30");
     
-    /*
     const wethAddress = "0x46f01081e800BF47e43e7bAa6D98d45F6a0251E4";
     const mtfAddress = "0xfcAcf3d08275031e5Bd453Cf2509301290858984";
     const backingAddress = "0xaafFbF487e9dA8429E2E9502d0907e5fD6b0C320";
@@ -373,16 +378,15 @@ async function main() {
     //await oldmtf.transferMappingTokenOwnership("0x69e392E057B5994da2b0E9661039970Ac4c26b8c", mtfAddress);
 
     
-    const dailyLimit = ethers.utils.parseEther("200");
+    //const dailyLimit = ethers.utils.parseEther("200");
     //await mtf.changeDailyLimit(ringAddress, dailyLimit);
-    await backing.changeDailyLimit(wethAddress, dailyLimit);
+    //await backing.changeDailyLimit(wethAddress, dailyLimit);
 
     //console.log(await mtf.calcMaxWithdraw(ringAddress));
     //await lockAndRemoteIssue(wethAddress, backingAddress, ethers.utils.parseEther("1.7"), backingWallet, "100");
-    //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("1.82"), backingWallet, "100");
+    await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("300"), backingWallet, "100");
     //await burnAndRemoteUnlock(ringAddress, mtfAddress, ethers.utils.parseEther("0.11"), mtfWallet, "0.01");
     //await burnAndRemoteUnlockNative(ringAddress, mtfAddress, ethers.utils.parseEther("0.12"), mtfWallet, "0.01");
-    */
 }
 
 main()

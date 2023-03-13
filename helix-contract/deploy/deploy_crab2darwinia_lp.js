@@ -30,8 +30,8 @@ const xWRingAddress = "0x273131F7CB50ac002BDd08cA721988731F7e1092";
 
 const dao = "0xd2c7008400F54aA70Af01CF8C747a4473246593E";
 
-const relayPrivateKey = "0x...";
-const privateKey = "0x...";
+const privateKey = process.env.PRIKEY
+const relayPrivateKey = process.env.RELAYPRIKEY;
 
 async function deployMessageEndpoint(wallet) {
     const handleContract = await ethers.getContractFactory("DarwiniaSub2SubMessageEndpoint", wallet);

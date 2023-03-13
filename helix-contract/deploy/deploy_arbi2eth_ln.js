@@ -4,7 +4,7 @@ const secp256k1 = require('secp256k1');
 
 var ProxyDeployer = require("./proxy.js");
 
-const privateKey = '0x...';
+const privateKey = process.env.PRIKEY
 
 // goerli test <> arbitrum goerli test
 const ethereumUrl = "https://rpc.ankr.com/eth_goerli";

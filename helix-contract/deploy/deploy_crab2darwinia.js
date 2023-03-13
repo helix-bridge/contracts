@@ -86,7 +86,7 @@ function wallet() {
     // backing
     const backingUrl = "https://crab-rpc.darwinia.network";
     const mtfUrl = "https://rpc.darwinia.network";
-    const privateKey = '0x...';
+    const privateKey = process.env.PRIKEY
 
     const backingProvider = new ethers.providers.JsonRpcProvider(backingUrl);
     const backingWallet = new ethers.Wallet(privateKey, backingProvider);

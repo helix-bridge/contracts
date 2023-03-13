@@ -4,8 +4,8 @@ const secp256k1 = require('secp256k1');
 
 var ProxyDeployer = require("./proxy.js");
 
-const privateKey = '0x...';
-const relayPrivateKey = '0x...';
+const privateKey = process.env.PRIKEY
+const relayPrivateKey = process.env.RELAYPRIKEY;
 //const darwiniaUrl = "https://pangoro-rpc.darwinia.network";
 const darwiniaUrl = "https://crab-rpc.darwinia.network";
 //const backingUrl = "g2.pangoro-p2p.darwinia.network:9933";

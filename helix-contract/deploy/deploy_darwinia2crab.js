@@ -52,7 +52,7 @@ function wait(ms) {
 
 // 2. deploy mapping token factory
 async function main() {
-    const privateKey = '0x123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0';
+    const privateKey = process.env.PRIKEY
     const precompileStorageAddress = "0x0000000000000000000000000000000000000400";
     const precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
 

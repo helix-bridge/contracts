@@ -2,12 +2,12 @@
 pragma solidity ^0.8.10;
 
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
-import "./base/LpAccessController.sol";
-import "./base/LpBridgeBacking.sol";
-import "./base/LpBridgeIssuing.sol";
+import "./base/LnAccessController.sol";
+import "./base/LnBridgeBacking.sol";
+import "./base/LnBridgeIssuing.sol";
 import "../../interfaces/IHelixSub2SubMessageEndpoint.sol";
 
-contract LpSub2SubBridge is Initializable, LpAccessController, LpBridgeBacking, LpBridgeIssuing {
+contract LnSub2SubBridge is Initializable, LnAccessController, LnBridgeBacking, LnBridgeIssuing {
     address localEndpoint;
     address remoteEndpoint;
     address remoteBridge;
@@ -17,7 +17,7 @@ contract LpSub2SubBridge is Initializable, LpAccessController, LpBridgeBacking, 
     receive() external payable {}
 
     modifier onlyEndpoint() {
-        require(localEndpoint == msg.sender, "LpSub2SubBridge:invalid endpoint");
+        require(localEndpoint == msg.sender, "LnSub2SubBridge:invalid endpoint");
         _;
     }
 

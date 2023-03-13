@@ -77,7 +77,7 @@ describe("darwinia<>eth lp bridge tests", () => {
       const dao = owner.address;
       const feeReceiver = "0x1000000000000000000000000000000000000001";
       //******* deploy lp bridge at ethereum *******
-      const lp_sub2eth_bridge = await ethers.getContractFactory("LpSub2EthBridge");
+      const lp_sub2eth_bridge = await ethers.getContractFactory("LnSub2EthBridge");
       const bridge_on_eth = await lp_sub2eth_bridge.deploy();
       await bridge_on_eth.deployed();
       console.log("lp bridge on ethereum address", bridge_on_eth.address);
@@ -407,7 +407,7 @@ describe("darwinia<>eth lp bridge tests", () => {
       const dao = owner.address;
       const feeReceiver = "0x1000000000000000000000000000000000000001";
       //******* deploy lp bridge at ethereum *******
-      const lp_sub2eth_bridge = await ethers.getContractFactory("LpSub2EthBridge");
+      const lp_sub2eth_bridge = await ethers.getContractFactory("LnSub2EthBridge");
       const bridge_on_eth = await lp_sub2eth_bridge.deploy();
       await bridge_on_eth.deployed();
       console.log("lp bridge on ethereum address", bridge_on_eth.address);

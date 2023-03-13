@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "../interface/ILpBridgeBacking.sol";
-import "./LpBridgeHelper.sol";
+import "../interface/ILnBridgeBacking.sol";
+import "./LnBridgeHelper.sol";
 
-contract LpBridgeIssuing is LpBridgeHelper {
+contract LnBridgeIssuing is LnBridgeHelper {
     mapping(bytes32 => address) public issuedMessages;
 
     event TransferRelayed(bytes32 transferId, address relayer);
@@ -39,7 +39,7 @@ contract LpBridgeIssuing is LpBridgeHelper {
             address lpProvider = issuedMessages[transferIds[idx]];
             require(lpProvider == msg.sender, "invalid lpProvider");
         }
-        return abi.encodeWithSelector(ILpBridgeBacking.withdrawLiquidity.selector, transferIds, withdrawNative, receiver);
+        return abi.encodeWithSelector(ILnBridgeBacking.withdrawLiquidity.selector, transferIds, withdrawNative, receiver);
     }
 
     // we only allowed token sender or receiver cancel the transaction

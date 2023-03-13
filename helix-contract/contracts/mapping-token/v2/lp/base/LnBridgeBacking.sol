@@ -2,13 +2,13 @@
 pragma solidity ^0.8.10;
 
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import "./LpBridgeHelper.sol";
+import "./LnBridgeHelper.sol";
 import "../../../interfaces/IWToken.sol";
 
-/// @title LpBridgeBacking
-/// @notice LpBridgeBacking is a contract to help user lock token and then trigger remote chain issuing
+/// @title LnBridgeBacking
+/// @notice LnBridgeBacking is a contract to help user lock token and then trigger remote chain issuing
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LpBridgeBacking is LpBridgeHelper {
+contract LnBridgeBacking is LnBridgeHelper {
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     uint32 constant public INVALID_TOKEN_INDEX = type(uint32).max;
     // the registered token info

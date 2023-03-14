@@ -108,17 +108,27 @@ function wallet() {
     return [arbitrumWallet, ethereumWallet];
 }
 
-/*
-async function getLpBridgeInitData(wallet, localEndpoint, remoteEndpoint, dao) {
-    const bridgeContract = await ethers.getContractFactory("LpSub2EthBridge", wallet);
+async function getLnIssuingInitData(wallet, dao, inbox) {
+    const bridgeContract = await ethers.getContractFactory("LnArbitrumL1Issuing", wallet);
     const initdata = await ProxyDeployer.getInitializerData(
         bridgeContract.interface,
-        [localEndpoint, remoteEndpoint, dao],
+        [dao, inbox],
         "initialize",
     );
     console.log("LpSub2EthBridge init data:", initdata);
 }
-*/
+
+async function getLnBackingInitData(wallet, dao) {
+    const bridgeContract = await ethers.getContractFactory("LnArbitrumL2Backing", wallet);
+    const initdata = await ProxyDeployer.getInitializerData(
+        bridgeContract.interface,
+        [dao],
+        "initialize",
+    );
+    console.log("LpSub2EthBridge init data:", initdata);
+}
+
+
 
 async function deployLnBridgeL2Backing(wallet, dao, proxyAdminAddress) {
     const bridgeContract = await ethers.getContractFactory("LnArbitrumL2Backing", wallet);

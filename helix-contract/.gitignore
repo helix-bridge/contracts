@@ -3,6 +3,7 @@ build
 dataDir
 account*.txt
 .vscode
+*.swp
 
 #Hardhat files
 cache

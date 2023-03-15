@@ -7,12 +7,12 @@ import "./base/LnAccessController.sol";
 import "./base/LnBridgeBacking.sol";
 
 contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacking {
-    address public remoteBridge;
+    address public remoteIssuing;
 
     receive() external payable {}
 
     modifier onlyRemoteBridge() {
-        require(msg.sender == AddressAliasHelper.applyL1ToL2Alias(remoteBridge), "LnArbitrumL2Backing:invalid remote caller");
+        require(msg.sender == AddressAliasHelper.applyL1ToL2Alias(remoteIssuing), "LnArbitrumL2Backing:invalid remote caller");
         _;
     }
 
@@ -34,8 +34,8 @@ contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacki
         _updateHelixFee(_tokenIndex, _helixFee);
     }
 
-    function setRemoteBridge(address _remoteBridge) external onlyDao {
-        remoteBridge = _remoteBridge;
+    function setRemoteIssuing(address _remoteIssuing) external onlyDao {
+        remoteIssuing = _remoteIssuing;
     }
 
     // backing mode called
@@ -47,7 +47,7 @@ contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacki
         uint8 localDecimals,
         uint8 remoteDecimals,
         bool remoteIsNative
-    ) external onlyDao {
+    ) external onlyOperator {
         _registerToken(local, remote, helixFee, remoteChainId, localDecimals, remoteDecimals, remoteIsNative);
     }
 

@@ -8,7 +8,7 @@ import "./base/LnBridgeIssuing.sol";
 
 contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssuing {
     IInbox public inbox;
-    address public remoteBridge;
+    address public remoteBacking;
 
     event TransferCanceled(bytes32 transferId, address sender);
 
@@ -19,8 +19,8 @@ contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssui
         _initialize(_dao);
     }
 
-    function setRemoteBridge(address _remoteBridge) external onlyDao {
-        remoteBridge = _remoteBridge;
+    function setRemoteBacking(address _remoteBacking) external onlyDao {
+        remoteBacking = _remoteBacking;
     }
 
     function submissionFee(
@@ -60,7 +60,7 @@ contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssui
         uint256 prepaid
     ) internal returns(uint256) {
         return inbox.createRetryableTicket{ value: prepaid }(
-            remoteBridge,
+            remoteBacking,
             0,
             maxSubmissionCost,
             msg.sender,

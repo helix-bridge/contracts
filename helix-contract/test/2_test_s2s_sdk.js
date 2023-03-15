@@ -398,14 +398,12 @@ describe("sub<>sub mapping token tests", () => {
   });
 
   it("test_s2s_migration", async function () {
-      const erc20Contract = await ethers.getContractFactory("MappingERC20");
-      const deprecatedToken = await erc20Contract.deploy();
+      const erc20Contract = await ethers.getContractFactory("Erc20");
+      const deprecatedToken = await erc20Contract.deploy("Darwinia xRing Deprecated Token", "xRing", 9);
       await deprecatedToken.deployed();
-      await deprecatedToken.initialize("Darwinia xRing Deprecated Token", "xRing", 9);
 
-      const migrationToken = await erc20Contract.deploy();
+      const migrationToken = await erc20Contract.deploy("Darwinia xRing Deprecated Token", "xRing", 18);
       await migrationToken.deployed();
-      await migrationToken.initialize("Darwinia xRing Deprecated Token", "xRing", 18);
 
       const migrationContract = await ethers.getContractFactory("Erc20Sub2SubMigration");
       const migration = await migrationContract.deploy(deprecatedToken.address, migrationToken.address);

@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 3/13/2023
+ * 3/14/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -1431,6 +1431,36 @@ contract LnBridgeBacking is LnBridgeHelper {
     }
 }
 
+// File @arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol@v1.0.1
+// Copyright 2021-2022, Offchain Labs, Inc.
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+// License-Identifier: BUSL-1.1
+
+
+library AddressAliasHelper {
+    uint160 internal constant OFFSET = uint160(0x1111000000000000000000000000000000001111);
+
+    /// @notice Utility function that converts the address in the L1 that submitted a tx to
+    /// the inbox to the msg.sender viewed in the L2
+    /// @param l1Address the address in the L1 that triggered the tx to L2
+    /// @return l2Address L2 address as viewed in msg.sender
+    function applyL1ToL2Alias(address l1Address) internal pure returns (address l2Address) {
+        unchecked {
+            l2Address = address(uint160(l1Address) + OFFSET);
+        }
+    }
+
+    /// @notice Utility function that converts the msg.sender viewed in the L2 to the
+    /// address in the L1 that submitted a tx to the inbox
+    /// @param l2Address L2 address as viewed in msg.sender
+    /// @return l1Address the address in the L1 that triggered the tx to L2
+    function undoL1ToL2Alias(address l2Address) internal pure returns (address l1Address) {
+        unchecked {
+            l1Address = address(uint160(l2Address) - OFFSET);
+        }
+    }
+}
+
 // File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
@@ -1791,36 +1821,6 @@ abstract contract Initializable {
     }
 }
 
-// File @arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol@v1.0.1
-// Copyright 2021-2022, Offchain Labs, Inc.
-// For license information, see https://github.com/nitro/blob/master/LICENSE
-// License-Identifier: BUSL-1.1
-
-
-library AddressAliasHelper {
-    uint160 internal constant OFFSET = uint160(0x1111000000000000000000000000000000001111);
-
-    /// @notice Utility function that converts the address in the L1 that submitted a tx to
-    /// the inbox to the msg.sender viewed in the L2
-    /// @param l1Address the address in the L1 that triggered the tx to L2
-    /// @return l2Address L2 address as viewed in msg.sender
-    function applyL1ToL2Alias(address l1Address) internal pure returns (address l2Address) {
-        unchecked {
-            l2Address = address(uint160(l1Address) + OFFSET);
-        }
-    }
-
-    /// @notice Utility function that converts the msg.sender viewed in the L2 to the
-    /// address in the L1 that submitted a tx to the inbox
-    /// @param l2Address L2 address as viewed in msg.sender
-    /// @return l1Address the address in the L1 that triggered the tx to L2
-    function undoL1ToL2Alias(address l2Address) internal pure returns (address l1Address) {
-        unchecked {
-            l1Address = address(uint160(l2Address) - OFFSET);
-        }
-    }
-}
-
 // File contracts/mapping-token/v2/lp/LnArbitrumL2Backing.sol
 // License-Identifier: MIT
 
@@ -1828,12 +1828,12 @@ library AddressAliasHelper {
 
 
 contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacking {
-    address public remoteBridge;
+    address public remoteIssuing;
 
     receive() external payable {}
 
     modifier onlyRemoteBridge() {
-        require(msg.sender == AddressAliasHelper.applyL1ToL2Alias(remoteBridge), "LnArbitrumL2Backing:invalid remote caller");
+        require(msg.sender == AddressAliasHelper.applyL1ToL2Alias(remoteIssuing), "LnArbitrumL2Backing:invalid remote caller");
         _;
     }
 
@@ -1855,8 +1855,8 @@ contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacki
         _updateHelixFee(_tokenIndex, _helixFee);
     }
 
-    function setRemoteBridge(address _remoteBridge) external onlyDao {
-        remoteBridge = _remoteBridge;
+    function setRemoteIssuing(address _remoteIssuing) external onlyDao {
+        remoteIssuing = _remoteIssuing;
     }
 
     // backing mode called
@@ -1868,7 +1868,7 @@ contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacki
         uint8 localDecimals,
         uint8 remoteDecimals,
         bool remoteIsNative
-    ) external onlyDao {
+    ) external onlyOperator {
         _registerToken(local, remote, helixFee, remoteChainId, localDecimals, remoteDecimals, remoteIsNative);
     }
 

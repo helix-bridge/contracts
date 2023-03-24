@@ -28,8 +28,8 @@
     "shx": "^0.3.3"
   },
   "dependencies": {
-    "@darwinia/contracts-periphery": "2.0.5-pre3",
-    "@darwinia/contracts-utils": "^1.0.3",
+    "@darwinia/contracts-periphery": "2.1.0-pre2",
+    "@darwinia/contracts-utils": "^1.0.4",
     "@zeppelin-solidity/contracts": "npm:@openzeppelin/contracts@v4.7.3",
     "@arbitrum/nitro-contracts": "1.0.1",
     "npx": "^10.2.2",

@@ -5,7 +5,7 @@ import "../AccessController.sol";
 import "@darwinia/contracts-periphery/contracts/s2s/MessageEndpoint.sol";
 
 contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
-    constructor(bytes4 _outboundLaneId, bytes4 _inboundLaneId) MessageEndpoint(_outboundLaneId, _inboundLaneId) {
+    constructor(uint16 _version, bytes4 _outboundLaneId, bytes4 _inboundLaneId) MessageEndpoint(_version, _outboundLaneId, _inboundLaneId) {
         _initialize(msg.sender);
     }
 

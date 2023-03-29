@@ -1,8 +1,54 @@
 var ProxyDeployer = require("./proxy.js");
 
+const VERSION = 2;
+/*
+const backingUrl = "https://pangoro-rpc.darwinia.network";
+const backingNetworkId = "0x0000002d"; //45
+const backingBridgeNetworkId = "0x70616772";
+const backingTransactCallIndex = 9728;//1a01 -> 2600
+const backingSendmsgIndex = 10499;//0x1103 -> 2903
+const backingOutboundLaneId = "0x726f6c69";
+const backingStorageKeyForMarketFee = "0x30d35416864cf657db51d3bc8505602f2edb70953213f33a6ef6b8a5e3ffcab2";
+const backingStorageKeyForLatestNonce = "0xd86d7f611f4d004e041fda08f633f10196c246acb9b55077390e3ca723a0ca1f";
+const backingStorageKeyForLastDeliveredNonce = "0xd86d7f611f4d004e041fda08f633f101e5f83cf83f2127eb47afdc35d6e43fab";
+const backingSpecVersion = 6009;
+
+const mtfUrl = "https://pangolin-rpc.darwinia.network";
+const mtfNetworkId = "0x0000002b"; //43
+const mtfBridgeNetworkId = "0x7061676c";
+const mtfTransactCallIndex = 9728;//0x2901 -> 2600
+const mtfSendmsgIndex = 10499;//0x2b03 -> 2903
+const mtfOutboundLaneId = "0x726f6c69";//726f6c69
+const mtfStorageKeyForMarketFee = "0x7621b367d09b75f6876b13089ee0ded52edb70953213f33a6ef6b8a5e3ffcab2";
+const mtfStorageKeyForLatestNonce = "0xc9b76e645ba80b6ca47619d64cb5e58d96c246acb9b55077390e3ca723a0ca1f";
+const mtfStorageKeyForLastDeliveredNonce = "0xc9b76e645ba80b6ca47619d64cb5e58de5f83cf83f2127eb47afdc35d6e43fab";
+const mtfSpecVersion = 6010;
+*/
+const mtfUrl = "https://pangoro-rpc.darwinia.network";
+const mtfNetworkId = "0x0000002d"; //45
+const mtfBridgeNetworkId = "0x70616772";
+const mtfTransactCallIndex = 9728;//1a01 -> 2600
+const mtfSendmsgIndex = 10499;//0x1103 -> 2903
+const mtfOutboundLaneId = "0x726f6c69";
+const mtfStorageKeyForMarketFee = "0x30d35416864cf657db51d3bc8505602f2edb70953213f33a6ef6b8a5e3ffcab2";
+const mtfStorageKeyForLatestNonce = "0xd86d7f611f4d004e041fda08f633f10196c246acb9b55077390e3ca723a0ca1f";
+const mtfStorageKeyForLastDeliveredNonce = "0xd86d7f611f4d004e041fda08f633f101e5f83cf83f2127eb47afdc35d6e43fab";
+const mtfSpecVersion = 6009;
+
+const backingUrl = "https://pangolin-rpc.darwinia.network";
+const backingNetworkId = "0x0000002b"; //43
+const backingBridgeNetworkId = "0x7061676c";
+const backingTransactCallIndex = 9728;//0x2901 -> 2600
+const backingSendmsgIndex = 10499;//0x2b03 -> 2903
+const backingOutboundLaneId = "0x726f6c69";//726f6c69
+const backingStorageKeyForMarketFee = "0x7621b367d09b75f6876b13089ee0ded52edb70953213f33a6ef6b8a5e3ffcab2";
+const backingStorageKeyForLatestNonce = "0xc9b76e645ba80b6ca47619d64cb5e58d96c246acb9b55077390e3ca723a0ca1f";
+const backingStorageKeyForLastDeliveredNonce = "0xc9b76e645ba80b6ca47619d64cb5e58de5f83cf83f2127eb47afdc35d6e43fab";
+const backingSpecVersion = 6010;
+
 async function deployMessageEndpoint(wallet, outboundLaneId, inboundLaneId) {
     const handleContract = await ethers.getContractFactory("DarwiniaSub2SubMessageEndpoint", wallet);
-    const handle = await handleContract.deploy(outboundLaneId, inboundLaneId);
+    const handle = await handleContract.deploy(VERSION, outboundLaneId, inboundLaneId);
     await handle.deployed();
     return handle
 }
@@ -12,13 +58,15 @@ async function lockAndRemoteIssueNative(wethAddress, backingAddress, amount, wal
     await weth.deposit({value: amount});
     await weth.approve(backingAddress, amount);
     const backing = await ethers.getContractAt("Erc20Sub2SubBacking", backingAddress, wallet);
-    await backing.lockAndRemoteIssuing(
-        6009,
+    const tx = await backing.callStatic.lockAndRemoteIssuing(
+    //await backing.lockAndRemoteIssuing(
+        mtfSpecVersion,
         1000000,
         wethAddress,
         wallet.address,
         amount,
-        { value: ethers.utils.parseEther("150.0"), gasLimit: 1000000 });
+        { value: ethers.utils.parseEther("150.0"), gasLimit: 2000000 });
+    console.log("=========", tx);
 }
 
 async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWallet) {
@@ -26,7 +74,7 @@ async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWa
     await xweth.approve(mtfAddress, amount);
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
     return await mtf.burnAndRemoteUnlock(
-        6006,
+        backingSpecVersion,
         1000000,
         xwethAddress,
         wallet.address,
@@ -37,7 +85,7 @@ async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWa
 async function remoteUnlockFailure(transferId, wethAddress, mtfAddress, amount, mtfWallet) {
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
     return await mtf.remoteUnlockFailure(
-        6006,
+        backingSpecVersion,
         1000000,
         transferId,
         wethAddress,
@@ -56,26 +104,7 @@ async function main() {
     //const precompileStorageAddress = "0x0000000000000000000000000000000000000400";
     //const precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
 
-    const backingUrl = "https://pangoro-rpc.darwinia.network";
-    const backingNetworkId = "0x0000002d"; //45
-    const backingBridgeNetworkId = "0x70616772";
-    const backingTransactCallIndex = 9728;//1a01 -> 2600
-    const backingSendmsgIndex = 10499;//0x1103 -> 2903
-    const backingOutboundLaneId = "0x726f6c69";
-    const backingStorageKeyForMarketFee = "0x30d35416864cf657db51d3bc8505602f2edb70953213f33a6ef6b8a5e3ffcab2";
-    const backingStorageKeyForLatestNonce = "0xd86d7f611f4d004e041fda08f633f10196c246acb9b55077390e3ca723a0ca1f";
-    const backingStorageKeyForLastDeliveredNonce = "0xd86d7f611f4d004e041fda08f633f101e5f83cf83f2127eb47afdc35d6e43fab";
-
-    const mtfUrl = "https://pangolin-rpc.darwinia.network";
-    const mtfNetworkId = "0x0000002b"; //43
-    const mtfBridgeNetworkId = "0x7061676c";
-    const mtfTransactCallIndex = 9728;//0x2901 -> 2600
-    const mtfSendmsgIndex = 10499;//0x2b03 -> 2903
-    const mtfOutboundLaneId = "0x726f6c69";//726f6c69
-    const mtfStorageKeyForMarketFee = "0x7621b367d09b75f6876b13089ee0ded52edb70953213f33a6ef6b8a5e3ffcab2";
-    const mtfStorageKeyForLatestNonce = "0xc9b76e645ba80b6ca47619d64cb5e58d96c246acb9b55077390e3ca723a0ca1f";
-    const mtfStorageKeyForLastDeliveredNonce = "0xc9b76e645ba80b6ca47619d64cb5e58de5f83cf83f2127eb47afdc35d6e43fab";
-
+    
     // backing
     const backingProvider = new ethers.providers.JsonRpcProvider(backingUrl);
     const backingWallet = new ethers.Wallet(privateKey, backingProvider);
@@ -156,7 +185,9 @@ async function main() {
     console.log("finish to configure mapping token factory");
 
     await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLER_ROLE(), backing.address, {gasLimit: 1000000});
+    await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLEE_ROLE(), backing.address, {gasLimit: 1000000});
     await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLER_ROLE(), mtf.address, {gasLimit: 1000000});
+    await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLEE_ROLE(), mtf.address, {gasLimit: 1000000});
     await backing.grantRole(await backing.OPERATOR_ROLE(), backingWallet.address, {gasLimit: 1000000});
     console.log("grant role permission finished");
 
@@ -170,7 +201,7 @@ async function main() {
 
     // register
     const gasLimit = 5000000;
-    const specVersion = 6009;
+    const specVersion = mtfSpecVersion;
     const dailyLimit = ethers.utils.parseEther("10000");
     //const tx = await backing.callStatic.register(
     const tx = await backing.register(
@@ -192,10 +223,18 @@ async function main() {
             break;
         }
         await wait(3000);
-        console.log("waiting bridger ...");
     }
-    await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);
+    console.log("waiting bridger finished ...");
+    await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("200"), backingWallet);
 
+    /*
+    await lockAndRemoteIssueNative(
+        "0x13378f170c69D924d96A34B9171157b4C10a18aA",
+        "0xb1ec308c293171B04e47841ae6869ae1e8895577",
+        ethers.utils.parseEther("1.5"),
+        backingWallet);
+    return;
+    */
     /*
     // the deployed addresses
     const mtfAddress = "0x0793e2726360224dA8cf781c048dF7acCa3Bb049";

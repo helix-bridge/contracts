@@ -1,8 +1,49 @@
 var ProxyDeployer = require("./proxy.js");
 
-async function deployMessageEndpoint(wallet) {
+const privateKey = process.env.PRIKEY
+const precompileStorageAddress = "0x0000000000000000000000000000000000000400";
+const precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
+
+const darwiniaNetwork = {
+    url: "https://rpc.darwinia.network",
+    networkId: "0x0000002e", //46
+    bridgeNetworkId: "0x64617277", //darw
+    transactCallIndex: 12289,//0x3001
+    sendmsgIndex: 11267,//0x2C03
+    outboundLaneId: "0x64616362",
+    storageKeyForMarketFee: "0x190d00dd4103825c78f55e5b5dbf8bfe2edb70953213f33a6ef6b8a5e3ffcab2",
+    storageKeyForLatestNonce: "0xf4e61b17ce395203fe0f3c53a0d3986096c246acb9b55077390e3ca723a0ca1f",
+    storageKeyForLastDeliveredNonce: "0xf4e61b17ce395203fe0f3c53a0d39860e5f83cf83f2127eb47afdc35d6e43fab",
+    specVersion: 1110,
+};
+
+const crabNetwork = {
+    url: "https://crab-rpc.darwinia.network",
+    networkId: "0x0000002c", //44
+    bridgeNetworkId: "0x63726162", //crab
+    transactCallIndex: 10499,//0x2903
+    sendmsgIndex: 9728,//0x2600
+    outboundLaneId: "0x64616362",
+    storageKeyForMarketFee: "0xe0c938a0fbc88db6078b53e160c7c3ed2edb70953213f33a6ef6b8a5e3ffcab2",
+    storageKeyForLatestNonce: "0xf1501030816118b9129255f5096aa9b296c246acb9b55077390e3ca723a0ca1f",
+    storageKeyForLastDeliveredNonce: "0xf1501030816118b9129255f5096aa9b2e5f83cf83f2127eb47afdc35d6e43fab",
+    specVersion: 1111,
+};
+
+const backingNetwork = darwiniaNetwork;
+const mtfNetwork = crabNetwork;
+
+// backing
+const backingProvider = new ethers.providers.JsonRpcProvider(backingNetwork.url);
+const backingWallet = new ethers.Wallet(privateKey, backingProvider);
+
+// mapping token factory
+const mtfProvider = new ethers.providers.JsonRpcProvider(mtfNetwork.url);
+const mtfWallet = new ethers.Wallet(privateKey, mtfProvider);
+
+async function deployMessageEndpoint(wallet, version, outboundLaneId, inboundLaneId) {
     const handleContract = await ethers.getContractFactory("DarwiniaSub2SubMessageEndpoint", wallet);
-    const handle = await handleContract.deploy();
+    const handle = await handleContract.deploy(version, outboundLaneId, inboundLaneId);
     await handle.deployed();
     return handle
 }
@@ -22,7 +63,7 @@ async function lockAndRemoteIssueNative(wethAddress, backingAddress, amount, wal
 }
 
 async function burnAndRemoteUnlockNative(xwethAddress, mtfAddress, amount, mtfWallet) {
-    const xweth = await ethers.getContractAt("MappingERC20", xwethAddress, mtfWallet);
+    const xweth = await ethers.getContractAt("Erc20", xwethAddress, mtfWallet);
     await xweth.approve(mtfAddress, amount);
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfAddress, mtfWallet);
     return await mtf.burnAndRemoteUnlock(
@@ -50,67 +91,33 @@ function wait(ms) {
     return new Promise(resolve => setTimeout(() => resolve(), ms));
 };
 
-// 2. deploy mapping token factory
-async function main() {
-    const privateKey = process.env.PRIKEY
-    const precompileStorageAddress = "0x0000000000000000000000000000000000000400";
-    const precompileDispatchAddress = "0x0000000000000000000000000000000000000401";
-
-    const backingUrl = "https://rpc.darwinia.network";
-    const backingNetworkId = "0x0000002e"; //46
-    const backingBridgeNetworkId = "0x64617277"; //darw
-    const backingTransactCallIndex = 12289;//0x3001
-    const backingSendmsgIndex = 11267;//0x2C03
-    const backingOutboundLaneId = "0x00000000";
-    const backingStorageKeyForMarketFee = "0x190d00dd4103825c78f55e5b5dbf8bfe2edb70953213f33a6ef6b8a5e3ffcab2";
-    const backingStorageKeyForLatestNonce = "0xf4e61b17ce395203fe0f3c53a0d3986096c246acb9b55077390e3ca723a0ca1f";
-    const backingStorageKeyForLastDeliveredNonce = "0xf4e61b17ce395203fe0f3c53a0d39860e5f83cf83f2127eb47afdc35d6e43fab";
-
-    const mtfUrl = "https://crab-rpc.darwinia.network";
-    const mtfNetworkId = "0x0000002c"; //44
-    const mtfBridgeNetworkId = "0x63726162"; //crab
-    const mtfTransactCallIndex = 10241;//0x2801
-    const mtfSendmsgIndex = 12291;//0x3003
-    const mtfOutboundLaneId = "0x00000000";
-    const mtfStorageKeyForMarketFee = "0xe0c938a0fbc88db6078b53e160c7c3ed2edb70953213f33a6ef6b8a5e3ffcab2";
-    const mtfStorageKeyForLatestNonce = "0xf1501030816118b9129255f5096aa9b296c246acb9b55077390e3ca723a0ca1f";
-    const mtfStorageKeyForLastDeliveredNonce = "0xf1501030816118b9129255f5096aa9b2e5f83cf83f2127eb47afdc35d6e43fab";
-
-    // backing
-    const backingProvider = new ethers.providers.JsonRpcProvider(backingUrl);
-    const backingWallet = new ethers.Wallet(privateKey, backingProvider);
-
-    // mapping token factory
-    const mtfProvider = new ethers.providers.JsonRpcProvider(mtfUrl);
-    const mtfWallet = new ethers.Wallet(privateKey, mtfProvider);
-
-    // deploy
-    const backingMessageEndpoint = await deployMessageEndpoint(backingWallet);
+async function deployEndpoints() {
+    const backingMessageEndpoint = await deployMessageEndpoint(backingWallet, 2, backingNetwork.outboundLaneId, mtfNetwork.outboundLaneId);
     console.log("deploy backing message handle finished, address: ", backingMessageEndpoint.address);
-    const mtfMessageEndpoint = await deployMessageEndpoint(mtfWallet);
+    const mtfMessageEndpoint = await deployMessageEndpoint(mtfWallet, 2, mtfNetwork.outboundLaneId, backingNetwork.outboundLaneId);
     console.log("deploy mtf message handle finished, address: ", mtfMessageEndpoint.address);
 
     // configure message handle
-    await backingMessageEndpoint.setRemoteHelix(mtfBridgeNetworkId, mtfNetworkId, mtfMessageEndpoint.address);
-    await backingMessageEndpoint.setRemoteCallIndex(mtfTransactCallIndex);
-    await backingMessageEndpoint.setLocalAddress(precompileStorageAddress, precompileDispatchAddress);
-    await backingMessageEndpoint.setLocalCallInfo(backingSendmsgIndex, backingOutboundLaneId, mtfOutboundLaneId);
-    await backingMessageEndpoint.setLocalStorageKey(backingStorageKeyForMarketFee, backingStorageKeyForLatestNonce, backingStorageKeyForLastDeliveredNonce);
+    await backingMessageEndpoint.setRemoteHelix(mtfNetwork.bridgeNetworkId, mtfNetwork.networkId, mtfMessageEndpoint.address);
+    await backingMessageEndpoint.setRemoteCallIndex(mtfNetwork.transactCallIndex);
+    //await backingMessageEndpoint.setLocalAddress(precompileStorageAddress, precompileDispatchAddress);
+    await backingMessageEndpoint.setLocalCallInfo(backingNetwork.sendmsgIndex);
+    await backingMessageEndpoint.setLocalStorageKey(backingNetwork.storageKeyForMarketFee, backingNetwork.storageKeyForLatestNonce, backingNetwork.storageKeyForLastDeliveredNonce);
     console.log("finish configure backing message handle");
-    await mtfMessageEndpoint.setRemoteHelix(backingBridgeNetworkId, backingNetworkId, backingMessageEndpoint.address);
-    await mtfMessageEndpoint.setRemoteCallIndex(backingTransactCallIndex);
-    await mtfMessageEndpoint.setLocalAddress(precompileStorageAddress, precompileDispatchAddress);
-    await mtfMessageEndpoint.setLocalCallInfo(mtfSendmsgIndex, mtfOutboundLaneId, backingOutboundLaneId);
-    await mtfMessageEndpoint.setLocalStorageKey(mtfStorageKeyForMarketFee, mtfStorageKeyForLatestNonce, mtfStorageKeyForLastDeliveredNonce);
+
+    await mtfMessageEndpoint.setRemoteHelix(backingNetwork.bridgeNetworkId, backingNetwork.networkId, backingMessageEndpoint.address);
+    await mtfMessageEndpoint.setRemoteCallIndex(backingNetwork.transactCallIndex);
+    //await mtfMessageEndpoint.setLocalAddress(precompileStorageAddress, precompileDispatchAddress);
+    await mtfMessageEndpoint.setLocalCallInfo(mtfNetwork.sendmsgIndex);
+    await mtfMessageEndpoint.setLocalStorageKey(mtfNetwork.storageKeyForMarketFee, mtfNetwork.storageKeyForLatestNonce, mtfNetwork.storageKeyForLastDeliveredNonce);
     console.log("finish configure mapping token factory message handle");
+    return {
+        'backingEndpoint': backingMessageEndpoint,
+        'mtfEndpoint': mtfMessageEndpoint,
+    };
+}
 
-    // deploy backing & mapping token factory
-    // deploy erc20 logic
-    const erc20Contract = await ethers.getContractFactory("MappingERC20", mtfWallet);
-    const mappingTokenLogic = await erc20Contract.deploy();
-    await mappingTokenLogic.deployed();
-    console.log("finish to deploy mapping token logic, address: ", mappingTokenLogic.address);
-
+async function deployBackingIssuing(backingEndpointAddress, mtfEndpointAddress) {
     const backingContractLogic = await ethers.getContractFactory("Erc20Sub2SubBacking", backingWallet);
     const backingLogic = await backingContractLogic.deploy();
     await backingLogic.deployed();
@@ -122,7 +129,7 @@ async function main() {
         backingAdmin.address,
         backingContractLogic,
         backingLogic.address,
-        [backingMessageEndpoint.address],
+        [backingEndpointAddress],
         backingWallet);
     console.log("finish to deploy backing proxy, address: ", backingProxy.address);
 
@@ -137,7 +144,7 @@ async function main() {
         mtfAdmin.address,
         mtfContractLogic,
         mtfLogic.address,
-        [mtfMessageEndpoint.address],
+        [mtfEndpointAddress],
         mtfWallet);
     console.log("finish to deploy mapping token factory proxy, address: ", mtfProxy.address);
 
@@ -148,20 +155,14 @@ async function main() {
 
     const mtf = await ethers.getContractAt("Erc20Sub2SubMappingTokenFactory", mtfProxy.address, mtfWallet);
     await mtf.setRemoteBacking(backingProxy.address);
-    await mtf.setTokenContractLogic(0, mappingTokenLogic.address);
-    await mtf.setTokenContractLogic(1, mappingTokenLogic.address);
     console.log("finish to configure mapping token factory");
+    return {
+        backing: backing,
+        mtf: mtf,
+    }
+}
 
-    await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLER_ROLE(), backing.address);
-    await backingMessageEndpoint.grantRole(await backingMessageEndpoint.CALLEE_ROLE(), backing.address);
-    await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLER_ROLE(), mtf.address);
-    await mtfMessageEndpoint.grantRole(await mtfMessageEndpoint.CALLEE_ROLE(), mtf.address);
-    await backing.grantRole(await backing.OPERATOR_ROLE(), "0x3fc22FAe77159D9253851f4c7fa99786DA041f43");
-    console.log("grant role permission finished");
-
-    // register special erc20 token
-    //const backing = await ethers.getContractAt("Erc20Sub2SubBacking", "0x63359a0BB8eF1f6cD141761375D583eCefD5Ecfc", backingWallet);
-    // native token weth
+async function registerNative() {
     const wethContract = await ethers.getContractFactory("WRING", backingWallet);
     const weth = await wethContract.deploy();
     await weth.deployed();
@@ -169,11 +170,10 @@ async function main() {
 
     // register
     const gasLimit = 5000000;
-    const specVersion = 1232;
     const dailyLimit = ethers.utils.parseEther("1000000");
     //const tx = await backing.callStatic.register(
     const tx = await backing.register(
-        specVersion,
+        mtfNetwork.specVersion,
         gasLimit,
         weth.address,
         "Wrapped Ring",
@@ -193,6 +193,30 @@ async function main() {
         await wait(3000);
         console.log("waiting bridger ...");
     }
+}
+
+// 2. deploy mapping token factory
+async function main() {
+    const {backingEndpoint, mtfEndpoint} = await deployEndpoints();
+    // deploy backing & mapping token factory
+    // deploy erc20 logic
+    const {backing, mtf} = await deployBackingIssuing(backingEndpoint.address, mtfEndpoint.address);
+    
+    const backingAddress = backing.address;
+    const mtfAddress = mtf.address;
+    // grant role
+    await backingEndpoint.grantRole(await backingEndpoint.CALLER_ROLE(), backingAddress);
+    await backingEndpoint.grantRole(await backingEndpoint.CALLEE_ROLE(), backingAddress);
+    await mtfEndpoint.grantRole(await mtfEndpoint.CALLER_ROLE(), mtfAddress);
+    await mtfEndpoint.grantRole(await mtfEndpoint.CALLEE_ROLE(), mtfAddress);
+    await backing.grantRole(await backing.OPERATOR_ROLE(), backingWallet.address);
+    console.log("grant role permission finished");
+
+    // register special erc20 token
+    //const backing = await ethers.getContractAt("Erc20Sub2SubBacking", "0x63359a0BB8eF1f6cD141761375D583eCefD5Ecfc", backingWallet);
+    // native token weth
+    //await registerNative();
+    
     //await lockAndRemoteIssueNative(weth.address, backing.address, ethers.utils.parseEther("1.5"), backingWallet);
 
     /*
@@ -227,3 +251,19 @@ main()
     console.error(error);
     process.exit(1);
   });
+
+/*
+deploy backing message handle finished, address:  0x28AeB37CE74D67E981fd49328EcC9C0A09D27c04
+deploy mtf message handle finished, address:  0x6Bc42892Cdb7429c2F5BBAEE3d17DFd3aB806afC
+finish configure backing message handle
+finish configure mapping token factory message handle
+finish to deploy backing logic, address:  0x0C4c4b01E47Aa05f2c1CA801a619dFd221eC6d34
+finish to deploy backing admin, address:  0x2f8EC2E769A6D393c60e05aAD3adf4a93C51aaF4
+finish to deploy backing proxy, address:  0xdA2cDf09D82278C2b2ed0DEAc3bdad12c169405c
+finish to deploy mapping token factory logic, address:  0xa0D29ba3b7BA7c143Ef0B4d9F896fB4A28D427b1
+finish to deploy mapping token factory admin, address:  0x63B28311E7be0fd95Cd4f828e3a052096856fAEc
+finish to deploy mapping token factory proxy, address:  0xE3B183154303bfBe32333Cc00e5728CD50e448Fd
+finish to configure backing
+finish to configure mapping token factory
+grant role permission finished
+*/

@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/29/2022
+ * 4/19/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -106,36 +106,6 @@ interface IAccessControl {
      * - the caller must be `account`.
      */
     function renounceRole(bytes32 role, address account) external;
-}
-
-// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
-
-
-/**
- * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
- */
-interface IAccessControlEnumerable is IAccessControl {
-    /**
-     * @dev Returns one of the accounts that have `role`. `index` must be a
-     * value between 0 and {getRoleMemberCount}, non-inclusive.
-     *
-     * Role bearers are not sorted in any particular way, and their ordering may
-     * change at any point.
-     *
-     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
-     * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-     * for more information.
-     */
-    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
-
-    /**
-     * @dev Returns the number of accounts that have `role`. Can be used
-     * together with {getRoleMember} to enumerate all bearers of a role.
-     */
-    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
@@ -537,6 +507,36 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
             emit RoleRevoked(role, account, _msgSender());
         }
     }
+}
+
+// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
+
+
+/**
+ * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
+ */
+interface IAccessControlEnumerable is IAccessControl {
+    /**
+     * @dev Returns one of the accounts that have `role`. `index` must be a
+     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     *
+     * Role bearers are not sorted in any particular way, and their ordering may
+     * change at any point.
+     *
+     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
+     * you perform all queries on the same block. See the following
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * for more information.
+     */
+    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
+
+    /**
+     * @dev Returns the number of accounts that have `role`. Can be used
+     * together with {getRoleMember} to enumerate all bearers of a role.
+     */
+    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
@@ -1124,7 +1124,7 @@ contract AccessController is AccessControlEnumerable, Pausable {
     }
 }
 
-// File @darwinia/contracts-utils/contracts/Memory.sol@v1.0.3
+// File @darwinia/contracts-utils/contracts/Memory.sol@v1.0.4
 // License-Identifier: MIT
 
 
@@ -1215,7 +1215,7 @@ library Memory {
 	}
 }
 
-// File @darwinia/contracts-utils/contracts/Bytes.sol@v1.0.3
+// File @darwinia/contracts-utils/contracts/Bytes.sol@v1.0.4
 // License-Identifier: MIT
 
 
@@ -1394,11 +1394,47 @@ library Bytes {
     }
 }
 
-// File @darwinia/contracts-utils/contracts/ScaleCodec.sol@v1.0.3
+// File @darwinia/contracts-utils/contracts/AccountId.sol@v1.0.4
+// License-Identifier: MIT
+
+
+library AccountId {
+    bytes private constant prefixBytes = "dvm:";
+    bytes private constant zeroBytes = hex"00000000000000";
+
+    function deriveSubstrateAddress(address addr) internal pure returns (bytes32) {
+        bytes memory body = abi.encodePacked(
+            prefixBytes,
+            zeroBytes,
+            addr
+        );
+        uint8 checksum = checksumOf(body);
+        bytes memory result = abi.encodePacked(body, checksum);
+        return Bytes.toBytes32(result);
+    }
+
+    function deriveEthereumAddress(bytes32 accountId) internal pure returns (address) {
+        return address(bytes20(accountId));
+    }
+
+    function deriveEthereumAddressFromDvm(bytes32 accountId) internal pure returns (address) {
+        return address(uint160(uint256(accountId) >> 8));
+    }
+
+    function checksumOf(bytes memory accountId) private pure returns (uint8) {
+        uint8 checksum = uint8(accountId[0]);
+        for (uint i = 1; i <= 30; i++) {
+            checksum = checksum ^ uint8(accountId[i]);
+        }
+        return checksum;
+    }
+}
+
+// File @darwinia/contracts-utils/contracts/ScaleCodec.sol@v1.0.4
 // License-Identifier: MIT
 
 library ScaleCodec {
-    // Decodes a SCALE encoded uint256 by converting bytes (bid endian) to little endian format
+    // Decodes a SCALE encoded uint256 by converting bytes (big endian) to little endian format
     function decodeUint256(bytes memory data) internal pure returns (uint256) {
         uint256 number;
         for (uint256 i = data.length; i > 0; i--) {
@@ -1407,16 +1443,27 @@ library ScaleCodec {
         return number;
     }
 
+    function decodeUint128(bytes memory data) internal pure returns (uint128) {
+        require(data.length >= 16, "Bad data");
+        bytes memory reversed = Bytes.reverse(data);
+        return uint128(Bytes.toBytes16(reversed, 0));
+    }
+
+    function decodeUint64(bytes memory data) internal pure returns (uint64) {
+        require(data.length >= 8, "Bad data");
+        bytes memory reversed = Bytes.reverse(data);
+        return uint64(Bytes.toBytes8(reversed, 0));
+    }
+
     // Decodes a SCALE encoded compact unsigned integer
     function decodeUintCompact(bytes memory data)
         internal 
         pure
-        returns (uint256 v, uint8 m)
+        returns (uint256 value, uint8 mode)
     {
         uint8 b = readByteAtIndex(data, 0); // read the first byte
-        uint8 mode = b & 3; // bitwise operation
+        mode = b & 3; // bitwise operation
 
-        uint256 value;
         if (mode == 0) {
             // [0, 63]
             value = b >> 2; // right shift to remove mode bits
@@ -1449,7 +1496,6 @@ library ScaleCodec {
         } else {
             revert("Code should be unreachable");
         }
-        return (value, mode);
     }
 
     // The biggest compact supported uint is 2 ** 536 - 1. 
@@ -1461,7 +1507,7 @@ library ScaleCodec {
             return abi.encodePacked(reverse16(uint16(((v << 2) + 1))));
         } else if ( v < 2 ** 30 ) {
             return abi.encodePacked(reverse32(uint32(((v << 2) + 2))));
-        } else {
+        } else { // 0b11, The upper six bits are the number of bytes following, plus four
             bytes memory valueBytes = 
                 Bytes.removeEndingZero(abi.encodePacked(reverse256(v)));
 
@@ -1588,6 +1634,343 @@ library ScaleCodec {
     }
 
     
+}
+
+// File @darwinia/contracts-utils/contracts/Blake2b.sol@v1.0.4
+/*
+ * Blake2b library in Solidity using EIP-152
+ *
+ * Copyright (C) 2019 Alex Beregszaszi
+ *
+ * License: Apache 2.0
+ */
+
+// License-Identifier: MIT
+
+pragma experimental ABIEncoderV2;
+
+library Blake2b {
+    struct Instance {
+        // This is a bit misleadingly called state as it not only includes the Blake2 state,
+        // but every field needed for the "blake2 f function precompile".
+        //
+        // This is a tightly packed buffer of:
+        // - rounds: 32-bit BE
+        // - h: 8 x 64-bit LE
+        // - m: 16 x 64-bit LE
+        // - t: 2 x 64-bit LE
+        // - f: 8-bit
+        bytes state;
+        // Expected output hash length. (Used in `finalize`.)
+        uint out_len;
+        // Data passed to "function F".
+        // NOTE: this is limited to 24 bits.
+        uint input_counter;
+    }
+
+    // Initialise the state with a given `key` and required `out_len` hash length.
+    function init(bytes memory key, uint out_len)
+        internal
+        view
+        returns (Instance memory instance)
+    {
+        // Safety check that the precompile exists.
+        // TODO: remove this?
+        // assembly {
+        //    if eq(extcodehash(0x09), 0) { revert(0, 0) }
+        //}
+
+        reset(instance, key, out_len);
+    }
+
+    // Initialise the state with a given `key` and required `out_len` hash length.
+    function reset(Instance memory instance, bytes memory key, uint out_len)
+        internal
+        view
+    {
+        instance.out_len = out_len;
+        instance.input_counter = 0;
+
+        // This is entire state transmitted to the precompile.
+        // It is byteswapped for the encoding requirements, additionally
+        // the IV has the initial parameter block 0 XOR constant applied, but
+        // not the key and output length.
+        instance.state = hex"0000000c08c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        bytes memory state = instance.state;
+
+        // Update parameter block 0 with key length and output length.
+        uint key_len = key.length;
+        assembly {
+            let ptr := add(state, 36)
+            let tmp := mload(ptr)
+            let p0 := or(shl(240, key_len), shl(248, out_len))
+            tmp := xor(tmp, p0)
+            mstore(ptr, tmp)
+        }
+
+        // TODO: support salt and personalization
+
+        if (key_len > 0) {
+            require(key_len == 64);
+            // FIXME: the key must be zero padded
+            assert(key.length == 128);
+            update(instance, key, key_len);
+        }
+    }
+
+    // This calls the blake2 precompile ("function F of the spec").
+    // It expects the state was updated with the next block. Upon returning the state will be updated,
+    // but the supplied block data will not be cleared.
+    function call_function_f(Instance memory instance)
+        private
+        view
+    {
+        bytes memory state = instance.state;
+        assembly {
+            let state_ptr := add(state, 32)
+            if iszero(staticcall(not(0), 0x09, state_ptr, 0xd5, add(state_ptr, 4), 0x40)) {
+                revert(0, 0)
+            }
+        }
+    }
+
+    // This function will split blocks correctly and repeatedly call the precompile.
+    // NOTE: this is dumb right now and expects `data` to be 128 bytes long and padded with zeroes,
+    //       hence the real length is indicated with `data_len`
+    function update_loop(Instance memory instance, bytes memory data, uint data_len, bool last_block)
+        private
+        view
+    {
+        bytes memory state = instance.state;
+        uint input_counter = instance.input_counter;
+
+        // This is the memory location where the "data block" starts for the precompile.
+        uint state_ptr;
+        assembly {
+            // The `rounds` field is 4 bytes long and the `h` field is 64-bytes long.
+            // Also adjust for the size of the bytes type.
+            state_ptr := add(state, 100)
+        }
+
+        // This is the memory location where the input data resides.
+        uint data_ptr;
+        assembly {
+            data_ptr := add(data, 32)
+        }
+
+        uint len = data.length;
+        while (len > 0) {
+            if (len >= 128) {
+                assembly {
+                    mstore(state_ptr, mload(data_ptr))
+                    data_ptr := add(data_ptr, 32)
+
+                    mstore(add(state_ptr, 32), mload(data_ptr))
+                    data_ptr := add(data_ptr, 32)
+
+                    mstore(add(state_ptr, 64), mload(data_ptr))
+                    data_ptr := add(data_ptr, 32)
+
+                    mstore(add(state_ptr, 96), mload(data_ptr))
+                    data_ptr := add(data_ptr, 32)
+                }
+
+                len -= 128;
+                // FIXME: remove this once implemented proper padding
+                if (data_len < 128) {
+                    input_counter += data_len;
+                } else {
+                    data_len -= 128;
+                    input_counter += 128;
+                }
+            } else {
+                // FIXME: implement support for smaller than 128 byte blocks
+                revert();
+            }
+
+            // Set length field (little-endian) for maximum of 24-bits.
+            assembly {
+                mstore8(add(state, 228), and(input_counter, 0xff))
+                mstore8(add(state, 229), and(shr(8, input_counter), 0xff))
+                mstore8(add(state, 230), and(shr(16, input_counter), 0xff))
+            }
+
+            // Set the last block indicator.
+            // Only if we've processed all input.
+            if (len == 0) {
+                assembly {
+                    // Writing byte 212 here.
+                    mstore8(add(state, 244), last_block)
+                }
+            }
+
+            // Call the precompile
+            call_function_f(instance);
+        }
+
+        instance.input_counter = input_counter;
+    }
+
+    // Update the state with a non-final block.
+    // NOTE: the input must be complete blocks.
+    function update(Instance memory instance, bytes memory data, uint data_len)
+        internal
+        view
+    {
+        require((data.length % 128) == 0);
+        update_loop(instance, data, data_len, false);
+    }
+
+    // Update the state with a final block and return the hash.
+    function finalize(Instance memory instance, bytes memory data)
+        internal
+        view
+        returns (bytes memory output)
+    {
+        // FIXME: support incomplete blocks (zero pad them)
+        uint input_length = data.length;
+        if (input_length == 0 || (input_length % 128) != 0) {
+            data = abi.encodePacked(data, new bytes(128 - (input_length % 128)));
+        }
+        assert((data.length % 128) == 0);
+        update_loop(instance, data, input_length, true);
+
+        // FIXME: support other lengths
+        // assert(instance.out_len == 64);
+
+        bytes memory state = instance.state;
+        output = new bytes(instance.out_len);
+        if (instance.out_len == 16) {
+            assembly {
+                mstore(add(output,16), mload(add(state, 20)))
+                mstore(output, 16)
+            }
+        } else if(instance.out_len == 32) {
+            assembly {
+                mstore(add(output, 32), mload(add(state, 36)))
+            }
+        } else {
+            assembly {
+                mstore(add(output, 32), mload(add(state, 36)))
+                mstore(add(output, 64), mload(add(state, 68)))
+            }
+        }
+    }
+
+    function concat(
+        bytes memory _preBytes,
+        bytes memory _postBytes
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory tempBytes;
+
+        assembly {
+            // Get a location of some free memory and store it in tempBytes as
+            // Solidity does for memory variables.
+            tempBytes := mload(0x40)
+
+            // Store the length of the first bytes array at the beginning of
+            // the memory for tempBytes.
+            let length := mload(_preBytes)
+            mstore(tempBytes, length)
+
+            // Maintain a memory counter for the current write location in the
+            // temp bytes array by adding the 32 bytes for the array length to
+            // the starting location.
+            let mc := add(tempBytes, 0x20)
+            // Stop copying when the memory counter reaches the length of the
+            // first bytes array.
+            let end := add(mc, length)
+
+            for {
+                // Initialize a copy counter to the start of the _preBytes data,
+                // 32 bytes into its memory.
+                let cc := add(_preBytes, 0x20)
+            } lt(mc, end) {
+                // Increase both counters by 32 bytes each iteration.
+                mc := add(mc, 0x20)
+                cc := add(cc, 0x20)
+            } {
+                // Write the _preBytes data into the tempBytes memory 32 bytes
+                // at a time.
+                mstore(mc, mload(cc))
+            }
+
+            // Add the length of _postBytes to the current length of tempBytes
+            // and store it as the new length in the first 32 bytes of the
+            // tempBytes memory.
+            length := mload(_postBytes)
+            mstore(tempBytes, add(length, mload(tempBytes)))
+
+            // Move the memory counter back from a multiple of 0x20 to the
+            // actual end of the _preBytes data.
+            mc := end
+            // Stop copying when the memory counter reaches the new combined
+            // length of the arrays.
+            end := add(mc, length)
+
+            for {
+                let cc := add(_postBytes, 0x20)
+            } lt(mc, end) {
+                mc := add(mc, 0x20)
+                cc := add(cc, 0x20)
+            } {
+                mstore(mc, mload(cc))
+            }
+
+            // Update the free-memory pointer by padding our last write location
+            // to 32 bytes: add 31 bytes to the end of tempBytes to move to the
+            // next 32 byte block, then round down to the nearest multiple of
+            // 32. If the sum of the length of the two arrays is zero then add
+            // one before rounding down to leave a blank 32 bytes (the length block with 0).
+            mstore(0x40, and(
+              add(add(end, iszero(add(length, mload(_preBytes)))), 31),
+              not(31) // Round down to the nearest 32 bytes.
+            ))
+        }
+
+        return tempBytes;
+    }
+
+}
+
+// File @darwinia/contracts-utils/contracts/Hash.sol@v1.0.4
+// License-Identifier: MIT
+
+
+// import "./Memory.sol";
+
+
+library Hash {
+
+    using Blake2b for Blake2b.Instance;
+
+    // function hash(bytes memory src) internal view returns (bytes memory des) {
+    //     return Memory.toBytes(keccak256(src));
+        // Blake2b.Instance memory instance = Blake2b.init(hex"", 32);
+        // return instance.finalize(src);
+    // }
+
+    function blake2bHash(bytes memory src) internal view returns (bytes32 des) {
+        // return keccak256(src);
+        Blake2b.Instance memory instance = Blake2b.init(hex"", 32);
+        return abi.decode(instance.finalize(src), (bytes32));
+    }
+
+    // Blake2_128
+    function blake2b128(bytes memory src) internal view returns (bytes16 des) {
+        Blake2b.Instance memory instance = Blake2b.init(hex"", 16);
+        return Bytes.toBytes16(instance.finalize(src), 0);
+    }
+
+    // Blake2_128Concat
+    function blake2b128Concat(bytes memory src) internal view returns (bytes memory) {
+        Blake2b.Instance memory instance = Blake2b.init(hex"", 16);
+        return abi.encodePacked(instance.finalize(src), src);
+    }
 }
 
 // File hardhat/console.sol@v2.12.4
@@ -3124,35 +3507,21 @@ library console {
 
 }
 
-// File @darwinia/contracts-periphery/contracts/s2s/types/CommonTypes.sol@v2.0.5-pre3
+// File @darwinia/contracts-periphery/contracts/s2s/types/CommonTypes.sol@vv2.1.0-pre6
 // License-Identifier: MIT
 
 
 
 
 library CommonTypes {
-    function decodeUint128(bytes memory _data) internal pure returns (uint128) {
-        require(_data.length >= 16, "The data is not enough");
-        bytes memory reversed = Bytes.reverse(_data);
-        return uint128(Bytes.toBytes16(reversed, 0));
-    }
-
-    function decodeUint64(bytes memory _data) internal pure returns (uint64) {
-        require(_data.length >= 8, "The data is not enough");
-        bytes memory reversed = Bytes.reverse(_data);
-        return uint64(Bytes.toBytes8(reversed, 0));
-    }
-
     struct EnumItemWithAccountId {
         uint8 index;
-        bytes32 accountId;
+        address accountId;
     }
 
-    function encodeEnumItemWithAccountId(EnumItemWithAccountId memory _item)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encodeEnumItemWithAccountId(
+        EnumItemWithAccountId memory _item
+    ) internal pure returns (bytes memory) {
         return abi.encodePacked(_item.index, _item.accountId);
     }
 
@@ -3160,11 +3529,9 @@ library CommonTypes {
         uint8 index;
     }
 
-    function encodeEnumItemWithNull(EnumItemWithNull memory _item)
-        internal
-        pure
-        returns (bytes memory)
-    {
+    function encodeEnumItemWithNull(
+        EnumItemWithNull memory _item
+    ) internal pure returns (bytes memory) {
         return abi.encodePacked(_item.index);
     }
 
@@ -3173,25 +3540,26 @@ library CommonTypes {
     ////////////////////////////////////
     function ceilDivide(uint a, uint b) internal pure returns (uint) {
         if (a % b == 0) {
-            return uint(a) / b;
+            return a / b;
         } else {
-            return uint(a) / b + 1;
+            return a / b + 1;
         }
     }
 
+    // bits: bit amount used, 1: true, 0: false
+    // bytesLength: bytes used by bits
+    // result: the bytes
     struct BitVecU8 {
         uint bits;
         bytes result;
         uint bytesLength;
     }
 
-    function decodeBitVecU8(bytes memory _data)
-        internal
-        pure
-        returns (BitVecU8 memory)
-    {
+    function decodeBitVecU8(
+        bytes memory _data
+    ) internal pure returns (BitVecU8 memory) {
         (uint256 bits, uint8 mode) = ScaleCodec.decodeUintCompact(_data);
-        uint prefixLength = uint8(2**mode);
+        uint prefixLength = uint8(2 ** mode);
         uint bytesLength = ceilDivide(bits, 8);
         require(
             _data.length >= prefixLength + bytesLength,
@@ -3209,33 +3577,31 @@ library CommonTypes {
     // Relayer
     ////////////////////////////////////
     struct Relayer {
-        bytes32 id;
+        bytes20 id;
         uint128 collateral;
         uint128 fee;
     }
 
-    // 64 bytes
-    function decodeRelayer(bytes memory _data)
-        internal
-        pure
-        returns (Relayer memory)
-    {
-        require(_data.length >= 64, "The data is not enough to decode Relayer");
+    // 52 bytes
+    function decodeRelayer(
+        bytes memory _data
+    ) internal pure returns (Relayer memory) {
+        require(_data.length >= 52, "The data is not enough to decode Relayer");
 
-        bytes32 id = Bytes.toBytes32(Bytes.substr(_data, 0, 32));
+        bytes20 id = bytes20(Bytes.substr(_data, 0, 20));
 
-        uint128 collateral = decodeUint128(Bytes.substr(_data, 32, 16));
+        uint128 collateral = ScaleCodec.decodeUint128(
+            Bytes.substr(_data, 20, 16)
+        );
 
-        uint128 fee = decodeUint128(Bytes.substr(_data, 48, 16));
+        uint128 fee = ScaleCodec.decodeUint128(Bytes.substr(_data, 36, 16));
 
         return Relayer(id, collateral, fee);
     }
 
-    function getLastRelayerFromVec(bytes memory _data)
-        internal
-        pure
-        returns (Relayer memory)
-    {
+    function getLastRelayerFromVec(
+        bytes memory _data
+    ) internal pure returns (Relayer memory) {
         // Option::None
         require(_data.length > 0, "No relayers");
 
@@ -3246,15 +3612,15 @@ library CommonTypes {
         );
         require(relayersCount > 0, "No relayers");
         require(mode < 3, "Wrong compact mode"); // Now, mode 3 is not supported yet
-        uint8 lengthOfPrefixBytes = uint8(2**mode);
+        uint8 lengthOfPrefixBytes = uint8(2 ** mode);
         require(
-            _data.length >= lengthOfPrefixBytes + relayersCount * 64,
+            _data.length >= lengthOfPrefixBytes + relayersCount * 52,
             "No enough data"
         );
 
         // get the bytes of the last Relayer, then decode
         Relayer memory relayer = decodeRelayer(
-            Bytes.substr(_data, lengthOfPrefixBytes + 64 * (relayersCount - 1))
+            Bytes.substr(_data, lengthOfPrefixBytes + 52 * (relayersCount - 1))
         );
         return relayer;
     }
@@ -3269,19 +3635,23 @@ library CommonTypes {
     }
 
     // 24 bytes
-    function decodeOutboundLaneData(bytes memory _data)
-        internal
-        pure
-        returns (OutboundLaneData memory)
-    {
+    function decodeOutboundLaneData(
+        bytes memory _data
+    ) internal pure returns (OutboundLaneData memory) {
         require(
             _data.length >= 24,
             "The data is not enough to decode OutboundLaneData"
         );
 
-        uint64 oldestUnprunedNonce = decodeUint64(Bytes.substr(_data, 0, 8));
-        uint64 latestReceivedNonce = decodeUint64(Bytes.substr(_data, 8, 8));
-        uint64 latestGeneratedNonce = decodeUint64(Bytes.substr(_data, 16, 8));
+        uint64 oldestUnprunedNonce = ScaleCodec.decodeUint64(
+            Bytes.substr(_data, 0, 8)
+        );
+        uint64 latestReceivedNonce = ScaleCodec.decodeUint64(
+            Bytes.substr(_data, 8, 8)
+        );
+        uint64 latestGeneratedNonce = ScaleCodec.decodeUint64(
+            Bytes.substr(_data, 16, 8)
+        );
 
         return
             OutboundLaneData(
@@ -3300,13 +3670,11 @@ library CommonTypes {
         BitVecU8 dispatchResults;
     }
 
-    function decodeDeliveredMessages(bytes memory _data)
-        internal
-        pure
-        returns (DeliveredMessages memory)
-    {
-        uint64 begin = decodeUint64(Bytes.substr(_data, 0, 8));
-        uint64 end = decodeUint64(Bytes.substr(_data, 8, 8));
+    function decodeDeliveredMessages(
+        bytes memory _data
+    ) internal pure returns (DeliveredMessages memory) {
+        uint64 begin = ScaleCodec.decodeUint64(Bytes.substr(_data, 0, 8));
+        uint64 end = ScaleCodec.decodeUint64(Bytes.substr(_data, 8, 8));
         BitVecU8 memory dispatchResults = decodeBitVecU8(
             Bytes.substr(_data, 16)
         );
@@ -3328,11 +3696,9 @@ library CommonTypes {
         DeliveredMessages messages;
     }
 
-    function decodeUnrewardedRelayer(bytes memory _data)
-        internal
-        pure
-        returns (UnrewardedRelayer memory)
-    {
+    function decodeUnrewardedRelayer(
+        bytes memory _data
+    ) internal pure returns (UnrewardedRelayer memory) {
         bytes32 relayer = Bytes.toBytes32(Bytes.substr(_data, 0, 32));
         DeliveredMessages memory messages = decodeDeliveredMessages(
             Bytes.substr(_data, 32)
@@ -3362,16 +3728,14 @@ library CommonTypes {
         uint64 lastConfirmedNonce;
     }
 
-    function decodeInboundLaneData(bytes memory _data)
-        internal
-        pure
-        returns (InboundLaneData memory)
-    {
+    function decodeInboundLaneData(
+        bytes memory _data
+    ) internal pure returns (InboundLaneData memory) {
         (uint256 numberOfRelayers, uint8 mode) = ScaleCodec.decodeUintCompact(
             _data
         );
         require(mode < 3, "Wrong compact mode"); // Now, mode 3 is not supported yet
-        uint consumedLength = uint8(2**mode);
+        uint consumedLength = uint8(2 ** mode);
 
         InboundLaneData memory result = InboundLaneData(
             new UnrewardedRelayer[](numberOfRelayers),
@@ -3390,18 +3754,16 @@ library CommonTypes {
         }
 
         // decode lastConfirmedNonce
-        result.lastConfirmedNonce = decodeUint64(
+        result.lastConfirmedNonce = ScaleCodec.decodeUint64(
             Bytes.substr(_data, consumedLength)
         );
 
         return result;
     }
 
-    function getLastDeliveredNonceFromInboundLaneData(bytes memory _data)
-        internal
-        pure
-        returns (uint64)
-    {
+    function getLastDeliveredNonceFromInboundLaneData(
+        bytes memory _data
+    ) internal pure returns (uint64) {
         InboundLaneData memory inboundLaneData = decodeInboundLaneData(_data);
         if (inboundLaneData.relayers.length == 0) {
             return inboundLaneData.lastConfirmedNonce;
@@ -3418,29 +3780,306 @@ library CommonTypes {
     ////////////////////////////////////
     struct Message {
         uint32 specVersion;
-        uint64 weight;
+        uint64 weightRefTime;
+        uint64 weightProofSize;
         EnumItemWithAccountId origin;
         EnumItemWithNull dispatchFeePayment;
         bytes call;
     }
 
-    function encodeMessage(Message memory _message)
+    function encodeMessage(
+        Message memory _message
+    ) internal pure returns (bytes memory) {
+        return
+            abi.encodePacked(
+                ScaleCodec.encode32(_message.specVersion),
+                // weight
+                ScaleCodec.encodeUintCompact(_message.weightRefTime),
+                ScaleCodec.encodeUintCompact(_message.weightProofSize),
+                // origin
+                _message.origin.index,
+                _message.origin.accountId,
+                // dispatchFeePayment
+                _message.dispatchFeePayment.index,
+                ScaleCodec.encodeBytes(_message.call)
+            );
+    }
+}
+
+// File @darwinia/contracts-periphery/contracts/s2s/types/PalletBridgeMessages.sol@vv2.1.0-pre6
+// License-Identifier: MIT
+
+
+
+library PalletBridgeMessages {
+    struct SendMessageCall {
+        bytes2 callIndex; // pallet index and call func index
+        bytes4 laneId;
+        bytes message;
+        uint128 deliveryAndDispatchFee;
+    }
+
+    function encodeSendMessageCall(SendMessageCall memory _call)
         internal
         pure
         returns (bytes memory)
     {
         return
             abi.encodePacked(
-                ScaleCodec.encode32(_message.specVersion),
-                ScaleCodec.encode64(_message.weight),
-                encodeEnumItemWithAccountId(_message.origin),
-                encodeEnumItemWithNull(_message.dispatchFeePayment),
-                ScaleCodec.encodeBytes(_message.call)
+                _call.callIndex,
+                _call.laneId,
+                _call.message,
+                ScaleCodec.encode128(_call.deliveryAndDispatchFee)
             );
     }
 }
 
-// File @darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol@v2.0.5-pre3
+// File @darwinia/contracts-periphery/contracts/s2s/interfaces/IStateStorage.sol@vv2.1.0-pre6
+// License-Identifier: MIT
+
+
+interface IStateStorage {
+    function state_storage(bytes memory key) external view returns (bytes memory);
+}
+
+// File @darwinia/contracts-periphery/contracts/s2s/MessageLib.sol@vv2.1.0-pre6
+// License-Identifier: MIT
+
+
+
+
+
+
+library MessageLib {
+    bytes public constant ACCOUNT_DERIVATION_PREFIX =
+        "pallet-bridge/account-derivation/account";
+
+    // Send message over lane by calling the `send_message` dispatch call on
+    // the source chain which is identified by the `callIndex` param.
+    // Note: `XxxMessages`.`send_message`, the origin must equals to the origin in the message
+    function sendMessage(
+        address _srcDispatchPrecompileAddress,
+        bytes2 _callIndex,
+        bytes4 _laneId,
+        uint256 _deliveryAndDispatchFee,
+        bytes memory _message
+    ) internal {
+        // encode send_message call
+        PalletBridgeMessages.SendMessageCall
+            memory sendMessageCall = PalletBridgeMessages.SendMessageCall(
+                _callIndex,
+                _laneId,
+                _message,
+                uint128(_deliveryAndDispatchFee)
+            );
+
+        bytes memory sendMessageCallEncoded = PalletBridgeMessages
+            .encodeSendMessageCall(sendMessageCall);
+
+        // dispatch the send_message call
+        dispatch(
+            _srcDispatchPrecompileAddress,
+            sendMessageCallEncoded,
+            "Dispatch send_message failed"
+        );
+    }
+
+    // Build the scale encoded message for the target chain.
+    function buildMessage(
+        uint32 _specVersion,
+        uint64 _weight,
+        bytes memory _call
+    ) internal view returns (bytes memory) {
+        // enum CallOrigin
+        //   0: SourceRoot
+        //   1: TargetAccount
+        //   2: SourceAccount
+        CommonTypes.EnumItemWithAccountId memory origin = CommonTypes
+            .EnumItemWithAccountId(
+                2, // CallOrigin::SourceAccount
+                address(this) // UserApp contract address
+            );
+
+        // enum DispatchFeePayment
+        //   0: AtSourceChain
+        //   1: AtTargetChain
+        CommonTypes.EnumItemWithNull memory dispatchFeePayment = CommonTypes
+            .EnumItemWithNull(0); // DispatchFeePayment::AtSourceChain
+
+        return
+            CommonTypes.encodeMessage(
+                CommonTypes.Message(
+                    _specVersion,
+                    _weight,
+                    0,
+                    origin,
+                    dispatchFeePayment,
+                    _call
+                )
+            );
+    }
+
+    // Get market fee from state storage of the substrate chain
+    function marketFee(
+        address _srcStoragePrecompileAddress,
+        bytes32 _storageKey
+    ) internal view returns (uint128) {
+        bytes memory data = getStateStorage(
+            _srcStoragePrecompileAddress,
+            abi.encodePacked(_storageKey),
+            "Get market fee failed"
+        );
+
+        CommonTypes.Relayer memory relayer = CommonTypes.getLastRelayerFromVec(
+            data
+        );
+        return relayer.fee;
+    }
+
+    // Get the latest nonce from state storage
+    function latestNonce(
+        address _srcStoragePrecompileAddress,
+        bytes32 _storageKey,
+        bytes4 _laneId
+    ) internal view returns (uint64) {
+        // 1. Get `OutboundLaneData` from storage
+        // Full storage key == storageKey + Blake2_128Concat(laneId)
+        bytes memory hashedLaneId = Hash.blake2b128Concat(
+            abi.encodePacked(_laneId)
+        );
+        bytes memory fullStorageKey = abi.encodePacked(
+            _storageKey,
+            hashedLaneId
+        );
+
+        // Do get data by calling state storage precompile
+        bytes memory data = getStateStorage(
+            _srcStoragePrecompileAddress,
+            fullStorageKey,
+            "Get OutboundLaneData failed"
+        );
+
+        // 2. Decode `OutboundLaneData` and return the latest nonce
+        CommonTypes.OutboundLaneData memory outboundLaneData = CommonTypes
+            .decodeOutboundLaneData(data);
+        return outboundLaneData.latestGeneratedNonce;
+    }
+
+    function deriveAccountId(
+        bytes4 _srcChainId,
+        bytes32 _accountId
+    ) internal view returns (bytes32) {
+        bytes memory data = abi.encodePacked(
+            bytes1(0xa0), // compact length of ACCOUNT_DERIVATION_PREFIX
+            ACCOUNT_DERIVATION_PREFIX,
+            _srcChainId,
+            _accountId
+        );
+        return Hash.blake2bHash(data);
+    }
+
+    function revertIfFailed(
+        bool _success,
+        bytes memory _resultData,
+        string memory _revertMsg
+    ) internal pure {
+        if (!_success) {
+            if (_resultData.length > 0) {
+                assembly {
+                    let resultDataSize := mload(_resultData)
+                    revert(add(32, _resultData), resultDataSize)
+                }
+            } else {
+                revert(_revertMsg);
+            }
+        }
+    }
+
+    event DispatchCall(bytes);
+
+    // Dispatch pallet dispatch-call
+    function dispatch(
+        address _srcDispatchPrecompileAddress,
+        bytes memory _callEncoded,
+        string memory _errMsg
+    ) internal {
+        emit DispatchCall(_callEncoded);
+        // Dispatch the call
+        (bool success, bytes memory data) = _srcDispatchPrecompileAddress.call(
+            _callEncoded
+        );
+        revertIfFailed(success, data, _errMsg);
+    }
+
+    function deriveSender(
+        bytes4 _srcChainId,
+        address _srcMessageSender
+    ) internal view returns (address) {
+        // H160(sender on the sourc chain) > AccountId32
+        bytes32 derivedSubstrateAddress = AccountId.deriveSubstrateAddress(
+            _srcMessageSender
+        );
+
+        // AccountId32 > derived AccountId32
+        bytes32 derivedAccountId = deriveAccountId(
+            _srcChainId,
+            derivedSubstrateAddress
+        );
+
+        // derived AccountId32 > H160
+        address result = AccountId.deriveEthereumAddress(derivedAccountId);
+
+        return result;
+    }
+
+    // Get the last delivered nonce from the state storage of the target chain's inbound lane
+    function lastDeliveredNonce(
+        address _tgtStoragePrecompileAddress,
+        bytes32 _storageKey,
+        bytes4 _inboundLaneId
+    ) internal view returns (uint64) {
+        // 1. Get `inboundLaneData` from storage
+        // Full storage key == storageKey + Blake2_128Concat(laneId)
+        bytes memory hashedLaneId = Hash.blake2b128Concat(
+            abi.encodePacked(_inboundLaneId)
+        );
+        bytes memory fullStorageKey = abi.encodePacked(
+            _storageKey,
+            hashedLaneId
+        );
+
+        // Do get data by calling state storage precompile
+        bytes memory data = getStateStorage(
+            _tgtStoragePrecompileAddress,
+            fullStorageKey,
+            "Get InboundLaneData failed"
+        );
+
+        // 2. Decode `InboundLaneData` and return the last delivered nonce
+        return CommonTypes.getLastDeliveredNonceFromInboundLaneData(data);
+    }
+
+    function getStateStorage(
+        address _storagePrecompileAddress,
+        bytes memory _storageKey,
+        string memory _failedMsg
+    ) internal view returns (bytes memory) {
+        (bool success, bytes memory data) = _storagePrecompileAddress
+            .staticcall(
+                abi.encodeWithSelector(
+                    IStateStorage.state_storage.selector,
+                    _storageKey
+                )
+            );
+
+        // TODO: Use try/catch instead for error
+        revertIfFailed(success, data, _failedMsg);
+
+        return abi.decode(data, (bytes));
+    }
+}
+
+// File @darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol@vv2.1.0-pre6
 // License-Identifier: MIT
 
 
@@ -3560,7 +4199,7 @@ library PalletEthereum {
             _gasPrice,
             _gasLimit,
             PalletEthereum.EnumItemTransactionActionWithAddress(
-                0, // enum index
+                0,
                 _to
             ),
             _value,
@@ -3592,1570 +4231,61 @@ library PalletEthereum {
     }
 }
 
-// File @darwinia/contracts-utils/contracts/AccountId.sol@v1.0.3
-// License-Identifier: MIT
-
-
-library AccountId {
-    bytes private constant prefixBytes = "dvm:";
-    bytes private constant zeroBytes = hex"00000000000000";
-
-    function fromAddress(address addr) internal pure returns (bytes32) {
-        bytes memory addrBytes = abi.encodePacked(addr);
-
-        bytes memory body = Bytes.concat(
-            Bytes.concat(prefixBytes, zeroBytes),
-            addrBytes
-        );
-        uint8 checksum = checksumOf(body);
-        bytes memory result = abi.encodePacked(body, checksum);
-        return Bytes.toBytes32(result);
-    }
-
-    function deriveSubstrateAddress(address addr) internal pure returns (bytes32) {
-        return fromAddress(addr);
-    }
-
-    function deriveEthereumAddress(bytes32 accountId) internal pure returns (address) {
-        bytes memory accountIdBytes = abi.encodePacked(accountId);
-        if (isDerivedSubstrateAddress(accountIdBytes)) {
-            return bytesToAddress(Bytes.substr(accountIdBytes, 11, 20));
-        } else {
-            return bytesToAddress(Bytes.substr(accountIdBytes, 0, 20));
-        }
-    }
-
-    function isDerivedSubstrateAddress(bytes memory accountIdBytes) internal pure returns (bool) {
-        bytes memory prefix = Bytes.concat(prefixBytes, zeroBytes);
-        bool correct_prefix = Bytes.equals(Bytes.substr(accountIdBytes, 0, 11), prefix);
-        bool correct_checksum = Bytes.equals(Bytes.substr(accountIdBytes, 31), abi.encodePacked(checksumOf(accountIdBytes)));
-        return correct_prefix && correct_checksum;
-    }
-
-    function checksumOf(bytes memory accountId) private pure returns (uint8) {
-        uint8 checksum = uint8(accountId[0]);
-        for (uint i = 1; i <= 30; i++) {
-            checksum = checksum ^ uint8(accountId[i]);
-        }
-        return checksum;
-    }
-
-    function bytesToAddress(bytes memory bys) private pure returns (address addr) {
-        assembly {
-            addr := mload(add(bys,20))
-        } 
-    }
-}
-
-// File @darwinia/contracts-utils/contracts/Blake2b.sol@v1.0.3
-/*
- * Blake2b library in Solidity using EIP-152
- *
- * Copyright (C) 2019 Alex Beregszaszi
- *
- * License: Apache 2.0
- */
-
-// License-Identifier: MIT
-
-pragma experimental ABIEncoderV2;
-
-library Blake2b {
-    struct Instance {
-        // This is a bit misleadingly called state as it not only includes the Blake2 state,
-        // but every field needed for the "blake2 f function precompile".
-        //
-        // This is a tightly packed buffer of:
-        // - rounds: 32-bit BE
-        // - h: 8 x 64-bit LE
-        // - m: 16 x 64-bit LE
-        // - t: 2 x 64-bit LE
-        // - f: 8-bit
-        bytes state;
-        // Expected output hash length. (Used in `finalize`.)
-        uint out_len;
-        // Data passed to "function F".
-        // NOTE: this is limited to 24 bits.
-        uint input_counter;
-    }
-
-    // Initialise the state with a given `key` and required `out_len` hash length.
-    function init(bytes memory key, uint out_len)
-        internal
-        view
-        returns (Instance memory instance)
-    {
-        // Safety check that the precompile exists.
-        // TODO: remove this?
-        // assembly {
-        //    if eq(extcodehash(0x09), 0) { revert(0, 0) }
-        //}
-
-        reset(instance, key, out_len);
-    }
-
-    // Initialise the state with a given `key` and required `out_len` hash length.
-    function reset(Instance memory instance, bytes memory key, uint out_len)
-        internal
-        view
-    {
-        instance.out_len = out_len;
-        instance.input_counter = 0;
-
-        // This is entire state transmitted to the precompile.
-        // It is byteswapped for the encoding requirements, additionally
-        // the IV has the initial parameter block 0 XOR constant applied, but
-        // not the key and output length.
-        instance.state = hex"0000000c08c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-        bytes memory state = instance.state;
-
-        // Update parameter block 0 with key length and output length.
-        uint key_len = key.length;
-        assembly {
-            let ptr := add(state, 36)
-            let tmp := mload(ptr)
-            let p0 := or(shl(240, key_len), shl(248, out_len))
-            tmp := xor(tmp, p0)
-            mstore(ptr, tmp)
-        }
-
-        // TODO: support salt and personalization
-
-        if (key_len > 0) {
-            require(key_len == 64);
-            // FIXME: the key must be zero padded
-            assert(key.length == 128);
-            update(instance, key, key_len);
-        }
-    }
-
-    // This calls the blake2 precompile ("function F of the spec").
-    // It expects the state was updated with the next block. Upon returning the state will be updated,
-    // but the supplied block data will not be cleared.
-    function call_function_f(Instance memory instance)
-        private
-        view
-    {
-        bytes memory state = instance.state;
-        assembly {
-            let state_ptr := add(state, 32)
-            if iszero(staticcall(not(0), 0x09, state_ptr, 0xd5, add(state_ptr, 4), 0x40)) {
-                revert(0, 0)
-            }
-        }
-    }
-
-    // This function will split blocks correctly and repeatedly call the precompile.
-    // NOTE: this is dumb right now and expects `data` to be 128 bytes long and padded with zeroes,
-    //       hence the real length is indicated with `data_len`
-    function update_loop(Instance memory instance, bytes memory data, uint data_len, bool last_block)
-        private
-        view
-    {
-        bytes memory state = instance.state;
-        uint input_counter = instance.input_counter;
-
-        // This is the memory location where the "data block" starts for the precompile.
-        uint state_ptr;
-        assembly {
-            // The `rounds` field is 4 bytes long and the `h` field is 64-bytes long.
-            // Also adjust for the size of the bytes type.
-            state_ptr := add(state, 100)
-        }
-
-        // This is the memory location where the input data resides.
-        uint data_ptr;
-        assembly {
-            data_ptr := add(data, 32)
-        }
-
-        uint len = data.length;
-        while (len > 0) {
-            if (len >= 128) {
-                assembly {
-                    mstore(state_ptr, mload(data_ptr))
-                    data_ptr := add(data_ptr, 32)
-
-                    mstore(add(state_ptr, 32), mload(data_ptr))
-                    data_ptr := add(data_ptr, 32)
-
-                    mstore(add(state_ptr, 64), mload(data_ptr))
-                    data_ptr := add(data_ptr, 32)
-
-                    mstore(add(state_ptr, 96), mload(data_ptr))
-                    data_ptr := add(data_ptr, 32)
-                }
-
-                len -= 128;
-                // FIXME: remove this once implemented proper padding
-                if (data_len < 128) {
-                    input_counter += data_len;
-                } else {
-                    data_len -= 128;
-                    input_counter += 128;
-                }
-            } else {
-                // FIXME: implement support for smaller than 128 byte blocks
-                revert();
-            }
-
-            // Set length field (little-endian) for maximum of 24-bits.
-            assembly {
-                mstore8(add(state, 228), and(input_counter, 0xff))
-                mstore8(add(state, 229), and(shr(8, input_counter), 0xff))
-                mstore8(add(state, 230), and(shr(16, input_counter), 0xff))
-            }
-
-            // Set the last block indicator.
-            // Only if we've processed all input.
-            if (len == 0) {
-                assembly {
-                    // Writing byte 212 here.
-                    mstore8(add(state, 244), last_block)
-                }
-            }
-
-            // Call the precompile
-            call_function_f(instance);
-        }
-
-        instance.input_counter = input_counter;
-    }
-
-    // Update the state with a non-final block.
-    // NOTE: the input must be complete blocks.
-    function update(Instance memory instance, bytes memory data, uint data_len)
-        internal
-        view
-    {
-        require((data.length % 128) == 0);
-        update_loop(instance, data, data_len, false);
-    }
-
-    // Update the state with a final block and return the hash.
-    function finalize(Instance memory instance, bytes memory data)
-        internal
-        view
-        returns (bytes memory output)
-    {
-        // FIXME: support incomplete blocks (zero pad them)
-        uint input_length = data.length;
-        if (input_length == 0 || (input_length % 128) != 0) {
-            data = concat(data, new bytes(128 - (input_length % 128)));
-        }
-        assert((data.length % 128) == 0);
-        update_loop(instance, data, input_length, true);
-
-        // FIXME: support other lengths
-        // assert(instance.out_len == 64);
-
-        bytes memory state = instance.state;
-        output = new bytes(instance.out_len);
-        if(instance.out_len == 32) {
-            assembly {
-                mstore(add(output, 32), mload(add(state, 36)))
-            }
-        } else {
-            assembly {
-                mstore(add(output, 32), mload(add(state, 36)))
-                mstore(add(output, 64), mload(add(state, 68)))
-            }
-        }
-    }
-
-    function concat(
-        bytes memory _preBytes,
-        bytes memory _postBytes
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory tempBytes;
-
-        assembly {
-            // Get a location of some free memory and store it in tempBytes as
-            // Solidity does for memory variables.
-            tempBytes := mload(0x40)
-
-            // Store the length of the first bytes array at the beginning of
-            // the memory for tempBytes.
-            let length := mload(_preBytes)
-            mstore(tempBytes, length)
-
-            // Maintain a memory counter for the current write location in the
-            // temp bytes array by adding the 32 bytes for the array length to
-            // the starting location.
-            let mc := add(tempBytes, 0x20)
-            // Stop copying when the memory counter reaches the length of the
-            // first bytes array.
-            let end := add(mc, length)
-
-            for {
-                // Initialize a copy counter to the start of the _preBytes data,
-                // 32 bytes into its memory.
-                let cc := add(_preBytes, 0x20)
-            } lt(mc, end) {
-                // Increase both counters by 32 bytes each iteration.
-                mc := add(mc, 0x20)
-                cc := add(cc, 0x20)
-            } {
-                // Write the _preBytes data into the tempBytes memory 32 bytes
-                // at a time.
-                mstore(mc, mload(cc))
-            }
-
-            // Add the length of _postBytes to the current length of tempBytes
-            // and store it as the new length in the first 32 bytes of the
-            // tempBytes memory.
-            length := mload(_postBytes)
-            mstore(tempBytes, add(length, mload(tempBytes)))
-
-            // Move the memory counter back from a multiple of 0x20 to the
-            // actual end of the _preBytes data.
-            mc := end
-            // Stop copying when the memory counter reaches the new combined
-            // length of the arrays.
-            end := add(mc, length)
-
-            for {
-                let cc := add(_postBytes, 0x20)
-            } lt(mc, end) {
-                mc := add(mc, 0x20)
-                cc := add(cc, 0x20)
-            } {
-                mstore(mc, mload(cc))
-            }
-
-            // Update the free-memory pointer by padding our last write location
-            // to 32 bytes: add 31 bytes to the end of tempBytes to move to the
-            // next 32 byte block, then round down to the nearest multiple of
-            // 32. If the sum of the length of the two arrays is zero then add
-            // one before rounding down to leave a blank 32 bytes (the length block with 0).
-            mstore(0x40, and(
-              add(add(end, iszero(add(length, mload(_preBytes)))), 31),
-              not(31) // Round down to the nearest 32 bytes.
-            ))
-        }
-
-        return tempBytes;
-    }
-
-}
-
-// File @darwinia/contracts-utils/contracts/Hash.sol@v1.0.3
-// License-Identifier: MIT
-
-
-// import "./Memory.sol";
-
-
-library Hash {
-
-    using Blake2b for Blake2b.Instance;
-
-    // function hash(bytes memory src) internal view returns (bytes memory des) {
-    //     return Memory.toBytes(keccak256(src));
-        // Blake2b.Instance memory instance = Blake2b.init(hex"", 32);
-        // return instance.finalize(src);
-    // }
-
-    function blake2bHash(bytes memory src) internal view returns (bytes32 des) {
-        // return keccak256(src);
-        Blake2b.Instance memory instance = Blake2b.init(hex"", 32);
-        return abi.decode(instance.finalize(src), (bytes32));
-    }
-
-    // Blake2_128
-    function blake2b128(bytes memory src) internal view returns (bytes16 des) {
-        Blake2b.Instance memory instance = Blake2b.init(hex"", 16);
-        return Bytes.toBytes16(instance.finalize(src), 0);
-    }
-
-    // Blake2_128Concat
-    function blake2b128Concat(bytes memory src) internal view returns (bytes memory) {
-        bytes16 out = blake2b128(src);
-        return abi.encodePacked(out, src);
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/Utils.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-library Utils {
-    function revertIfFailed(
-        bool _success,
-        bytes memory _resultData,
-        string memory _revertMsg
-    ) internal pure {
-        if (!_success) {
-            if (_resultData.length > 0) {
-                assembly {
-                    let resultDataSize := mload(_resultData)
-                    revert(add(32, _resultData), resultDataSize)
-                }
-            } else {
-                revert(_revertMsg);
-            }
-        }
-    }
-
-    function bytesToAddress(bytes memory bys)
-        internal
-        pure
-        returns (address addr)
-    {
-        assembly {
-            addr := mload(add(bys, 20))
-        }
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/interfaces/IStateStorage.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-interface IStateStorage {
-    function state_storage(bytes memory key) external view returns (bytes memory);
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/types/PalletBridgeMessages.sol@v2.0.5-pre3
+// File @darwinia/contracts-periphery/contracts/s2s/MessageEndpoint.sol@vv2.1.0-pre6
 // License-Identifier: MIT
 
 
 
-library PalletBridgeMessages {
-    struct SendMessageCall {
-        bytes2 callIndex;
-        bytes4 laneId;
-        bytes message;
-        uint128 deliveryAndDispatchFee;
-    }
-
-    function encodeSendMessageCall(SendMessageCall memory _call)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                _call.callIndex,
-                _call.laneId,
-                _call.message,
-                ScaleCodec.encode128(_call.deliveryAndDispatchFee)
-            );
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/types/PalletEthereumXcm.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-
-
-library PalletEthereumXcm {
-    ///////////////////////
-    // Calls
-    ///////////////////////
-    struct TransactCall {
-        bytes2 callIndex;
-        EthereumXcmTransaction transaction;
-    }
-
-    function encodeTransactCall(TransactCall memory _call)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                _call.callIndex,
-                encodeEthereumXcmTransaction(_call.transaction)
-            );
-    }
-
-    function buildTransactCall(
-        bytes2 _callIndex,
-        uint256 _gasLimit,
-        address _to,
-        uint256 _value,
-        bytes memory _input
-    ) internal pure returns (bytes memory) {
-        AccessListType memory accessList;
-        accessList.some = false;
-
-        TransactCall memory transactCall = TransactCall(
-            _callIndex,
-            EthereumXcmTransaction(
-                1, // V2
-                EthereumXcmTransactionV2(
-                    _gasLimit,
-                    TransactionAction(
-                        0, // 0: Call, 1: Create
-                        _to
-                    ),
-                    _value,
-                    _input,
-                    accessList
-                )
-            )
-        );
-
-        return PalletEthereumXcm.encodeTransactCall(transactCall);
-    }
-
-    ///////////////////////
-    // Types
-    ///////////////////////
-    struct EthereumXcmTransaction {
-        uint8 enumItemIndex;
-        EthereumXcmTransactionV2 transaction;
-    }
-
-    function encodeEthereumXcmTransaction(EthereumXcmTransaction memory _tx)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                _tx.enumItemIndex,
-                encodeEthereumXcmTransactionV2(_tx.transaction)
-            );
-    }
-
-    struct EthereumXcmTransactionV2 {
-        uint256 gasLimit;
-        TransactionAction action;
-        uint256 value;
-        bytes input;
-        AccessListType accessList;
-    }
-
-    function encodeEthereumXcmTransactionV2(EthereumXcmTransactionV2 memory _tx)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                ScaleCodec.encode256(_tx.gasLimit),
-                encodeTransactionAction(_tx.action),
-                ScaleCodec.encode256(_tx.value),
-                ScaleCodec.encodeBytes(_tx.input),
-                encodeAccessListType(_tx.accessList)
-            );
-    }
-
-    struct TransactionAction {
-        uint8 enumItemIndex;
-        address h160;
-    }
-
-    function encodeTransactionAction(TransactionAction memory _action)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(_action.enumItemIndex, _action.h160);
-    }
-
-    // struct AccessListTypeNone {
-
-    // }
-
-    struct AccessListType {
-        bool some; // true: Some, false: None
-        TupleOfH160AndVecOfH256[] arr;
-    }
-
-    struct TupleOfH160AndVecOfH256 {
-        address h160;
-        bytes32[] vecOfH256;
-    }
-
-    function encodeAccessListType(AccessListType memory _accessList)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        if (_accessList.some) {
-            bytes memory data = hex"01";
-            data = abi.encodePacked(
-                data,
-                ScaleCodec.encodeUintCompact(_accessList.arr.length)
-            );
-            for (uint i = 0; i < _accessList.arr.length; i++) {
-                TupleOfH160AndVecOfH256 memory tuple = _accessList.arr[i];
-                data = abi.encodePacked(data, tuple.h160);
-                data = abi.encodePacked(
-                    data,
-                    ScaleCodec.encodeUintCompact(tuple.vecOfH256.length)
-                );
-                for (uint j = 0; j < tuple.vecOfH256.length; j++) {
-                    data = abi.encodePacked(data, tuple.vecOfH256[j]);
-                }
-            }
-            return data;
-        } else {
-            return hex"00";
-        }
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/types/TypeUtils.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-library TypeUtils {
-    function encodeEnumItem(uint8 _enumItemIndex, bytes memory _enumItemData)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(_enumItemIndex, _enumItemData);
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/types/XcmTypes.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-
-
-library XcmTypes {
-    struct EnumItem_VersionedXcm_V2 {
-        Xcm xcm;
-    }
-
-    function encodeEnumItem_VersionedXcm_V2(
-        EnumItem_VersionedXcm_V2 memory _obj
-    ) internal pure returns (bytes memory) {
-        return TypeUtils.encodeEnumItem(2, encodeXcm(_obj.xcm));
-    }
-
-    struct Xcm {
-        EnumItem_Instruction_Transact transact;
-    }
-
-    function encodeXcm(Xcm memory _obj) internal pure returns (bytes memory) {
-        bytes memory data = ScaleCodec.encodeUintCompact(1); // 1 instructions
-        return
-            abi.encodePacked(
-                data,
-                encodeEnumItem_Instruction_Transact(_obj.transact)
-            );
-    }
-
-    // *** Instruction::DescendOrigin ***
-    struct EnumItem_Instruction_DescendOrigin {
-        EnumItem_Junctions_X1 location;
-    }
-
-    function encodeEnumItem_Instruction_DescendOrigin(
-        EnumItem_Instruction_DescendOrigin memory _obj
-    ) internal pure returns (bytes memory) {
-        return
-            TypeUtils.encodeEnumItem(
-                11,
-                encodeEnumItem_Junctions_X1(_obj.location)
-            );
-    }
-
-    //
-    struct EnumItem_Junctions_X1 {
-        EnumItem_Junction_AccountKey20 junction;
-    }
-
-    function encodeEnumItem_Junctions_X1(EnumItem_Junctions_X1 memory _obj)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            TypeUtils.encodeEnumItem(
-                1,
-                encodeEnumItem_Junction_AccountKey20(_obj.junction)
-            );
-    }
-
-    //
-    struct EnumItem_Junction_AccountKey20 {
-        EnumItem_NetworkId_Named network;
-        address key;
-    }
-
-    function encodeEnumItem_Junction_AccountKey20(
-        EnumItem_Junction_AccountKey20 memory _obj
-    ) internal pure returns (bytes memory) {
-        return
-            TypeUtils.encodeEnumItem(
-                3,
-                abi.encodePacked(
-                    encodeEnumItem_NetworkId_Named(_obj.network),
-                    _obj.key
-                )
-            );
-    }
-
-    //
-    struct EnumItem_NetworkId_Named {
-        bytes named;
-    }
-
-    function encodeEnumItem_NetworkId_Named(
-        EnumItem_NetworkId_Named memory _obj
-    ) internal pure returns (bytes memory) {
-        return
-            TypeUtils.encodeEnumItem(
-                1,
-                abi.encodePacked(
-                    ScaleCodec.encodeUintCompact(_obj.named.length),
-                    _obj.named
-                )
-            );
-    }
-
-    // *** Instruction::Transact ***
-    struct EnumItem_Instruction_Transact {
-        uint8 originType;
-        uint64 requireWeightAtMost;
-        bytes call; // without length prefix
-    }
-
-    function encodeEnumItem_Instruction_Transact(
-        EnumItem_Instruction_Transact memory _transact
-    ) internal pure returns (bytes memory) {
-        require(_transact.call.length > 0, "Empty call");
-        require(_transact.originType <= 3, "Illegal originType");
-        bytes memory data = abi.encodePacked(
-            _transact.originType,
-            ScaleCodec.encodeUintCompact(_transact.requireWeightAtMost),
-            ScaleCodec.encodeUintCompact(_transact.call.length),
-            _transact.call
-        );
-        return TypeUtils.encodeEnumItem(6, data);
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/types/PalletMessageRouter.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-
-
-
-library PalletMessageRouter {
-    ///////////////////////
-    // Calls
-    ///////////////////////
-    struct ForwardCall {
-        bytes2 callIndex;
-        uint8 target;
-        XcmTypes.EnumItem_VersionedXcm_V2 message;
-    }
-
-    function encodeForwardCall(ForwardCall memory _call)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(
-                _call.callIndex,
-                _call.target,
-                XcmTypes.encodeEnumItem_VersionedXcm_V2(_call.message)
-            );
-    }
-
-    function buildForwardCall(
-        bytes2 _callIndex,
-        uint8 _target,
-        bytes memory _callOnTarget,
-        uint64 _requireWeightAtMost
-    ) internal pure returns (bytes memory) {
-        // Message to be sent to target
-        XcmTypes.EnumItem_VersionedXcm_V2 memory message = buildXcmToBeForward(_callOnTarget, _requireWeightAtMost);
-
-        // ForwardToMoonbeamCall
-        PalletMessageRouter.ForwardCall
-            memory call = PalletMessageRouter.ForwardCall(
-                _callIndex,
-                _target,
-                message
-            );
-
-        return PalletMessageRouter.encodeForwardCall(call);
-    }
-
-    function buildXcmToBeForward(
-        bytes memory _dispatchCallOnTarget,
-        uint64 _requireWeightAtMost
-    ) internal pure returns (XcmTypes.EnumItem_VersionedXcm_V2 memory) {
-        return XcmTypes.EnumItem_VersionedXcm_V2(
-            XcmTypes.Xcm(
-                XcmTypes.EnumItem_Instruction_Transact(
-                    1, // originType: SovereignAccount
-                    _requireWeightAtMost,
-                    _dispatchCallOnTarget
-                )
-            )
-        );
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/precompiles/moonbeam/IXcmUtils.sol@v2.0.5-pre3
-// License-Identifier: GPL-3.0-only
-
-/// @title Xcm Utils Interface
-/// The interface through which solidity contracts will interact with xcm utils pallet
-/// @custom:address 0x000000000000000000000000000000000000080C
-
-interface IXcmUtils {
-    // A multilocation is defined by its number of parents and the encoded junctions (interior)
-    struct Multilocation {
-        uint8 parents;
-        bytes[] interior;
-    }
-
-    /// Get retrieve the account associated to a given MultiLocation
-    /// @custom:selector 343b3e00
-    /// @param multilocation The multilocation that we want to know to which account maps to
-    /// @return account The account the multilocation maps to in this chain
-    function multilocationToAddress(Multilocation memory multilocation)
-        external
-        view
-        returns (address account);
-
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/precompiles/moonbeam/XcmUtils.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-
-
-library XcmUtils {
-    address public constant precompileAddress = 
-        0x000000000000000000000000000000000000080C;
-
-    function multilocationToAddress(
-        IXcmUtils.Multilocation memory multilocation
-    ) internal view returns (address) {
-        // call multilocationToAddress(moonbeam's precompile)
-        (
-            bool success,
-            bytes memory data
-        ) = precompileAddress.staticcall(
-                abi.encodeWithSelector(
-                    IXcmUtils.multilocationToAddress.selector,
-                    multilocation
-                )
-            );
-
-        Utils.revertIfFailed(success, data, "Multilocation to address failed");
-
-        return Utils.bytesToAddress(Bytes.substr(data, 12));
-    }
-
-    function deriveMoonbeamAddressFromAccountId(
-        bytes memory _parachainId,
-        bytes32 _accountId
-    ) internal view returns (address) {
-        // build multilocation
-        bytes[] memory interior = new bytes[](2);
-        interior[0] = abi.encodePacked(hex"00", _parachainId);
-        interior[1] = abi.encodePacked(bytes1(0x01), _accountId, bytes1(0x00));
-        IXcmUtils.Multilocation memory multilocation = IXcmUtils.Multilocation(
-            1,
-            interior
-        );
-
-        return multilocationToAddress(multilocation);
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/precompiles/moonbeam/IXcmTransactorV1.sol@v2.0.5-pre3
-// License-Identifier: GPL-3.0-only
-
-/// @author The Moonbeam Team
-/// @title Xcm Transactor Interface
-/// @dev The interface through which solidity contracts will interact with xcm transactor pallet
-/// @custom:address 0x0000000000000000000000000000000000000806
-interface IXcmTransactorV1 {
-    // A multilocation is defined by its number of parents and the encoded junctions (interior)
-    struct Multilocation {
-        uint8 parents;
-        bytes[] interior;
-    }
-
-    /// Get index of an account in xcm transactor
-    /// @custom:selector 3fdc4f36
-    /// @param index The index of which we want to retrieve the account
-    /// @return owner The owner of the derivative index
-    ///
-    function indexToAccount(uint16 index) external view returns(address owner);
-
-    /// DEPRECATED, replaced by transactInfoWithSigned
-    /// Get transact info of a multilocation
-    /// @custom:selector d07d87c3
-    /// @param multilocation The location for which we want to know the transact info
-    /// @return transactExtraWeight The extra weight involved in the XCM message of using derivative
-    /// @return feePerSecond The amount of fee charged for a second of execution in the dest
-    /// @return maxWeight Maximum allowed weight for a single message in dest
-    ///
-    function transactInfo(Multilocation memory multilocation)
-        external
-        view
-        returns (
-            uint64 transactExtraWeight,
-            uint256 feePerSecond,
-            uint64 maxWeight
-        );
-
-    /// Get transact info of a multilocation
-    /// @custom:selector b689e20c
-    /// @param multilocation The location for which we want to know the transact info
-    /// @return transactExtraWeight The extra weight involved in the XCM message of using derivative
-    /// @return transactExtraWeightSigned The extra weight involved in the XCM message of using signed
-    /// @return maxWeight Maximum allowed weight for a single message in dest
-    ///
-    function transactInfoWithSigned(Multilocation memory multilocation)
-        external
-        view
-        returns (
-            uint64 transactExtraWeight,
-            uint64 transactExtraWeightSigned,
-            uint64 maxWeight
-        );
-
-    /// Get fee per second charged in its reserve chain for an asset
-    /// @custom:selector 906c9990
-    /// @param multilocation The asset location for which we want to know the fee per second value
-    /// @return feePerSecond The fee per second that the reserve chain charges for this asset
-    ///
-    function feePerSecond(Multilocation memory multilocation)
-        external
-        view
-        returns (uint256 feePerSecond);
-
-    /// Transact through XCM using fee based on its multilocation
-    /// @custom:selector 94a63c54
-    /// @dev The token transfer burns/transfers the corresponding amount before sending
-    /// @param transactor The transactor to be used
-    /// @param index The index to be used
-    /// @param feeAsset The asset in which we want to pay fees. 
-    /// It has to be a reserve of the destination chain
-    /// @param weight The weight we want to buy in the destination chain
-    /// @param innerCall The inner call to be executed in the destination chain
-    function transactThroughDerivativeMultilocation(
-        uint8 transactor,
-        uint16 index,
-        Multilocation memory feeAsset,
-        uint64 weight,
-        bytes memory innerCall
-    ) external;
-
-    /// Transact through XCM using fee based on its currencyId
-    /// @custom:selector 02ae072d
-    /// @dev The token transfer burns/transfers the corresponding amount before sending
-    /// @param transactor The transactor to be used
-    /// @param index The index to be used
-    /// @param currencyId Address of the currencyId of the asset to be used for fees
-    /// It has to be a reserve of the destination chain
-    /// @param weight The weight we want to buy in the destination chain
-    /// @param innerCall The inner call to be executed in the destination chain
-    function transactThroughDerivative(
-        uint8 transactor,
-        uint16 index,
-        address currencyId,
-        uint64 weight,
-        bytes memory innerCall
-    ) external;
-
-    /// Transact through XCM using fee based on its multilocation through signed origins
-    /// @custom:selector 71d31587
-    /// @dev No token is burnt before sending the message. The caller must ensure the destination
-    /// is able to undertand the DescendOrigin message, and create a unique account from which
-    /// dispatch the call
-    /// @param dest The destination chain (as multilocation) where to send the message
-    /// @param feeLocation The asset multilocation that indentifies the fee payment currency
-    /// It has to be a reserve of the destination chain
-    /// @param weight The weight we want to buy in the destination chain for the call to be made
-    /// @param call The call to be executed in the destination chain
-    function transactThroughSignedMultilocation(
-        Multilocation memory dest,
-        Multilocation memory feeLocation,
-        uint64 weight,
-        bytes memory call
-    ) external;
-
-    /// Transact through XCM using fee based on its erc20 address through signed origins
-    /// @custom:selector 42ca339d
-    /// @dev No token is burnt before sending the message. The caller must ensure the destination
-    /// is able to undertand the DescendOrigin message, and create a unique account from which
-    /// dispatch the call
-    /// @param dest The destination chain (as multilocation) where to send the message
-    /// @param feeLocationAddress The ERC20 address of the token we want to use to pay for fees
-    /// only callable if such an asset has been BRIDGED to our chain
-    /// @param weight The weight we want to buy in the destination chain for the call to be made
-    /// @param call The call to be executed in the destination chain
-    function transactThroughSigned(
-        Multilocation memory dest,
-        address feeLocationAddress,
-        uint64 weight,
-        bytes memory call
-    ) external;
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/precompiles/moonbeam/XcmTransactorV1.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-
-library XcmTransactorV1 {
-    address public constant precompileAddress =
-        0x0000000000000000000000000000000000000806;
-
-    function transactThroughSigned(
-        bytes4 _tgtParachainId,
-        address _feeLocationAddress,
-        uint64 _tgtCallWeight,
-        bytes memory _tgtCallEncoded
-    ) internal {
-        bytes[] memory interior = new bytes[](1);
-        interior[0] = abi.encodePacked(hex"00", _tgtParachainId);
-        IXcmTransactorV1.Multilocation memory dest = IXcmTransactorV1
-            .Multilocation(1, interior);
-        
-        IXcmTransactorV1(precompileAddress).transactThroughSigned(
-            dest,
-            _feeLocationAddress,
-            _tgtCallWeight,
-            _tgtCallEncoded
-        );
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/SmartChainXLib.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-
-
-
-
-
-
-
-
-
-// import "./precompiles/moonbeam/IXcmTransactorV1.sol";
-
-library SmartChainXLib {
-    bytes public constant account_derivation_prefix =
-        "pallet-bridge/account-derivation/account";
-
-    event LcmpMessngeGenerated(bytes);
-    event DispatchResult(bool success, bytes result);
-
-    // Dispatch a call on the remote blockchain
-    function remoteDispatch(
-        uint32 _tgtSpecVersion,
-        bytes memory _tgtCallEncoded,
-        uint64 _tgtCallWeight,
-        //
-        address _dispatchPrecompileAddress,
-        bytes2 _sendMessageCallIndex,
-        bytes4 _outboundLaneId,
-        address _storagePrecompileAddress,
-        bytes32 _storageKeyForLatestNonce
-    ) internal returns (uint64) {
-        // Build the encoded message to be sent
-        bytes memory message = buildMessage(
-            _tgtSpecVersion,
-            _tgtCallWeight,
-            _tgtCallEncoded
-        );
-
-        emit LcmpMessngeGenerated(message);
-
-        // Send the message
-        sendMessage(
-            _dispatchPrecompileAddress,
-            _sendMessageCallIndex,
-            _outboundLaneId,
-            msg.value,
-            message
-        );
-
-        // Get nonce from storage
-        uint64 nonce = latestNonce(
-            _storagePrecompileAddress,
-            _storageKeyForLatestNonce,
-            _outboundLaneId
-        );
-
-        return nonce;
-    }
-
-    // Send message over lane by calling the `send_message` dispatch call on
-    // the source chain which is identified by the `callIndex` param.
-    function sendMessage(
-        address _srcDispatchPrecompileAddress,
-        bytes2 _callIndex,
-        bytes4 _laneId,
-        uint256 _deliveryAndDispatchFee,
-        bytes memory _message
-    ) internal {
-        // the fee precision in the contracts is 18, but on chain is 9, transform the fee amount.
-        uint256 feeOfPalletPrecision = _deliveryAndDispatchFee / (10**9);
-
-        // encode send_message call
-        PalletBridgeMessages.SendMessageCall
-            memory sendMessageCall = PalletBridgeMessages.SendMessageCall(
-                _callIndex,
-                _laneId,
-                _message,
-                uint128(feeOfPalletPrecision)
-            );
-
-        bytes memory sendMessageCallEncoded = PalletBridgeMessages
-            .encodeSendMessageCall(sendMessageCall);
-
-        // dispatch the send_message call
-        dispatch(
-            _srcDispatchPrecompileAddress,
-            sendMessageCallEncoded,
-            "Dispatch send_message failed"
-        );
-    }
-
-    // Build the scale encoded message for the target chain.
-    function buildMessage(
-        uint32 _specVersion,
-        uint64 _weight,
-        bytes memory _call
-    ) internal view returns (bytes memory) {
-        CommonTypes.EnumItemWithAccountId memory origin = CommonTypes
-            .EnumItemWithAccountId(
-                2, // index in enum
-                AccountId.fromAddress(address(this)) // UserApp contract address
-            );
-
-        CommonTypes.EnumItemWithNull memory dispatchFeePayment = CommonTypes
-            .EnumItemWithNull(0);
-
-        return
-            CommonTypes.encodeMessage(
-                CommonTypes.Message(
-                    _specVersion,
-                    _weight,
-                    origin,
-                    dispatchFeePayment,
-                    _call
-                )
-            );
-    }
-
-    // Get market fee from state storage of the substrate chain
-    function marketFee(
-        address _srcStoragePrecompileAddress,
-        bytes32 _storageKey
-    ) internal view returns (uint256) {
-        bytes memory data = getStateStorage(
-            _srcStoragePrecompileAddress,
-            abi.encodePacked(_storageKey),
-            "Get market fee failed"
-        );
-
-        CommonTypes.Relayer memory relayer = CommonTypes.getLastRelayerFromVec(
-            data
-        );
-        return relayer.fee * 10**9;
-    }
-
-    // Get the latest nonce from state storage
-    function latestNonce(
-        address _srcStoragePrecompileAddress,
-        bytes32 _storageKey,
-        bytes4 _laneId
-    ) internal view returns (uint64) {
-        // 1. Get `OutboundLaneData` from storage
-        // Full storage key == storageKey + Blake2_128Concat(laneId)
-        bytes memory hashedLaneId = Hash.blake2b128Concat(
-            abi.encodePacked(_laneId)
-        );
-        bytes memory fullStorageKey = abi.encodePacked(
-            _storageKey,
-            hashedLaneId
-        );
-
-        // Do get data by calling state storage precompile
-        bytes memory data = getStateStorage(
-            _srcStoragePrecompileAddress,
-            fullStorageKey,
-            "Get OutboundLaneData failed"
-        );
-
-        // 2. Decode `OutboundLaneData` and return the latest nonce
-        if (data.length == 0) {
-            return 0;
-        } else {
-            CommonTypes.OutboundLaneData memory outboundLaneData = CommonTypes
-                .decodeOutboundLaneData(data);
-            return outboundLaneData.latestGeneratedNonce;
-        }
-    }
-
-    function deriveAccountId(bytes4 _srcChainId, bytes32 _accountId)
-        internal
-        view
-        returns (bytes32)
-    {
-        bytes memory prefixLength = ScaleCodec.encodeUintCompact(
-            account_derivation_prefix.length
-        );
-        bytes memory data = abi.encodePacked(
-            prefixLength,
-            account_derivation_prefix,
-            _srcChainId,
-            _accountId
-        );
-        return Hash.blake2bHash(data);
-    }
-
-    // dispatch pallet dispatch-call
-    function dispatch(
-        address _srcDispatchPrecompileAddress,
-        bytes memory _callEncoded,
-        string memory _errMsg
-    ) internal {
-        // Dispatch the call
-        (bool success, bytes memory data) = _srcDispatchPrecompileAddress.call(
-            _callEncoded
-        );
-        Utils.revertIfFailed(success, data, _errMsg);
-    }
-
-    function deriveSenderFromAccountId(
-        bytes4 _srcChainId,
-        bytes32 _messageSender
-    ) internal view returns (address) {
-        // AccountId32 > derived AccountId32
-        bytes32 derivedAccountId = deriveAccountId(
-            _srcChainId,
-            _messageSender
-        );
-
-        // derived AccountId32 > H160
-        return AccountId.deriveEthereumAddress(derivedAccountId);
-    }
-
-    // derive an address from remote sender address (sender on the source chain).
-    //
-    // * `Darwinia Smart Chain` to `Darwinia Smart Chain`
-    //   H160          =>          AccountId32        =>        derived AccountId32       =>       H160
-    //     |------ e2s addr mapping ----||---- crosschain derive -------||---- s2e addr mapping -----|
-    //     |-------- on source ---------||------------------------ on target ------------------------|
-    //
-    // * `Moonbeam` to `Darwinia Parachain` to `Darwinia Smart Chain`
-    //   H160          =>          AccountId32        =>        derived AccountId32       =>       H160
-    //     |------ e2s addr mapping ----||---- crosschain derive -------||---- s2e addr mapping -----|
-    //     |-------- on darwinia PC ----||------------------------ on target ------------------------|
-    //
-    // e2s addr mapping, s2e addr mapping
-    // https://github.com/darwinia-network/darwinia/wiki/Darwinia-Address-Format-Overview
-    //
-    // crosschain derive
-    // https://github.com/darwinia-network/darwinia-messages-substrate/blob/c3f10155a2650850ffa8998e5f98617e1aded55a/primitives/runtime/src/lib.rs#L107
-    function deriveSenderFromRemote(
-        bytes4 _srcChainId,
-        address _srcMessageSender
-    ) internal view returns (address) {
-        // H160(sender on the source chain) > AccountId32
-        bytes32 derivedSubstrateAddress = AccountId.deriveSubstrateAddress(
-            _srcMessageSender
-        );
-
-        return deriveSenderFromAccountId(_srcChainId, derivedSubstrateAddress);
-    }
-
-    // Darwinia > Darwinia Parachain > Moonbeam
-    //    +------------------------------^
-    // returns A2, B, C
-    function deriveSenderFromSmartChainOnMoonbeam(
-        bytes4 _darwiniaChainId,
-        address _darwiniaEndpointAddress,
-        bytes4 _darwiniaParachainId
-    ) internal returns (address) {
-        // H160(sender on the sourc chain) > AccountId32 A1 -> A2
-        bytes32 derivedSubstrateAddress = AccountId.deriveSubstrateAddress(
-            _darwiniaEndpointAddress
-        );
-
-        // AccountId32 > derived AccountId32 A2 -> B
-        bytes32 derivedAccountId = deriveAccountId(
-            _darwiniaChainId,
-            derivedSubstrateAddress
-        );
-
-        // derived AccountId32 > Moonbeam H160 B -> C
-        address result = XcmUtils.deriveMoonbeamAddressFromAccountId(
-            abi.encodePacked(_darwiniaParachainId),
-            derivedAccountId
-        );
-
-        return result;
-    }
-
-    // Get the last delivered nonce from the state storage of the target chain's inbound lane
-    function lastDeliveredNonce(
-        address _tgtStoragePrecompileAddress,
-        bytes32 _storageKey,
-        bytes4 _inboundLaneId
-    ) internal view returns (uint64) {
-        // 1. Get `inboundLaneData` from storage
-        // Full storage key == storageKey + Blake2_128Concat(laneId)
-        bytes memory hashedLaneId = Hash.blake2b128Concat(
-            abi.encodePacked(_inboundLaneId)
-        );
-        bytes memory fullStorageKey = abi.encodePacked(
-            _storageKey,
-            hashedLaneId
-        );
-
-        // Do get data by calling state storage precompile
-        bytes memory data = getStateStorage(
-            _tgtStoragePrecompileAddress,
-            fullStorageKey,
-            "Get InboundLaneData failed"
-        );
-
-        // 2. Decode `InboundLaneData` and return the last delivered nonce
-        return CommonTypes.getLastDeliveredNonceFromInboundLaneData(data);
-    }
-
-    function getStateStorage(
-        address _storagePrecompileAddress,
-        bytes memory _storageKey,
-        string memory _failedMsg
-    ) internal view returns (bytes memory) {
-        (bool success, bytes memory data) = _storagePrecompileAddress
-            .staticcall(
-                abi.encodeWithSelector(
-                    IStateStorage.state_storage.selector,
-                    _storageKey
-                )
-            );
-
-        // TODO: Use try/catch instead for error
-        Utils.revertIfFailed(success, data, _failedMsg);
-
-        return abi.decode(data, (bytes));
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/endpoints/Executable.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-// A dapp can be executed by a inbound message.
-// `execute` function will be invoked by the message.
-abstract contract Executable {
-    address public derivedMessageSender; // message sender derived from remoteEndpoint
-
-    modifier onlyMessageSender() {
-        require(
-            derivedMessageSender == msg.sender,
-            "Invalid sender"
-        );
-        _;
-    }
-
-    function execute(address callReceiver, bytes calldata callPayload)
-        external
-        onlyMessageSender
-    {
-        if (_approved(callReceiver, callPayload)) {
-            (bool success, ) = callReceiver.call(callPayload);
-            require(success, "Call execution failed");
-        } else {
-            revert("Unapproved call");
-        }
-    }
-
-    // Check if the call can be executed
-    function _approved(address callReceiver, bytes calldata callPayload)
-        internal
-        view
-        virtual
-        returns (bool);
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/endpoints/RemoteDispatchEndpoint.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-abstract contract RemoteDispatchEndpoint {
-    address public dispatchAddress;
-    bytes2 public sendMessageCallIndex;
-    address public storageAddress;
+// srcDapp > endpoint[outboundLaneId] > substrate.send_message
+// ->
+// substrate.message_transact > remoteEndpoint[inboundLaneId] > TgtDapp.function
+abstract contract MessageEndpoint {
+    // REMOTE
+    address public remoteEndpoint;
+    // message sender derived from remoteEndpoint
+    address public derivedMessageSender;
+    // call indices
+    bytes2 public remoteMessageTransactCallIndex;
+    // remote smart chain id
+    uint64 public remoteSmartChainId;
+
+    // 1 gas ~= 40_000 weight
+    uint64 public constant REMOTE_WEIGHT_PER_GAS = 40_000;
+
+    // LOCAL
+    // storage keys
+    bytes32 public storageKeyForMarketFee;
     bytes32 public storageKeyForLatestNonce;
     bytes32 public storageKeyForLastDeliveredNonce;
-    bytes32 public storageKeyForMarketFee;
-    bytes4 public outboundLaneId;
-    bytes4 public inboundLaneId;
-    // The chain on which this endpoint deployed
-    bytes4 public chainId;
+    // call indices
+    bytes2 public sendMessageCallIndex;
+
+    // lane ids
+    bytes4 public immutable OUTBOUND_LANE_ID;
+    bytes4 public immutable INBOUND_LANE_ID;
+    uint16 public immutable VERSION;
+    // precompile addresses
+    address public constant STORAGE_ADDRESS =
+        0x0000000000000000000000000000000000000400;
+    address public constant DISPATCH_ADDRESS =
+        0x0000000000000000000000000000000000000401;
+
+    constructor(uint16 version, bytes4 outboundLaneId, bytes4 inboundLaneId) {
+        VERSION = version;
+        OUTBOUND_LANE_ID = outboundLaneId;
+        INBOUND_LANE_ID = inboundLaneId;
+    }
 
     ///////////////////////////////
     // Outbound
     ///////////////////////////////
-    function fee() public view returns (uint256) {
-        return SmartChainXLib.marketFee(storageAddress, storageKeyForMarketFee);
+    function fee() public view returns (uint128) {
+        return MessageLib.marketFee(STORAGE_ADDRESS, storageKeyForMarketFee);
     }
 
-    function _remoteDispatch(
-        uint32 tgtSpecVersion,
-        bytes memory tgtDispatchCallEncoded,
-        uint64 tgtDispatchCallWeight
-    ) internal returns (uint256) {
-        uint64 messageNonce = SmartChainXLib.remoteDispatch(
-            tgtSpecVersion,
-            tgtDispatchCallEncoded,
-            tgtDispatchCallWeight,
-            dispatchAddress,
-            sendMessageCallIndex,
-            outboundLaneId,
-            storageAddress,
-            storageKeyForLatestNonce
-        );
-
-        return encodeMessageId(outboundLaneId, messageNonce);
-    }
-
-    // Dapp use this function to get the derived origin(used on remote chain)
-    function getDerivedAccountId() external view returns (bytes32) {
-        bytes32 derivedSubstrateAddress = AccountId.deriveSubstrateAddress(
-            address(this)
-        );
-
-        bytes32 derivedAccountId = SmartChainXLib.deriveAccountId(
-            chainId,
-            derivedSubstrateAddress
-        );
-
-        return derivedAccountId;
-    }
-
-    ///////////////////////////////
-    // Inbound
-    ///////////////////////////////
-    // Get the last delivered inbound message id
-    function lastDeliveredMessageId() public view returns (uint256) {
-        uint64 nonce = SmartChainXLib.lastDeliveredNonce(
-            storageAddress,
-            storageKeyForLastDeliveredNonce,
-            inboundLaneId
-        );
-        return encodeMessageId(inboundLaneId, nonce);
-    }
-
-    // Check if an inbound message has been delivered
-    function isMessageDelivered(uint256 messageId) public view returns (bool) {
-        (bytes4 laneId, uint64 nonce) = decodeMessageId(messageId);
-        uint64 lastNonce = SmartChainXLib.lastDeliveredNonce(
-            storageAddress,
-            storageKeyForLastDeliveredNonce,
-            laneId
-        );
-        return nonce <= lastNonce;
-    }
-
-    ///////////////////////////////
-    // Common functions
-    ///////////////////////////////
-    function decodeMessageId(uint256 messageId)
-        public
-        pure
-        returns (bytes4, uint64)
-    {
-        return (
-            bytes4(uint32(messageId >> 64)),
-            uint64(messageId & 0xffffffffffffffff)
-        );
-    }
-
-    function encodeMessageId(bytes4 laneId, uint64 nonce)
-        public
-        pure
-        returns (uint256)
-    {
-        return (uint256(uint32(laneId)) << 64) + uint256(nonce);
-    }
-
-    ///////////////////////////////
-    // Setters
-    ///////////////////////////////
-    function _setOutboundLaneId(bytes4 _outboundLaneId) internal {
-        outboundLaneId = _outboundLaneId;
-    }
-
-    function _setStorageAddress(address _storageAddress) internal {
-        storageAddress = _storageAddress;
-    }
-
-    function _setDispatchAddress(address _dispatchAddress) internal {
-        dispatchAddress = _dispatchAddress;
-    }
-
-    function _setSendMessageCallIndex(bytes2 _sendMessageCallIndex) internal {
-        sendMessageCallIndex = _sendMessageCallIndex;
-    }
-
-    function _setStorageKeyForMarketFee(bytes32 _storageKeyForMarketFee)
-        internal
-    {
-        storageKeyForMarketFee = _storageKeyForMarketFee;
-    }
-
-    function _setStorageKeyForLatestNonce(bytes32 _storageKeyForLatestNonce)
-        internal
-    {
-        storageKeyForLatestNonce = _storageKeyForLatestNonce;
-    }
-
-    function _setInboundLaneId(bytes4 _inboundLaneId) internal {
-        inboundLaneId = _inboundLaneId;
-    }
-
-    function _setStorageKeyForLastDeliveredNonce(
-        bytes32 _storageKeyForLastDeliveredNonce
-    ) internal {
-        storageKeyForLastDeliveredNonce = _storageKeyForLastDeliveredNonce;
-    }
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/endpoints/MessageEndpoint.sol@v2.0.5-pre3
-// License-Identifier: MIT
-
-
-
-
-
-
-// TODO: rename: RemoteExecuteEndpoint
-abstract contract MessageEndpoint is RemoteDispatchEndpoint, Executable {
-    address public remoteEndpoint;
-    bytes2 public remoteMessageTransactCallIndex;
-    uint64 public remoteSmartChainId; // remote smart chain id
-    uint64 public remoteWeightPerGas = 40_000; // 1 gas ~= 40_000 weight
-
-    ///////////////////////////////
-    // Outbound
-    ///////////////////////////////
+    // srcDapp > endpoint[outboundLaneId] > substrate.send_message
+    // ->
+    // substrate.message_transact(input) > remoteEndpoint[inboundLaneId] > TgtDapp.function
     function _remoteExecute(
         uint32 tgtSpecVersion,
         address callReceiver,
@@ -5168,8 +4298,15 @@ abstract contract MessageEndpoint is RemoteDispatchEndpoint, Executable {
             callPayload
         );
 
-        // build the TransactCall
-        PalletEthereum.MessageTransactCall memory tgtTransactCall = PalletEthereum
+        return _remoteTransact(tgtSpecVersion, input, gasLimit);
+    }
+
+    function _remoteTransact(
+        uint32 tgtSpecVersion,
+        bytes memory input,
+        uint256 gasLimit
+    ) internal returns (uint256) {
+        PalletEthereum.MessageTransactCall memory call = PalletEthereum
             .MessageTransactCall(
                 // the call index of message_transact
                 remoteMessageTransactCallIndex,
@@ -5181,29 +4318,130 @@ abstract contract MessageEndpoint is RemoteDispatchEndpoint, Executable {
                     input
                 )
             );
+        bytes memory callEncoded = PalletEthereum.encodeMessageTransactCall(
+            call
+        );
 
-        bytes memory tgtTransactCallEncoded = PalletEthereum
-            .encodeMessageTransactCall(tgtTransactCall);
+        uint64 weight = uint64(gasLimit * REMOTE_WEIGHT_PER_GAS);
 
-        uint64 tgtTransactCallWeight = uint64(gasLimit * remoteWeightPerGas);
+        return _remoteDispatch(tgtSpecVersion, callEncoded, weight);
+    }
 
-        // dispatch the TransactCall
-        return
-            _remoteDispatch(
-                tgtSpecVersion,
-                tgtTransactCallEncoded,
-                tgtTransactCallWeight
-            );
+    function _remoteDispatch(
+        uint32 tgtSpecVersion,
+        bytes memory tgtCallEncoded,
+        uint64 tgtCallWeight
+    ) internal returns (uint256) {
+        // Build the encoded message to be sent
+        bytes memory message = MessageLib.buildMessage(
+            tgtSpecVersion,
+            tgtCallWeight,
+            tgtCallEncoded
+        );
+
+        // Send the message
+        MessageLib.sendMessage(
+            DISPATCH_ADDRESS,
+            sendMessageCallIndex,
+            OUTBOUND_LANE_ID,
+            msg.value,
+            message
+        );
+
+        // Get nonce from storage
+        uint64 nonce = MessageLib.latestNonce(
+            STORAGE_ADDRESS,
+            storageKeyForLatestNonce,
+            OUTBOUND_LANE_ID
+        );
+
+        return encodeMessageId(OUTBOUND_LANE_ID, nonce);
+    }
+
+    function _dispatch(bytes memory call) public {
+        MessageLib.dispatch(DISPATCH_ADDRESS, call, "!dispatch");
+    }
+
+    ///////////////////////////////
+    // Inbound
+    ///////////////////////////////
+    modifier onlyMessageSender() {
+        require(
+            derivedMessageSender == msg.sender,
+            "MessageEndpoint: Invalid sender"
+        );
+        _;
+    }
+
+    function execute(
+        address callReceiver,
+        bytes calldata callPayload
+    ) external onlyMessageSender {
+        if (_canBeExecuted(callReceiver, callPayload)) {
+            (bool success, ) = callReceiver.call(callPayload);
+            require(success, "MessageEndpoint: Call execution failed");
+        } else {
+            revert("MessageEndpoint: Unapproved call");
+        }
+    }
+
+    // Check if the call can be executed
+    function _canBeExecuted(
+        address callReceiver,
+        bytes calldata callPayload
+    ) internal view virtual returns (bool);
+
+    // Get the last delivered inbound message id
+    function lastDeliveredMessageId() public view returns (uint256) {
+        uint64 nonce = MessageLib.lastDeliveredNonce(
+            STORAGE_ADDRESS,
+            storageKeyForLastDeliveredNonce,
+            INBOUND_LANE_ID
+        );
+        return encodeMessageId(INBOUND_LANE_ID, nonce);
+    }
+
+    // Check if an inbound message has been delivered
+    function isMessageDelivered(uint256 messageId) public view returns (bool) {
+        (bytes4 laneId, uint64 nonce) = decodeMessageId(messageId);
+        uint64 lastNonce = MessageLib.lastDeliveredNonce(
+            STORAGE_ADDRESS,
+            storageKeyForLastDeliveredNonce,
+            laneId
+        );
+        return nonce <= lastNonce;
+    }
+
+    ///////////////////////////////
+    // Common functions
+    ///////////////////////////////
+    function decodeMessageId(
+        uint256 messageId
+    ) public view returns (bytes4, uint64) {
+        uint16 version = uint16(messageId >> 240);
+        require(version == VERSION, "MessageEndpoint: Invalid Version");
+        return (
+            bytes4(uint32(messageId >> 64)),
+            uint64(messageId & 0xffffffffffffffff)
+        );
+    }
+
+    function encodeMessageId(
+        bytes4 laneId,
+        uint64 nonce
+    ) public view returns (uint256) {
+        return (uint256(uint32(laneId)) << 64) + (uint256(VERSION) << 240) + uint256(nonce);
     }
 
     ///////////////////////////////
     // Setters
     ///////////////////////////////
-    function _setRemoteEndpoint(bytes4 _remoteChainId, address _remoteEndpoint)
-        internal
-    {
+    function _setRemoteEndpoint(
+        bytes4 _remoteChainId,
+        address _remoteEndpoint
+    ) internal {
         remoteEndpoint = _remoteEndpoint;
-        derivedMessageSender = SmartChainXLib.deriveSenderFromRemote(
+        derivedMessageSender = MessageLib.deriveSender(
             _remoteChainId,
             _remoteEndpoint
         );
@@ -5215,12 +4453,30 @@ abstract contract MessageEndpoint is RemoteDispatchEndpoint, Executable {
         remoteMessageTransactCallIndex = _remoteMessageTransactCallIndex;
     }
 
-    function _setRemoteWeightPerGas(uint64 _remoteWeightPerGas) internal {
-        remoteWeightPerGas = _remoteWeightPerGas;
+    function _setSendMessageCallIndex(bytes2 _sendMessageCallIndex) internal {
+        sendMessageCallIndex = _sendMessageCallIndex;
+    }
+
+    function _setStorageKeyForMarketFee(
+        bytes32 _storageKeyForMarketFee
+    ) internal {
+        storageKeyForMarketFee = _storageKeyForMarketFee;
+    }
+
+    function _setStorageKeyForLatestNonce(
+        bytes32 _storageKeyForLatestNonce
+    ) internal {
+        storageKeyForLatestNonce = _storageKeyForLatestNonce;
     }
 
     function _setRemoteSmartChainId(uint64 _remoteSmartChainId) internal {
         remoteSmartChainId = _remoteSmartChainId;
+    }
+
+    function _setStorageKeyForLastDeliveredNonce(
+        bytes32 _storageKeyForLastDeliveredNonce
+    ) internal {
+        storageKeyForLastDeliveredNonce = _storageKeyForLastDeliveredNonce;
     }
 }
 
@@ -5229,7 +4485,7 @@ abstract contract MessageEndpoint is RemoteDispatchEndpoint, Executable {
 
 
 contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
-    constructor() {
+    constructor(uint16 _version, bytes4 _outboundLaneId, bytes4 _inboundLaneId) MessageEndpoint(_version, _outboundLaneId, _inboundLaneId) {
         _initialize(msg.sender);
     }
 
@@ -5242,15 +4498,8 @@ contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
         _setRemoteMessageTransactCallIndex(_remoteMessageTransactCallIndex);
     }
 
-    function setLocalAddress(address _storageAddress, address _dispatchAddress) external onlyAdmin {
-        _setStorageAddress(_storageAddress);
-        _setDispatchAddress(_dispatchAddress);
-    }
-
-    function setLocalCallInfo(bytes2 _callIndexOfSendMessage, bytes4 _outboundLaneId, bytes4 _inboundLaneId) external onlyAdmin {
+    function setLocalCallInfo(bytes2 _callIndexOfSendMessage) external onlyAdmin {
         _setSendMessageCallIndex(_callIndexOfSendMessage);
-        _setOutboundLaneId(_outboundLaneId);
-        _setInboundLaneId(_inboundLaneId);
     }
 
     function setLocalStorageKey(
@@ -5272,7 +4521,7 @@ contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
         return _remoteExecute(remoteSpecVersion, receiver, callPayload, remoteReceiveGasLimit);
     }
 
-    function _approved(address callReceiver, bytes calldata) internal view override whenNotPaused returns (bool) {
+    function _canBeExecuted(address callReceiver, bytes calldata) internal view override whenNotPaused returns (bool) {
         return hasRole(CALLEE_ROLE, callReceiver);
     }
 }

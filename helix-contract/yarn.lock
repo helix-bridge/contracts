@@ -19,15 +19,15 @@
   optionalDependencies:
     sol2uml "2.2.0"
 
-"@darwinia/contracts-periphery@2.0.5-pre3":
-  version "2.0.5-pre3"
-  resolved "https://registry.yarnpkg.com/@darwinia/contracts-periphery/-/contracts-periphery-2.0.5-pre3.tgz#1ab1511e78b6c5e6efc87567241d6bc7c490730e"
-  integrity sha512-uKTxFvLiLgzjIKfQEfUAs/9ImbrKZ0uOQxXdQnTMc510IAd6I47xV/nSLbe6eiL81R1fi3tos9d4WZRhXzI+VA==
+"@darwinia/contracts-periphery@2.1.0-pre6":
+  version "2.1.0-pre6"
+  resolved "https://registry.yarnpkg.com/@darwinia/contracts-periphery/-/contracts-periphery-2.1.0-pre6.tgz#a1b090dee7d4d4a2b8f8ae259bebeb01f87ee598"
+  integrity sha512-sasoYujnNBSz6AaS2eVGAVtdEiRenMHM/E7MEMclV71IEVLBhkIstvBH9AqyI8dcReZzn/4klloMEE2epTG2FA==
 
-"@darwinia/contracts-utils@^1.0.3":
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/@darwinia/contracts-utils/-/contracts-utils-1.0.3.tgz#d2b864a9e2f8c43716680ea5d36630aef62886c5"
-  integrity sha512-6JYhWvfQufQvo1CnDq1YfW0UI5WHytmSB/OMBaOlscBIqp2RRZhFJDWWt5qlQnQ1ZSUgcAmRucE5X+gAsCA9BQ==
+"@darwinia/contracts-utils@^1.0.4":
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/@darwinia/contracts-utils/-/contracts-utils-1.0.4.tgz#d4efe4edd94827c446207932246b72b32e13ce31"
+  integrity sha512-8y7iws6roWGF/jHB0y8fEO7lwdy7vq3OiJzuA432v3nmufbELR1bzvkeNLN+rMlnIowMVMp2pGsvYH/Votsi1g==
 
 "@ensdomains/ens@^0.4.4":
   version "0.4.5"

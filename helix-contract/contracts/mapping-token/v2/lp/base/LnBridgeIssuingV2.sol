@@ -7,7 +7,6 @@ import "./LnBridgeHelper.sol";
 contract LnBridgeIssuingV2 is LnBridgeHelper {
     uint256 constant public MIN_WITHDRAW_TIMESTAMP = 30 * 60;
     struct IssuedMessageInfo {
-        uint64 timestamp;
         uint64 nonce;
         uint64 lastRefundNonce;
         uint64 refundStartTime;
@@ -18,37 +17,30 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
 
     function relay(
         bytes32 lastTransferId,
+        bytes32 lastBlockHash,
         uint64 nonce,
-        uint64 timestamp,
         address token,
-        address sender,
         address receiver,
-        uint112 amount,
-        uint64 sourceChainId,
-        bool issuingNative
+        uint112 amount
     ) payable external {
         IssuedMessageInfo memory lastInfo = issuedMessages[lastTransferId];
         require(lastInfo.nonce + 1 == nonce, "Invalid last transferId");
         bytes32 transferId = keccak256(abi.encodePacked(
             lastTransferId,
-            timestamp,
+            lastBlockHash,
             nonce,
-            issuingNative,
             token,
-            sender,
             receiver,
-            amount,
-            sourceChainId,
-            uint64(block.chainid)));
+            amount));
         IssuedMessageInfo memory transferInfo = issuedMessages[transferId];
         require(transferInfo.nonce == 0, "lpBridgeIssuing:message exist");
         require(transferInfo.refundStartTime == 0 || transferInfo.refundStartTime + MIN_WITHDRAW_TIMESTAMP < block.timestamp, "refund time expired");
         if (lastInfo.refundStartTime > 0) {
-            issuedMessages[transferId] = IssuedMessageInfo(timestamp, nonce, nonce - 1, 0);
+            issuedMessages[transferId] = IssuedMessageInfo(nonce, nonce - 1, 0);
         } else {
-            issuedMessages[transferId] = IssuedMessageInfo(timestamp, nonce, lastInfo.lastRefundNonce, 0);
+            issuedMessages[transferId] = IssuedMessageInfo(nonce, lastInfo.lastRefundNonce, 0);
         }
-        if (issuingNative) {
+        if (token == address(0)) {
             require(msg.value == amount, "lpBridgeIssuing:invalid amount");
             payable(receiver).transfer(amount);
         } else {
@@ -59,64 +51,50 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
 
     // only lpProvider can request withdraw liquidity
     function _encodeWithdrawLiquidity(
-        bytes32 lastTransferId,
+        bytes32 lastRefundTransferId,
         bytes32 transferId,
         address receiver,
-        address fundReceiver,
-        uint64 timestamp
+        address fundReceiver
     ) public pure returns(bytes memory) {
         return abi.encodeWithSelector(
             ILnBridgeBackingV2.withdrawLiquidity.selector,
-            lastTransferId,
+            lastRefundTransferId,
             transferId,
             receiver,
-            fundReceiver,
-            timestamp
+            fundReceiver
         );
     }
 
-    function _initCancelIssuing(
-        bytes32 transferId
-    ) internal {
+    function _initCancelIssuing(bytes32 transferId) internal {
         IssuedMessageInfo memory transferInfo = issuedMessages[transferId];
         require(transferInfo.nonce == 0, "lpBridgeIssuing:message exist");
         require(transferInfo.refundStartTime == 0, "refund has been init");
-        issuedMessages[transferId] = IssuedMessageInfo(0, 0, 0, uint64(block.timestamp));
+        issuedMessages[transferId] = IssuedMessageInfo(0, 0, uint64(block.timestamp));
     }
 
     // anyone can cancel
     function _cancelIssuing(
         bytes32 lastTransferId,
-        uint64 nonce,
-        uint64 timestamp,
+        bytes32 lastBlockHash,
         address token,
-        address sender,
         address receiver,
-        uint112 amount,
-        uint64 sourceChainId,
-        bool issuingNative
-    ) internal returns(bytes32 transferId) {
+        uint64 nonce,
+        uint112 amount
+    ) internal returns(bytes32 transferId, uint64 lastRefundNonce) {
         IssuedMessageInfo memory lastInfo = issuedMessages[lastTransferId];
         require(lastInfo.nonce + 1 == nonce, "invalid last transfer nonce");
         transferId = keccak256(abi.encodePacked(
             lastTransferId,
-            timestamp,
-            nonce,
-            issuingNative,
+            lastBlockHash,
             token,
-            sender,
             receiver,
-            amount,
-            sourceChainId,
-            uint64(block.chainid)));
+            nonce,
+            amount));
         IssuedMessageInfo memory transferInfo = issuedMessages[transferId];
         require(transferInfo.nonce == 0, "lpBridgeIssuing:message exist");
-        require(transferInfo.refundStartTime + MIN_WITHDRAW_TIMESTAMP > block.timestamp, "refund time expired");
-        if (lastInfo.refundStartTime > 0) {
-            issuedMessages[transferId] = IssuedMessageInfo(timestamp, nonce, nonce - 1, transferInfo.refundStartTime);
-        } else {
-            issuedMessages[transferId] = IssuedMessageInfo(timestamp, nonce, lastInfo.lastRefundNonce, transferInfo.refundStartTime);
-        }
+        require(transferInfo.refundStartTime + MIN_WITHDRAW_TIMESTAMP < block.timestamp, "refund time expired");
+        lastRefundNonce = lastInfo.refundStartTime > 0 ? nonce - 1 : lastInfo.lastRefundNonce;
+        issuedMessages[transferId] = IssuedMessageInfo(nonce, lastRefundNonce, transferInfo.refundStartTime);
     }
 }
 

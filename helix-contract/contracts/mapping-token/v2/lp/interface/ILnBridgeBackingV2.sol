@@ -3,11 +3,17 @@
 pragma solidity >=0.8.10;
 
 interface ILnBridgeBackingV2 {
-    function withdrawLiquidity(
-        bytes32 lastTransferId,
+    function refund(
+        bytes32 lastRefundTransferId,
         bytes32 transferId,
         address receiver,
-        address sourceSender,
-        uint64 timestamp
+        address rewardReceiver
     ) external;
+    function withdrawMargin(
+        bytes32 lastRefundTransferId,
+        bytes32 lastTransferId,
+        address provider,
+        uint112 amount
+    ) external;
+
 }

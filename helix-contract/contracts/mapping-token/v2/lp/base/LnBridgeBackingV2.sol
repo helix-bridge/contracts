@@ -62,7 +62,8 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         uint112 amount,
         uint112 fee,
         address receiver);
-    event LiquidityWithdrawn(bytes32 transferId, address receiver);
+    event LiquidityWithdrawn(uint32 tokenIndex, uint32 providerIndex, uint112 amount);
+    event Refund(bytes32 transferId, address receiver, address rewardReceiver);
 
     function _setFeeReceiver(address _feeReceiver) internal {
         require(_feeReceiver != address(this), "lpBridgeBacking:invalid helix fee receiver");
@@ -234,11 +235,11 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
     // the token should be sent back to the msg.sender
     // timestamp is the last transfer's time
     // lastTransfer is the latest refund transfer
-    function _withdraw(
+    function _refund(
         bytes32 lastRefundTransferId,
         bytes32 transferId,
         address receiver,
-        address sourceSender
+        address rewardReceiver
     ) internal {
         // check lastTransfer
         LockInfo memory lastLockInfo = lockInfos[lastRefundTransferId];
@@ -257,13 +258,42 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         lnProviders[providerKey].margin = lnProvider.margin - uint112(withdrawAmount);
         if (tokenInfo.localToken == address(0)) {
             payable(receiver).transfer(lockInfo.amount);
-            payable(sourceSender).transfer(tokenInfo.fineFund);
+            payable(rewardReceiver).transfer(tokenInfo.fineFund);
         } else {
             _safeTransfer(tokenInfo.localToken, receiver, lockInfo.amount);
-            _safeTransfer(tokenInfo.localToken, sourceSender, tokenInfo.fineFund);
+            _safeTransfer(tokenInfo.localToken, rewardReceiver, tokenInfo.fineFund);
         }
 
-        emit LiquidityWithdrawn(transferId, receiver);
+        emit Refund(transferId, receiver, rewardReceiver);
+    }
+
+    // lastTransfer is the latest refund transfer, all transfer must be relayed or refunded
+    function _withdrawMargin(
+        bytes32 lastRefundTransferId,
+        bytes32 lastTransferId,
+        address provider,
+        uint112 amount
+    ) internal {
+        // check lastTransfer
+        LockInfo memory lastRefundLockInfo = lockInfos[lastRefundTransferId];
+        require(lastRefundLockInfo.hasRefund || lastRefundLockInfo.nonce == 0, "last transfer invalid");
+
+        LockInfo memory lastLockInfo = lockInfos[lastTransferId];
+        uint32 tokenIndex = lastLockInfo.tokenIndex;
+        uint32 providerIndex = lastLockInfo.providerIndex;
+        uint256 providerKey = _lnProviderKey(tokenIndex, providerIndex);
+        LnProviderInfo memory lnProvider = lnProviders[providerKey];
+        require(provider == lnProvider.provider, "invalid provider");
+        require(lnProvider.nonce == lastLockInfo.nonce, "invalid last transferid");
+        TokenInfo memory tokenInfo = tokens[lastLockInfo.tokenIndex];
+        require(lnProvider.margin >= amount, "margin not enough");
+        lnProviders[providerKey].margin = lnProvider.margin - amount;
+        if (tokenInfo.localToken == address(0)) {
+            payable(provider).transfer(amount);
+        } else {
+            _safeTransfer(tokenInfo.localToken, provider, amount);
+        }
+        emit LiquidityWithdrawn(tokenIndex, providerIndex, amount);
     }
 
     function tokenLength() external view returns (uint) {

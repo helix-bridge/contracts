@@ -12,14 +12,17 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     address immutable public inboundLane;
     address immutable public outboundLane;
     address immutable public feeMarket;
+    uint16 immutable public version;
 
     address public remoteEndpoint;
 
     constructor(
+        uint16 _version,
         address _inboundLane,
         address _outboundLane,
         address _feeMarket
     ) {
+        version = _version;
         inboundLane = _inboundLane;
         outboundLane = _outboundLane;
         feeMarket = _feeMarket;
@@ -54,13 +57,21 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
         return IFeeMarket(feeMarket).market_fee();
     }
 
+    function nonceToMessageId(uint256 nonce) internal view returns(uint256) {
+        return (uint256(version) << 64) + nonce;
+    }
+
     function sendMessage(address receiver, bytes calldata message) external onlyCaller payable returns (uint256) {
         bytes memory messageWithCaller = abi.encodeWithSelector(
             DarwiniaSub2EthMessageEndpoint.recvMessage.selector,
             receiver,
             message
         );
-        return IOutboundLane(outboundLane).send_message{value: msg.value}(remoteEndpoint, messageWithCaller);
+        uint256 nonce = IOutboundLane(outboundLane).send_message{value: msg.value}(
+            remoteEndpoint,
+            messageWithCaller
+        );
+        return nonceToMessageId(nonce);
     }
 
     function recvMessage(
@@ -75,13 +86,13 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     // we use nonce as message id
     function currentDeliveredMessageId() public view returns(uint256) {
         IInboundLane.InboundLaneNonce memory inboundLaneNonce = IInboundLane(inboundLane).inboundLaneNonce();
-        return inboundLaneNonce.last_delivered_nonce + 1;
+        return nonceToMessageId(inboundLaneNonce.last_delivered_nonce + 1);
     }
 
     function isMessageDelivered(uint256 messageId) public view returns (bool) {
         IInboundLane.InboundLaneNonce memory inboundLaneNonce = IInboundLane(inboundLane).inboundLaneNonce();
-        uint256 lastMessageId = inboundLaneNonce.last_delivered_nonce;
-        return messageId <= lastMessageId;
+        uint256 lastMessageNonce = inboundLaneNonce.last_delivered_nonce;
+        return messageId <= nonceToMessageId(lastMessageNonce);
     }
 }
 

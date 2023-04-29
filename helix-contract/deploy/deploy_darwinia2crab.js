@@ -8,26 +8,26 @@ const darwiniaNetwork = {
     url: "https://rpc.darwinia.network",
     networkId: "0x0000002e", //46
     bridgeNetworkId: "0x64617277", //darw
-    transactCallIndex: 12289,//0x3001
-    sendmsgIndex: 11267,//0x2C03
+    transactCallIndex: 9728,//0x2600
+    sendmsgIndex: 10499,//0x2903
     outboundLaneId: "0x64616362",
-    storageKeyForMarketFee: "0x190d00dd4103825c78f55e5b5dbf8bfe2edb70953213f33a6ef6b8a5e3ffcab2",
+    storageKeyForMarketFee: "0x94594b5e37f74ce096905956485f9a7d2edb70953213f33a6ef6b8a5e3ffcab2",
     storageKeyForLatestNonce: "0xf4e61b17ce395203fe0f3c53a0d3986096c246acb9b55077390e3ca723a0ca1f",
     storageKeyForLastDeliveredNonce: "0xf4e61b17ce395203fe0f3c53a0d39860e5f83cf83f2127eb47afdc35d6e43fab",
-    specVersion: 1110,
+    specVersion: 6210,
 };
 
 const crabNetwork = {
     url: "https://crab-rpc.darwinia.network",
     networkId: "0x0000002c", //44
     bridgeNetworkId: "0x63726162", //crab
-    transactCallIndex: 10499,//0x2903
-    sendmsgIndex: 9728,//0x2600
+    transactCallIndex: 9728,//0x2600
+    sendmsgIndex: 10499,//0x2903
     outboundLaneId: "0x64616362",
     storageKeyForMarketFee: "0xe0c938a0fbc88db6078b53e160c7c3ed2edb70953213f33a6ef6b8a5e3ffcab2",
     storageKeyForLatestNonce: "0xf1501030816118b9129255f5096aa9b296c246acb9b55077390e3ca723a0ca1f",
     storageKeyForLastDeliveredNonce: "0xf1501030816118b9129255f5096aa9b2e5f83cf83f2127eb47afdc35d6e43fab",
-    specVersion: 1111,
+    specVersion: 6210,
 };
 
 const backingNetwork = darwiniaNetwork;
@@ -180,7 +180,7 @@ async function registerNative() {
         "WRING",
         18,
         dailyLimit,
-        { value: ethers.utils.parseEther("39.0") }
+        { value: ethers.utils.parseEther("160.0") }
     );
     console.log("transaction is ", tx);
 
@@ -210,7 +210,23 @@ async function main() {
     await mtfEndpoint.grantRole(await mtfEndpoint.CALLER_ROLE(), mtfAddress);
     await mtfEndpoint.grantRole(await mtfEndpoint.CALLEE_ROLE(), mtfAddress);
     await backing.grantRole(await backing.OPERATOR_ROLE(), backingWallet.address);
+
+    /*
+    // backing.setMessageEndpoint(backingEndpoint.address);
+    // mtf.setMessageEndpoint(backingEndpoint.address);
     console.log("grant role permission finished");
+    */
+    /*
+    const endpoint = await ethers.getContractAt("DarwiniaSub2SubMessageEndpoint", "0x3D400e863F4c8a194b869F2aA7f0C9a2194Ad5Ce", backingWallet)
+    const tx = await endpoint.callStatic.sendMessage(
+        6210,
+        5000000,
+        "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+        0x10101010,
+        {value: ethers.utils.parseEther("160")},
+    );
+    console.log(tx);
+    */
 
     // register special erc20 token
     //const backing = await ethers.getContractAt("Erc20Sub2SubBacking", "0x63359a0BB8eF1f6cD141761375D583eCefD5Ecfc", backingWallet);
@@ -251,19 +267,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-
-/*
-deploy backing message handle finished, address:  0x28AeB37CE74D67E981fd49328EcC9C0A09D27c04
-deploy mtf message handle finished, address:  0x6Bc42892Cdb7429c2F5BBAEE3d17DFd3aB806afC
-finish configure backing message handle
-finish configure mapping token factory message handle
-finish to deploy backing logic, address:  0x0C4c4b01E47Aa05f2c1CA801a619dFd221eC6d34
-finish to deploy backing admin, address:  0x2f8EC2E769A6D393c60e05aAD3adf4a93C51aaF4
-finish to deploy backing proxy, address:  0xdA2cDf09D82278C2b2ed0DEAc3bdad12c169405c
-finish to deploy mapping token factory logic, address:  0xa0D29ba3b7BA7c143Ef0B4d9F896fB4A28D427b1
-finish to deploy mapping token factory admin, address:  0x63B28311E7be0fd95Cd4f828e3a052096856fAEc
-finish to deploy mapping token factory proxy, address:  0xE3B183154303bfBe32333Cc00e5728CD50e448Fd
-finish to configure backing
-finish to configure mapping token factory
-grant role permission finished
-*/

@@ -14,78 +14,10 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 4/19/2023
+ * 4/28/2023
  **/
 
 pragma solidity ^0.8.10;
-
-// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixMessageEndpoint {
-    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
-}
-
-// File contracts/mapping-token/interfaces/IHelixSub2SubMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixSub2SubMessageEndpoint is IHelixMessageEndpoint {
-    function fee() external view returns (uint256);
-    function lastDeliveredMessageId() external view returns (uint256);
-    function isMessageDelivered(uint256 messageId) external view returns(bool);
-    function sendMessage(
-        uint32  remoteSpecVersion,
-        uint256 remoteReceiveGasLimit,
-        address receiver,
-        bytes calldata encoded) external payable returns (uint256);
-}
-
-// File contracts/mapping-token/interfaces/IGuard.sol
-// License-Identifier: MIT
-
-
-interface IGuard {
-  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
-}
-
-// File contracts/mapping-token/interfaces/IBacking.sol
-// License-Identifier: MIT
-
-
-interface IBacking {
-    function unlockFromRemote(
-        address originalToken,
-        address recipient,
-        uint256 amount) external;
-}
-
-interface IBackingSupportNative {
-    function unlockFromRemoteNative(
-        address recipient,
-        uint256 amount) external;
-}
-
-// File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
-// License-Identifier: MIT
-
-
-interface IErc20MappingTokenFactory {
-    function newErc20Contract(
-        address originalToken,
-        string memory bridgedChainName,
-        string memory name,
-        string memory symbol,
-        uint8 decimals,
-        uint256 dailyLimit
-    ) external returns (address mappingToken);
-    function issueMappingToken(
-        address originalToken,
-        address recipient,
-        uint256 amount
-    ) external;
-}
 
 // File contracts/utils/DailyLimit.sol
 // License-Identifier: MIT
@@ -170,13 +102,49 @@ contract DailyLimit {
     }
 }
 
-// File contracts/mapping-token/interfaces/IWToken.sol
+// File contracts/mapping-token/interfaces/IGuard.sol
 // License-Identifier: MIT
 
 
-interface IWToken {
-    function deposit() external payable;
-    function withdraw(uint wad) external;
+interface IGuard {
+  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
+}
+
+// File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
+// License-Identifier: MIT
+
+
+interface IErc20MappingTokenFactory {
+    function newErc20Contract(
+        address originalToken,
+        string memory bridgedChainName,
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        uint256 dailyLimit
+    ) external returns (address mappingToken);
+    function issueMappingToken(
+        address originalToken,
+        address recipient,
+        uint256 amount
+    ) external;
+}
+
+// File contracts/mapping-token/interfaces/IBacking.sol
+// License-Identifier: MIT
+
+
+interface IBacking {
+    function unlockFromRemote(
+        address originalToken,
+        address recipient,
+        uint256 amount) external;
+}
+
+interface IBackingSupportNative {
+    function unlockFromRemoteNative(
+        address recipient,
+        uint256 amount) external;
 }
 
 // File contracts/mapping-token/interfaces/IHelixApp.sol
@@ -201,6 +169,38 @@ interface IHelixAppSupportWithdrawFailed {
         address sender,
         uint256 amount
     ) external;
+}
+
+// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixMessageEndpoint {
+    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
+}
+
+// File contracts/mapping-token/interfaces/IHelixSub2SubMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixSub2SubMessageEndpoint is IHelixMessageEndpoint {
+    function fee() external view returns (uint256);
+    function lastDeliveredMessageId() external view returns (uint256);
+    function isMessageDelivered(uint256 messageId) external view returns(bool);
+    function sendMessage(
+        uint32  remoteSpecVersion,
+        uint256 remoteReceiveGasLimit,
+        address receiver,
+        bytes calldata encoded) external payable returns (uint256);
+}
+
+// File contracts/mapping-token/interfaces/IWToken.sol
+// License-Identifier: MIT
+
+
+interface IWToken {
+    function deposit() external payable;
+    function withdraw(uint wad) external;
 }
 
 // File @zeppelin-solidity/contracts/access/IAccessControl.sol@v4.7.3
@@ -1703,62 +1703,6 @@ contract Backing is AccessController, Initializable {
     }
 }
 
-// File @zeppelin-solidity/contracts/utils/structs/BitMaps.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/structs/BitMaps.sol)
-
-/**
- * @dev Library for managing uint256 to bool mapping in a compact and efficient way, providing the keys are sequential.
- * Largelly inspired by Uniswap's https://github.com/Uniswap/merkle-distributor/blob/master/contracts/MerkleDistributor.sol[merkle-distributor].
- */
-library BitMaps {
-    struct BitMap {
-        mapping(uint256 => uint256) _data;
-    }
-
-    /**
-     * @dev Returns whether the bit at `index` is set.
-     */
-    function get(BitMap storage bitmap, uint256 index) internal view returns (bool) {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        return bitmap._data[bucket] & mask != 0;
-    }
-
-    /**
-     * @dev Sets the bit at `index` to the boolean `value`.
-     */
-    function setTo(
-        BitMap storage bitmap,
-        uint256 index,
-        bool value
-    ) internal {
-        if (value) {
-            set(bitmap, index);
-        } else {
-            unset(bitmap, index);
-        }
-    }
-
-    /**
-     * @dev Sets the bit at `index`.
-     */
-    function set(BitMap storage bitmap, uint256 index) internal {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        bitmap._data[bucket] |= mask;
-    }
-
-    /**
-     * @dev Unsets the bit at `index`.
-     */
-    function unset(BitMap storage bitmap, uint256 index) internal {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        bitmap._data[bucket] &= ~mask;
-    }
-}
-
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
@@ -1840,6 +1784,62 @@ interface IERC20 {
         address to,
         uint256 amount
     ) external returns (bool);
+}
+
+// File @zeppelin-solidity/contracts/utils/structs/BitMaps.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/structs/BitMaps.sol)
+
+/**
+ * @dev Library for managing uint256 to bool mapping in a compact and efficient way, providing the keys are sequential.
+ * Largelly inspired by Uniswap's https://github.com/Uniswap/merkle-distributor/blob/master/contracts/MerkleDistributor.sol[merkle-distributor].
+ */
+library BitMaps {
+    struct BitMap {
+        mapping(uint256 => uint256) _data;
+    }
+
+    /**
+     * @dev Returns whether the bit at `index` is set.
+     */
+    function get(BitMap storage bitmap, uint256 index) internal view returns (bool) {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        return bitmap._data[bucket] & mask != 0;
+    }
+
+    /**
+     * @dev Sets the bit at `index` to the boolean `value`.
+     */
+    function setTo(
+        BitMap storage bitmap,
+        uint256 index,
+        bool value
+    ) internal {
+        if (value) {
+            set(bitmap, index);
+        } else {
+            unset(bitmap, index);
+        }
+    }
+
+    /**
+     * @dev Sets the bit at `index`.
+     */
+    function set(BitMap storage bitmap, uint256 index) internal {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        bitmap._data[bucket] |= mask;
+    }
+
+    /**
+     * @dev Unsets the bit at `index`.
+     */
+    function unset(BitMap storage bitmap, uint256 index) internal {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        bitmap._data[bucket] &= ~mask;
+    }
 }
 
 // File contracts/mapping-token/v2/erc20-mapping-protocol/Erc20Sub2SubBacking.sol

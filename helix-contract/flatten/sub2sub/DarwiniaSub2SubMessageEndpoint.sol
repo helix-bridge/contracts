@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 4/19/2023
+ * 4/28/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -108,29 +108,34 @@ interface IAccessControl {
     function renounceRole(bytes32 role, address account) external;
 }
 
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
 
 
 /**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
+ * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
  */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
+interface IAccessControlEnumerable is IAccessControl {
+    /**
+     * @dev Returns one of the accounts that have `role`. `index` must be a
+     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     *
+     * Role bearers are not sorted in any particular way, and their ordering may
+     * change at any point.
+     *
+     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
+     * you perform all queries on the same block. See the following
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * for more information.
+     */
+    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
 
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
+    /**
+     * @dev Returns the number of accounts that have `role`. Can be used
+     * together with {getRoleMember} to enumerate all bearers of a role.
+     */
+    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
@@ -206,6 +211,31 @@ library Strings {
      */
     function toHexString(address addr) internal pure returns (string memory) {
         return toHexString(uint256(uint160(addr)), _ADDRESS_LENGTH);
+    }
+}
+
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
     }
 }
 
@@ -507,36 +537,6 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
             emit RoleRevoked(role, account, _msgSender());
         }
     }
-}
-
-// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
-
-
-/**
- * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
- */
-interface IAccessControlEnumerable is IAccessControl {
-    /**
-     * @dev Returns one of the accounts that have `role`. `index` must be a
-     * value between 0 and {getRoleMemberCount}, non-inclusive.
-     *
-     * Role bearers are not sorted in any particular way, and their ordering may
-     * change at any point.
-     *
-     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
-     * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-     * for more information.
-     */
-    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
-
-    /**
-     * @dev Returns the number of accounts that have `role`. Can be used
-     * together with {getRoleMember} to enumerate all bearers of a role.
-     */
-    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
@@ -1124,518 +1124,6 @@ contract AccessController is AccessControlEnumerable, Pausable {
     }
 }
 
-// File @darwinia/contracts-utils/contracts/Memory.sol@v1.0.4
-// License-Identifier: MIT
-
-
-library Memory {
-
-    uint internal constant WORD_SIZE = 32;
-
-	// Compares the 'len' bytes starting at address 'addr' in memory with the 'len'
-    // bytes starting at 'addr2'.
-    // Returns 'true' if the bytes are the same, otherwise 'false'.
-    function equals(uint addr, uint addr2, uint len) internal pure returns (bool equal) {
-        assembly {
-            equal := eq(keccak256(addr, len), keccak256(addr2, len))
-        }
-    }
-
-    // Compares the 'len' bytes starting at address 'addr' in memory with the bytes stored in
-    // 'bts'. It is allowed to set 'len' to a lower value then 'bts.length', in which case only
-    // the first 'len' bytes will be compared.
-    // Requires that 'bts.length >= len'
-
-    function equals(uint addr, uint len, bytes memory bts) internal pure returns (bool equal) {
-        require(bts.length >= len);
-        uint addr2;
-        assembly {
-            addr2 := add(bts, /*BYTES_HEADER_SIZE*/32)
-        }
-        return equals(addr, addr2, len);
-    }
-	// Returns a memory pointer to the data portion of the provided bytes array.
-	function dataPtr(bytes memory bts) internal pure returns (uint addr) {
-		assembly {
-			addr := add(bts, /*BYTES_HEADER_SIZE*/32)
-		}
-	}
-
-	// Creates a 'bytes memory' variable from the memory address 'addr', with the
-	// length 'len'. The function will allocate new memory for the bytes array, and
-	// the 'len bytes starting at 'addr' will be copied into that new memory.
-	function toBytes(uint addr, uint len) internal pure returns (bytes memory bts) {
-		bts = new bytes(len);
-		uint btsptr;
-		assembly {
-			btsptr := add(bts, /*BYTES_HEADER_SIZE*/32)
-		}
-		copy(addr, btsptr, len);
-	}
-	
-	// Copies 'self' into a new 'bytes memory'.
-	// Returns the newly created 'bytes memory'
-	// The returned bytes will be of length '32'.
-	function toBytes(bytes32 self) internal pure returns (bytes memory bts) {
-		bts = new bytes(32);
-		assembly {
-			mstore(add(bts, /*BYTES_HEADER_SIZE*/32), self)
-		}
-	}
-
-	// Copy 'len' bytes from memory address 'src', to address 'dest'.
-	// This function does not check the or destination, it only copies
-	// the bytes.
-	function copy(uint src, uint dest, uint len) internal pure {
-		// Copy word-length chunks while possible
-		for (; len >= WORD_SIZE; len -= WORD_SIZE) {
-			assembly {
-				mstore(dest, mload(src))
-			}
-			dest += WORD_SIZE;
-			src += WORD_SIZE;
-		}
-
-		// Copy remaining bytes
-		uint mask = len == 0 ?  0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff : 256 ** (WORD_SIZE - len) - 1;
-		assembly {
-			let srcpart := and(mload(src), not(mask))
-			let destpart := and(mload(dest), mask)
-			mstore(dest, or(destpart, srcpart))
-		}
-	}
-
-	// This function does the same as 'dataPtr(bytes memory)', but will also return the
-	// length of the provided bytes array.
-	function fromBytes(bytes memory bts) internal pure returns (uint addr, uint len) {
-		len = bts.length;
-		assembly {
-			addr := add(bts, /*BYTES_HEADER_SIZE*/32)
-		}
-	}
-}
-
-// File @darwinia/contracts-utils/contracts/Bytes.sol@v1.0.4
-// License-Identifier: MIT
-
-
-library Bytes {
-    uint256 internal constant BYTES_HEADER_SIZE = 32;
-
-    // Checks if two `bytes memory` variables are equal. This is done using hashing,
-    // which is much more gas efficient then comparing each byte individually.
-    // Equality means that:
-    //  - 'self.length == other.length'
-    //  - For 'n' in '[0, self.length)', 'self[n] == other[n]'
-    function equals(bytes memory self, bytes memory other) internal pure returns (bool equal) {
-        if (self.length != other.length) {
-            return false;
-        }
-        uint addr;
-        uint addr2;
-        assembly {
-            addr := add(self, /*BYTES_HEADER_SIZE*/32)
-            addr2 := add(other, /*BYTES_HEADER_SIZE*/32)
-        }
-        equal = Memory.equals(addr, addr2, self.length);
-    }
-
-    // Copies a section of 'self' into a new array, starting at the provided 'startIndex'.
-    // Returns the new copy.
-    // Requires that 'startIndex <= self.length'
-    // The length of the substring is: 'self.length - startIndex'
-    function substr(bytes memory self, uint256 startIndex)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        require(startIndex <= self.length);
-        uint256 len = self.length - startIndex;
-        uint256 addr = Memory.dataPtr(self);
-        return Memory.toBytes(addr + startIndex, len);
-    }
-
-    // Copies 'len' bytes from 'self' into a new array, starting at the provided 'startIndex'.
-    // Returns the new copy.
-    // Requires that:
-    //  - 'startIndex + len <= self.length'
-    // The length of the substring is: 'len'
-    function substr(
-        bytes memory self,
-        uint256 startIndex,
-        uint256 len
-    ) internal pure returns (bytes memory) {
-        require(startIndex + len <= self.length);
-        if (len == 0) {
-            return "";
-        }
-        uint256 addr = Memory.dataPtr(self);
-        return Memory.toBytes(addr + startIndex, len);
-    }
-
-    // Combines 'self' and 'other' into a single array.
-    // Returns the concatenated arrays:
-    //  [self[0], self[1], ... , self[self.length - 1], other[0], other[1], ... , other[other.length - 1]]
-    // The length of the new array is 'self.length + other.length'
-    function concat(bytes memory self, bytes memory other)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory ret = new bytes(self.length + other.length);
-        uint256 src;
-        uint256 srcLen;
-        (src, srcLen) = Memory.fromBytes(self);
-        uint256 src2;
-        uint256 src2Len;
-        (src2, src2Len) = Memory.fromBytes(other);
-        uint256 dest;
-        (dest, ) = Memory.fromBytes(ret);
-        uint256 dest2 = dest + srcLen;
-        Memory.copy(src, dest, srcLen);
-        Memory.copy(src2, dest2, src2Len);
-        return ret;
-    }
-
-    function toBytes32(bytes memory self)
-        internal
-        pure
-        returns (bytes32 out)
-    {
-        require(self.length >= 32, "Bytes:: toBytes32: data is to short.");
-        assembly {
-            out := mload(add(self, 32))
-        }
-    }
-
-    function toBytes16(bytes memory self, uint256 offset)
-        internal
-        pure
-        returns (bytes16 out)
-    {
-        for (uint i = 0; i < 16; i++) {
-            out |= bytes16(bytes1(self[offset + i]) & 0xFF) >> (i * 8);
-        }
-    }
-
-    function toBytes8(bytes memory self, uint256 offset)
-        internal
-        pure
-        returns (bytes8 out)
-    {
-        for (uint i = 0; i < 8; i++) {
-            out |= bytes8(bytes1(self[offset + i]) & 0xFF) >> (i * 8);
-        }
-    }
-
-    function toBytes4(bytes memory self, uint256 offset)
-        internal
-        pure
-        returns (bytes4)
-    {
-        bytes4 out;
-
-        for (uint256 i = 0; i < 4; i++) {
-            out |= bytes4(self[offset + i] & 0xFF) >> (i * 8);
-        }
-        return out;
-    }
-
-    function toBytes2(bytes memory self, uint256 offset)
-        internal
-        pure
-        returns (bytes2)
-    {
-        bytes2 out;
-
-        for (uint256 i = 0; i < 2; i++) {
-            out |= bytes2(self[offset + i] & 0xFF) >> (i * 8);
-        }
-        return out;
-    }
-
-    function removeLeadingZero(bytes memory data) internal pure returns (bytes memory) {
-        uint length = data.length;
-
-        uint startIndex = 0;
-        for (uint i = 0; i < length; i++) {
-            if (data[i] != 0) {
-                startIndex = i;
-                break;
-            }
-        }
-
-        return substr(data, startIndex);
-    }
-
-    function removeEndingZero(bytes memory data) internal pure returns (bytes memory) {
-        uint length = data.length;
-
-        uint endIndex = 0;
-        for (uint i = length - 1; i >= 0; i--) {
-            if (data[i] != 0) {
-                endIndex = i;
-                break;
-            }
-        }
-
-        return substr(data, 0, endIndex + 1);
-    }
-
-    function reverse(bytes memory inbytes) internal pure returns (bytes memory) {
-        uint inlength = inbytes.length;
-        bytes memory outbytes = new bytes(inlength);
-
-        for (uint i = 0; i <= inlength - 1; i++) {
-            outbytes[i] = inbytes[inlength - i - 1];
-        }
-
-        return outbytes;
-    }
-}
-
-// File @darwinia/contracts-utils/contracts/AccountId.sol@v1.0.4
-// License-Identifier: MIT
-
-
-library AccountId {
-    bytes private constant prefixBytes = "dvm:";
-    bytes private constant zeroBytes = hex"00000000000000";
-
-    function deriveSubstrateAddress(address addr) internal pure returns (bytes32) {
-        bytes memory body = abi.encodePacked(
-            prefixBytes,
-            zeroBytes,
-            addr
-        );
-        uint8 checksum = checksumOf(body);
-        bytes memory result = abi.encodePacked(body, checksum);
-        return Bytes.toBytes32(result);
-    }
-
-    function deriveEthereumAddress(bytes32 accountId) internal pure returns (address) {
-        return address(bytes20(accountId));
-    }
-
-    function deriveEthereumAddressFromDvm(bytes32 accountId) internal pure returns (address) {
-        return address(uint160(uint256(accountId) >> 8));
-    }
-
-    function checksumOf(bytes memory accountId) private pure returns (uint8) {
-        uint8 checksum = uint8(accountId[0]);
-        for (uint i = 1; i <= 30; i++) {
-            checksum = checksum ^ uint8(accountId[i]);
-        }
-        return checksum;
-    }
-}
-
-// File @darwinia/contracts-utils/contracts/ScaleCodec.sol@v1.0.4
-// License-Identifier: MIT
-
-library ScaleCodec {
-    // Decodes a SCALE encoded uint256 by converting bytes (big endian) to little endian format
-    function decodeUint256(bytes memory data) internal pure returns (uint256) {
-        uint256 number;
-        for (uint256 i = data.length; i > 0; i--) {
-            number = number + uint256(uint8(data[i - 1])) * (2**(8 * (i - 1)));
-        }
-        return number;
-    }
-
-    function decodeUint128(bytes memory data) internal pure returns (uint128) {
-        require(data.length >= 16, "Bad data");
-        bytes memory reversed = Bytes.reverse(data);
-        return uint128(Bytes.toBytes16(reversed, 0));
-    }
-
-    function decodeUint64(bytes memory data) internal pure returns (uint64) {
-        require(data.length >= 8, "Bad data");
-        bytes memory reversed = Bytes.reverse(data);
-        return uint64(Bytes.toBytes8(reversed, 0));
-    }
-
-    // Decodes a SCALE encoded compact unsigned integer
-    function decodeUintCompact(bytes memory data)
-        internal 
-        pure
-        returns (uint256 value, uint8 mode)
-    {
-        uint8 b = readByteAtIndex(data, 0); // read the first byte
-        mode = b & 3; // bitwise operation
-
-        if (mode == 0) {
-            // [0, 63]
-            value = b >> 2; // right shift to remove mode bits
-        } else if (mode == 1) {
-            // [64, 16383]
-            uint8 bb = readByteAtIndex(data, 1); // read the second byte
-            uint64 r = bb; // convert to uint64
-            r <<= 6; // multiply by * 2^6
-            r += b >> 2; // right shift to remove mode bits
-            value = r;
-        } else if (mode == 2) {
-            // [16384, 1073741823]
-            uint8 b2 = readByteAtIndex(data, 1); // read the next 3 bytes
-            uint8 b3 = readByteAtIndex(data, 2);
-            uint8 b4 = readByteAtIndex(data, 3);
-
-            uint32 x1 = uint32(b) | (uint32(b2) << 8); // convert to little endian
-            uint32 x2 = x1 | (uint32(b3) << 16);
-            uint32 x3 = x2 | (uint32(b4) << 24);
-
-            x3 >>= 2; // remove the last 2 mode bits
-            value = uint256(x3);
-        } else if (mode == 3) {
-            // [1073741824, 4503599627370496]
-            uint8 l = b >> 2; // remove mode bits
-            require(
-                l > 32,
-                "Not supported: number cannot be greater than 32 bytes"
-            );
-        } else {
-            revert("Code should be unreachable");
-        }
-    }
-
-    // The biggest compact supported uint is 2 ** 536 - 1. 
-    // But the biggest value supported by this method is 2 ** 256 - 1(max of uint256)
-    function encodeUintCompact(uint256 v) internal pure returns (bytes memory) {
-        if ( v < 64 ) {
-            return abi.encodePacked(uint8(v << 2));
-        } else if ( v < 2 ** 14 ) {
-            return abi.encodePacked(reverse16(uint16(((v << 2) + 1))));
-        } else if ( v < 2 ** 30 ) {
-            return abi.encodePacked(reverse32(uint32(((v << 2) + 2))));
-        } else { // 0b11, The upper six bits are the number of bytes following, plus four
-            bytes memory valueBytes = 
-                Bytes.removeEndingZero(abi.encodePacked(reverse256(v)));
-
-            uint length = valueBytes.length;
-            uint8 prefix = uint8(((length - 4) << 2) + 3);
-
-            return abi.encodePacked(prefix, valueBytes);
-        }
-    }
-
-    // Read a byte at a specific index and return it as type uint8
-    function readByteAtIndex(bytes memory data, uint8 index)
-        internal
-        pure
-        returns (uint8)
-    {
-        return uint8(data[index]);
-    }
-
-    // Sources:
-    //   * https://ethereum.stackexchange.com/questions/15350/how-to-convert-an-bytes-to-address-in-solidity/50528
-    //   * https://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
-
-    function reverse256(uint256 input) internal pure returns (uint256 v) {
-        v = input;
-
-        // swap bytes
-        v = ((v & 0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
-            ((v & 0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = ((v & 0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
-            ((v & 0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
-
-        // swap 4-byte long pairs
-        v = ((v & 0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000) >> 32) |
-            ((v & 0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF) << 32);
-
-        // swap 8-byte long pairs
-        v = ((v & 0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000) >> 64) |
-            ((v & 0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF) << 64);
-
-        // swap 16-byte long pairs
-        v = (v >> 128) | (v << 128);
-    }
-
-    function reverse128(uint128 input) internal pure returns (uint128 v) {
-        v = input;
-
-        // swap bytes
-        v = ((v & 0xFF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
-            ((v & 0x00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = ((v & 0xFFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
-            ((v & 0x0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
-
-        // swap 4-byte long pairs
-        v = ((v & 0xFFFFFFFF00000000FFFFFFFF00000000) >> 32) |
-            ((v & 0x00000000FFFFFFFF00000000FFFFFFFF) << 32);
-
-        // swap 8-byte long pairs
-        v = (v >> 64) | (v << 64);
-    }
-
-    function reverse64(uint64 input) internal pure returns (uint64 v) {
-        v = input;
-
-        // swap bytes
-        v = ((v & 0xFF00FF00FF00FF00) >> 8) |
-            ((v & 0x00FF00FF00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = ((v & 0xFFFF0000FFFF0000) >> 16) |
-            ((v & 0x0000FFFF0000FFFF) << 16);
-
-        // swap 4-byte long pairs
-        v = (v >> 32) | (v << 32);
-    }
-
-    function reverse32(uint32 input) internal pure returns (uint32 v) {
-        v = input;
-
-        // swap bytes
-        v = ((v & 0xFF00FF00) >> 8) |
-            ((v & 0x00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = (v >> 16) | (v << 16);
-    }
-
-    function reverse16(uint16 input) internal pure returns (uint16 v) {
-        v = input;
-
-        // swap bytes
-        v = (v >> 8) | (v << 8);
-    }
-
-    function encode256(uint256 input) internal pure returns (bytes32) {
-        return bytes32(reverse256(input));
-    }
-
-    function encode128(uint128 input) internal pure returns (bytes16) {
-        return bytes16(reverse128(input));
-    }
-
-    function encode64(uint64 input) internal pure returns (bytes8) {
-        return bytes8(reverse64(input));
-    }
-
-    function encode32(uint32 input) internal pure returns (bytes4) {
-        return bytes4(reverse32(input));
-    }
-
-    function encode16(uint16 input) internal pure returns (bytes2) {
-        return bytes2(reverse16(input));
-    }
-
-    function encodeBytes(bytes memory input) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            encodeUintCompact(input.length),
-            input
-        );
-    }
-
-    
-}
-
 // File @darwinia/contracts-utils/contracts/Blake2b.sol@v1.0.4
 /*
  * Blake2b library in Solidity using EIP-152
@@ -1937,6 +1425,276 @@ library Blake2b {
 
 }
 
+// File @darwinia/contracts-utils/contracts/Memory.sol@v1.0.4
+// License-Identifier: MIT
+
+
+library Memory {
+
+    uint internal constant WORD_SIZE = 32;
+
+	// Compares the 'len' bytes starting at address 'addr' in memory with the 'len'
+    // bytes starting at 'addr2'.
+    // Returns 'true' if the bytes are the same, otherwise 'false'.
+    function equals(uint addr, uint addr2, uint len) internal pure returns (bool equal) {
+        assembly {
+            equal := eq(keccak256(addr, len), keccak256(addr2, len))
+        }
+    }
+
+    // Compares the 'len' bytes starting at address 'addr' in memory with the bytes stored in
+    // 'bts'. It is allowed to set 'len' to a lower value then 'bts.length', in which case only
+    // the first 'len' bytes will be compared.
+    // Requires that 'bts.length >= len'
+
+    function equals(uint addr, uint len, bytes memory bts) internal pure returns (bool equal) {
+        require(bts.length >= len);
+        uint addr2;
+        assembly {
+            addr2 := add(bts, /*BYTES_HEADER_SIZE*/32)
+        }
+        return equals(addr, addr2, len);
+    }
+	// Returns a memory pointer to the data portion of the provided bytes array.
+	function dataPtr(bytes memory bts) internal pure returns (uint addr) {
+		assembly {
+			addr := add(bts, /*BYTES_HEADER_SIZE*/32)
+		}
+	}
+
+	// Creates a 'bytes memory' variable from the memory address 'addr', with the
+	// length 'len'. The function will allocate new memory for the bytes array, and
+	// the 'len bytes starting at 'addr' will be copied into that new memory.
+	function toBytes(uint addr, uint len) internal pure returns (bytes memory bts) {
+		bts = new bytes(len);
+		uint btsptr;
+		assembly {
+			btsptr := add(bts, /*BYTES_HEADER_SIZE*/32)
+		}
+		copy(addr, btsptr, len);
+	}
+	
+	// Copies 'self' into a new 'bytes memory'.
+	// Returns the newly created 'bytes memory'
+	// The returned bytes will be of length '32'.
+	function toBytes(bytes32 self) internal pure returns (bytes memory bts) {
+		bts = new bytes(32);
+		assembly {
+			mstore(add(bts, /*BYTES_HEADER_SIZE*/32), self)
+		}
+	}
+
+	// Copy 'len' bytes from memory address 'src', to address 'dest'.
+	// This function does not check the or destination, it only copies
+	// the bytes.
+	function copy(uint src, uint dest, uint len) internal pure {
+		// Copy word-length chunks while possible
+		for (; len >= WORD_SIZE; len -= WORD_SIZE) {
+			assembly {
+				mstore(dest, mload(src))
+			}
+			dest += WORD_SIZE;
+			src += WORD_SIZE;
+		}
+
+		// Copy remaining bytes
+		uint mask = len == 0 ?  0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff : 256 ** (WORD_SIZE - len) - 1;
+		assembly {
+			let srcpart := and(mload(src), not(mask))
+			let destpart := and(mload(dest), mask)
+			mstore(dest, or(destpart, srcpart))
+		}
+	}
+
+	// This function does the same as 'dataPtr(bytes memory)', but will also return the
+	// length of the provided bytes array.
+	function fromBytes(bytes memory bts) internal pure returns (uint addr, uint len) {
+		len = bts.length;
+		assembly {
+			addr := add(bts, /*BYTES_HEADER_SIZE*/32)
+		}
+	}
+}
+
+// File @darwinia/contracts-utils/contracts/Bytes.sol@v1.0.4
+// License-Identifier: MIT
+
+
+library Bytes {
+    uint256 internal constant BYTES_HEADER_SIZE = 32;
+
+    // Checks if two `bytes memory` variables are equal. This is done using hashing,
+    // which is much more gas efficient then comparing each byte individually.
+    // Equality means that:
+    //  - 'self.length == other.length'
+    //  - For 'n' in '[0, self.length)', 'self[n] == other[n]'
+    function equals(bytes memory self, bytes memory other) internal pure returns (bool equal) {
+        if (self.length != other.length) {
+            return false;
+        }
+        uint addr;
+        uint addr2;
+        assembly {
+            addr := add(self, /*BYTES_HEADER_SIZE*/32)
+            addr2 := add(other, /*BYTES_HEADER_SIZE*/32)
+        }
+        equal = Memory.equals(addr, addr2, self.length);
+    }
+
+    // Copies a section of 'self' into a new array, starting at the provided 'startIndex'.
+    // Returns the new copy.
+    // Requires that 'startIndex <= self.length'
+    // The length of the substring is: 'self.length - startIndex'
+    function substr(bytes memory self, uint256 startIndex)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        require(startIndex <= self.length);
+        uint256 len = self.length - startIndex;
+        uint256 addr = Memory.dataPtr(self);
+        return Memory.toBytes(addr + startIndex, len);
+    }
+
+    // Copies 'len' bytes from 'self' into a new array, starting at the provided 'startIndex'.
+    // Returns the new copy.
+    // Requires that:
+    //  - 'startIndex + len <= self.length'
+    // The length of the substring is: 'len'
+    function substr(
+        bytes memory self,
+        uint256 startIndex,
+        uint256 len
+    ) internal pure returns (bytes memory) {
+        require(startIndex + len <= self.length);
+        if (len == 0) {
+            return "";
+        }
+        uint256 addr = Memory.dataPtr(self);
+        return Memory.toBytes(addr + startIndex, len);
+    }
+
+    // Combines 'self' and 'other' into a single array.
+    // Returns the concatenated arrays:
+    //  [self[0], self[1], ... , self[self.length - 1], other[0], other[1], ... , other[other.length - 1]]
+    // The length of the new array is 'self.length + other.length'
+    function concat(bytes memory self, bytes memory other)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory ret = new bytes(self.length + other.length);
+        uint256 src;
+        uint256 srcLen;
+        (src, srcLen) = Memory.fromBytes(self);
+        uint256 src2;
+        uint256 src2Len;
+        (src2, src2Len) = Memory.fromBytes(other);
+        uint256 dest;
+        (dest, ) = Memory.fromBytes(ret);
+        uint256 dest2 = dest + srcLen;
+        Memory.copy(src, dest, srcLen);
+        Memory.copy(src2, dest2, src2Len);
+        return ret;
+    }
+
+    function toBytes32(bytes memory self)
+        internal
+        pure
+        returns (bytes32 out)
+    {
+        require(self.length >= 32, "Bytes:: toBytes32: data is to short.");
+        assembly {
+            out := mload(add(self, 32))
+        }
+    }
+
+    function toBytes16(bytes memory self, uint256 offset)
+        internal
+        pure
+        returns (bytes16 out)
+    {
+        for (uint i = 0; i < 16; i++) {
+            out |= bytes16(bytes1(self[offset + i]) & 0xFF) >> (i * 8);
+        }
+    }
+
+    function toBytes8(bytes memory self, uint256 offset)
+        internal
+        pure
+        returns (bytes8 out)
+    {
+        for (uint i = 0; i < 8; i++) {
+            out |= bytes8(bytes1(self[offset + i]) & 0xFF) >> (i * 8);
+        }
+    }
+
+    function toBytes4(bytes memory self, uint256 offset)
+        internal
+        pure
+        returns (bytes4)
+    {
+        bytes4 out;
+
+        for (uint256 i = 0; i < 4; i++) {
+            out |= bytes4(self[offset + i] & 0xFF) >> (i * 8);
+        }
+        return out;
+    }
+
+    function toBytes2(bytes memory self, uint256 offset)
+        internal
+        pure
+        returns (bytes2)
+    {
+        bytes2 out;
+
+        for (uint256 i = 0; i < 2; i++) {
+            out |= bytes2(self[offset + i] & 0xFF) >> (i * 8);
+        }
+        return out;
+    }
+
+    function removeLeadingZero(bytes memory data) internal pure returns (bytes memory) {
+        uint length = data.length;
+
+        uint startIndex = 0;
+        for (uint i = 0; i < length; i++) {
+            if (data[i] != 0) {
+                startIndex = i;
+                break;
+            }
+        }
+
+        return substr(data, startIndex);
+    }
+
+    function removeEndingZero(bytes memory data) internal pure returns (bytes memory) {
+        uint length = data.length;
+
+        uint endIndex = 0;
+        for (uint i = length - 1; i >= 0; i--) {
+            if (data[i] != 0) {
+                endIndex = i;
+                break;
+            }
+        }
+
+        return substr(data, 0, endIndex + 1);
+    }
+
+    function reverse(bytes memory inbytes) internal pure returns (bytes memory) {
+        uint inlength = inbytes.length;
+        bytes memory outbytes = new bytes(inlength);
+
+        for (uint i = 0; i <= inlength - 1; i++) {
+            outbytes[i] = inbytes[inlength - i - 1];
+        }
+
+        return outbytes;
+    }
+}
+
 // File @darwinia/contracts-utils/contracts/Hash.sol@v1.0.4
 // License-Identifier: MIT
 
@@ -1971,6 +1729,256 @@ library Hash {
         Blake2b.Instance memory instance = Blake2b.init(hex"", 16);
         return abi.encodePacked(instance.finalize(src), src);
     }
+}
+
+// File @darwinia/contracts-utils/contracts/ScaleCodec.sol@v1.0.4
+// License-Identifier: MIT
+
+library ScaleCodec {
+    // Decodes a SCALE encoded uint256 by converting bytes (big endian) to little endian format
+    function decodeUint256(bytes memory data) internal pure returns (uint256) {
+        uint256 number;
+        for (uint256 i = data.length; i > 0; i--) {
+            number = number + uint256(uint8(data[i - 1])) * (2**(8 * (i - 1)));
+        }
+        return number;
+    }
+
+    function decodeUint128(bytes memory data) internal pure returns (uint128) {
+        require(data.length >= 16, "Bad data");
+        bytes memory reversed = Bytes.reverse(data);
+        return uint128(Bytes.toBytes16(reversed, 0));
+    }
+
+    function decodeUint64(bytes memory data) internal pure returns (uint64) {
+        require(data.length >= 8, "Bad data");
+        bytes memory reversed = Bytes.reverse(data);
+        return uint64(Bytes.toBytes8(reversed, 0));
+    }
+
+    // Decodes a SCALE encoded compact unsigned integer
+    function decodeUintCompact(bytes memory data)
+        internal 
+        pure
+        returns (uint256 value, uint8 mode)
+    {
+        uint8 b = readByteAtIndex(data, 0); // read the first byte
+        mode = b & 3; // bitwise operation
+
+        if (mode == 0) {
+            // [0, 63]
+            value = b >> 2; // right shift to remove mode bits
+        } else if (mode == 1) {
+            // [64, 16383]
+            uint8 bb = readByteAtIndex(data, 1); // read the second byte
+            uint64 r = bb; // convert to uint64
+            r <<= 6; // multiply by * 2^6
+            r += b >> 2; // right shift to remove mode bits
+            value = r;
+        } else if (mode == 2) {
+            // [16384, 1073741823]
+            uint8 b2 = readByteAtIndex(data, 1); // read the next 3 bytes
+            uint8 b3 = readByteAtIndex(data, 2);
+            uint8 b4 = readByteAtIndex(data, 3);
+
+            uint32 x1 = uint32(b) | (uint32(b2) << 8); // convert to little endian
+            uint32 x2 = x1 | (uint32(b3) << 16);
+            uint32 x3 = x2 | (uint32(b4) << 24);
+
+            x3 >>= 2; // remove the last 2 mode bits
+            value = uint256(x3);
+        } else if (mode == 3) {
+            // [1073741824, 4503599627370496]
+            uint8 l = b >> 2; // remove mode bits
+            require(
+                l > 32,
+                "Not supported: number cannot be greater than 32 bytes"
+            );
+        } else {
+            revert("Code should be unreachable");
+        }
+    }
+
+    // The biggest compact supported uint is 2 ** 536 - 1. 
+    // But the biggest value supported by this method is 2 ** 256 - 1(max of uint256)
+    function encodeUintCompact(uint256 v) internal pure returns (bytes memory) {
+        if ( v < 64 ) {
+            return abi.encodePacked(uint8(v << 2));
+        } else if ( v < 2 ** 14 ) {
+            return abi.encodePacked(reverse16(uint16(((v << 2) + 1))));
+        } else if ( v < 2 ** 30 ) {
+            return abi.encodePacked(reverse32(uint32(((v << 2) + 2))));
+        } else { // 0b11, The upper six bits are the number of bytes following, plus four
+            bytes memory valueBytes = 
+                Bytes.removeEndingZero(abi.encodePacked(reverse256(v)));
+
+            uint length = valueBytes.length;
+            uint8 prefix = uint8(((length - 4) << 2) + 3);
+
+            return abi.encodePacked(prefix, valueBytes);
+        }
+    }
+
+    // Read a byte at a specific index and return it as type uint8
+    function readByteAtIndex(bytes memory data, uint8 index)
+        internal
+        pure
+        returns (uint8)
+    {
+        return uint8(data[index]);
+    }
+
+    // Sources:
+    //   * https://ethereum.stackexchange.com/questions/15350/how-to-convert-an-bytes-to-address-in-solidity/50528
+    //   * https://graphics.stanford.edu/~seander/bithacks.html#ReverseParallel
+
+    function reverse256(uint256 input) internal pure returns (uint256 v) {
+        v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
+            ((v & 0x00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = ((v & 0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
+            ((v & 0x0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
+
+        // swap 4-byte long pairs
+        v = ((v & 0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000) >> 32) |
+            ((v & 0x00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF) << 32);
+
+        // swap 8-byte long pairs
+        v = ((v & 0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000) >> 64) |
+            ((v & 0x0000000000000000FFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF) << 64);
+
+        // swap 16-byte long pairs
+        v = (v >> 128) | (v << 128);
+    }
+
+    function reverse128(uint128 input) internal pure returns (uint128 v) {
+        v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00FF00FF00FF00FF00FF00FF00) >> 8) |
+            ((v & 0x00FF00FF00FF00FF00FF00FF00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = ((v & 0xFFFF0000FFFF0000FFFF0000FFFF0000) >> 16) |
+            ((v & 0x0000FFFF0000FFFF0000FFFF0000FFFF) << 16);
+
+        // swap 4-byte long pairs
+        v = ((v & 0xFFFFFFFF00000000FFFFFFFF00000000) >> 32) |
+            ((v & 0x00000000FFFFFFFF00000000FFFFFFFF) << 32);
+
+        // swap 8-byte long pairs
+        v = (v >> 64) | (v << 64);
+    }
+
+    function reverse64(uint64 input) internal pure returns (uint64 v) {
+        v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00FF00FF00) >> 8) |
+            ((v & 0x00FF00FF00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = ((v & 0xFFFF0000FFFF0000) >> 16) |
+            ((v & 0x0000FFFF0000FFFF) << 16);
+
+        // swap 4-byte long pairs
+        v = (v >> 32) | (v << 32);
+    }
+
+    function reverse32(uint32 input) internal pure returns (uint32 v) {
+        v = input;
+
+        // swap bytes
+        v = ((v & 0xFF00FF00) >> 8) |
+            ((v & 0x00FF00FF) << 8);
+
+        // swap 2-byte long pairs
+        v = (v >> 16) | (v << 16);
+    }
+
+    function reverse16(uint16 input) internal pure returns (uint16 v) {
+        v = input;
+
+        // swap bytes
+        v = (v >> 8) | (v << 8);
+    }
+
+    function encode256(uint256 input) internal pure returns (bytes32) {
+        return bytes32(reverse256(input));
+    }
+
+    function encode128(uint128 input) internal pure returns (bytes16) {
+        return bytes16(reverse128(input));
+    }
+
+    function encode64(uint64 input) internal pure returns (bytes8) {
+        return bytes8(reverse64(input));
+    }
+
+    function encode32(uint32 input) internal pure returns (bytes4) {
+        return bytes4(reverse32(input));
+    }
+
+    function encode16(uint16 input) internal pure returns (bytes2) {
+        return bytes2(reverse16(input));
+    }
+
+    function encodeBytes(bytes memory input) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            encodeUintCompact(input.length),
+            input
+        );
+    }
+
+    
+}
+
+// File @darwinia/contracts-utils/contracts/AccountId.sol@v1.0.4
+// License-Identifier: MIT
+
+
+library AccountId {
+    bytes private constant prefixBytes = "dvm:";
+    bytes private constant zeroBytes = hex"00000000000000";
+
+    function deriveSubstrateAddress(address addr) internal pure returns (bytes32) {
+        bytes memory body = abi.encodePacked(
+            prefixBytes,
+            zeroBytes,
+            addr
+        );
+        uint8 checksum = checksumOf(body);
+        bytes memory result = abi.encodePacked(body, checksum);
+        return Bytes.toBytes32(result);
+    }
+
+    function deriveEthereumAddress(bytes32 accountId) internal pure returns (address) {
+        return address(bytes20(accountId));
+    }
+
+    function deriveEthereumAddressFromDvm(bytes32 accountId) internal pure returns (address) {
+        return address(uint160(uint256(accountId) >> 8));
+    }
+
+    function checksumOf(bytes memory accountId) private pure returns (uint8) {
+        uint8 checksum = uint8(accountId[0]);
+        for (uint i = 1; i <= 30; i++) {
+            checksum = checksum ^ uint8(accountId[i]);
+        }
+        return checksum;
+    }
+}
+
+// File @darwinia/contracts-periphery/contracts/s2s/interfaces/IStateStorage.sol@vv2.1.1-fix2
+// License-Identifier: MIT
+
+
+interface IStateStorage {
+    function state_storage(bytes memory key) external view returns (bytes memory);
 }
 
 // File hardhat/console.sol@v2.12.4
@@ -3507,7 +3515,7 @@ library console {
 
 }
 
-// File @darwinia/contracts-periphery/contracts/s2s/types/CommonTypes.sol@vv2.1.0-pre6
+// File @darwinia/contracts-periphery/contracts/s2s/types/CommonTypes.sol@vv2.1.1-fix2
 // License-Identifier: MIT
 
 
@@ -3692,16 +3700,16 @@ library CommonTypes {
     // UnrewardedRelayer
     ////////////////////////////////////
     struct UnrewardedRelayer {
-        bytes32 relayer;
+        address relayer;
         DeliveredMessages messages;
     }
 
     function decodeUnrewardedRelayer(
         bytes memory _data
     ) internal pure returns (UnrewardedRelayer memory) {
-        bytes32 relayer = Bytes.toBytes32(Bytes.substr(_data, 0, 32));
+        address relayer = toAddress(_data, 0);
         DeliveredMessages memory messages = decodeDeliveredMessages(
-            Bytes.substr(_data, 32)
+            Bytes.substr(_data, 20)
         );
 
         return UnrewardedRelayer(relayer, messages);
@@ -3713,7 +3721,24 @@ library CommonTypes {
         uint bytesLengthOfmessages = getBytesLengthOfDeliveredMessages(
             unrewardedRelayer.messages
         );
-        return 32 + bytesLengthOfmessages;
+        return 20 + bytesLengthOfmessages;
+    }
+
+    function toAddress(
+        bytes memory _bytes,
+        uint256 _start
+    ) internal pure returns (address) {
+        require(_bytes.length >= _start + 20, "toAddress_outOfBounds");
+        address tempAddress;
+
+        assembly {
+            tempAddress := div(
+                mload(add(add(_bytes, 0x20), _start)),
+                0x1000000000000000000000000
+            )
+        }
+
+        return tempAddress;
     }
 
     ////////////////////////////////////
@@ -3806,7 +3831,7 @@ library CommonTypes {
     }
 }
 
-// File @darwinia/contracts-periphery/contracts/s2s/types/PalletBridgeMessages.sol@vv2.1.0-pre6
+// File @darwinia/contracts-periphery/contracts/s2s/types/PalletBridgeMessages.sol@vv2.1.1-fix2
 // License-Identifier: MIT
 
 
@@ -3834,15 +3859,7 @@ library PalletBridgeMessages {
     }
 }
 
-// File @darwinia/contracts-periphery/contracts/s2s/interfaces/IStateStorage.sol@vv2.1.0-pre6
-// License-Identifier: MIT
-
-
-interface IStateStorage {
-    function state_storage(bytes memory key) external view returns (bytes memory);
-}
-
-// File @darwinia/contracts-periphery/contracts/s2s/MessageLib.sol@vv2.1.0-pre6
+// File @darwinia/contracts-periphery/contracts/s2s/MessageLib.sol@vv2.1.1-fix2
 // License-Identifier: MIT
 
 
@@ -4079,7 +4096,7 @@ library MessageLib {
     }
 }
 
-// File @darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol@vv2.1.0-pre6
+// File @darwinia/contracts-periphery/contracts/s2s/types/PalletEthereum.sol@vv2.1.1-fix2
 // License-Identifier: MIT
 
 
@@ -4231,7 +4248,7 @@ library PalletEthereum {
     }
 }
 
-// File @darwinia/contracts-periphery/contracts/s2s/MessageEndpoint.sol@vv2.1.0-pre6
+// File @darwinia/contracts-periphery/contracts/s2s/MessageEndpoint.sol@vv2.1.1-fix2
 // License-Identifier: MIT
 
 
@@ -4249,8 +4266,8 @@ abstract contract MessageEndpoint {
     // remote smart chain id
     uint64 public remoteSmartChainId;
 
-    // 1 gas ~= 40_000 weight
-    uint64 public constant REMOTE_WEIGHT_PER_GAS = 40_000;
+    // 1 gas ~= 18_750 weight
+    uint64 public constant REMOTE_WEIGHT_PER_GAS = 18_750;
 
     // LOCAL
     // storage keys
@@ -4430,7 +4447,10 @@ abstract contract MessageEndpoint {
         bytes4 laneId,
         uint64 nonce
     ) public view returns (uint256) {
-        return (uint256(uint32(laneId)) << 64) + (uint256(VERSION) << 240) + uint256(nonce);
+        return
+            (uint256(uint32(laneId)) << 64) +
+            (uint256(VERSION) << 240) +
+            uint256(nonce);
     }
 
     ///////////////////////////////

@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 4/19/2023
+ * 4/28/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -110,6 +110,29 @@ interface IGuard {
   function deposit(uint256 id, address token, address recipient, uint256 amount) external;
 }
 
+// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixMessageEndpoint {
+    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
+}
+
+// File contracts/mapping-token/interfaces/IHelixSub2SubMessageEndpoint.sol
+// License-Identifier: MIT
+
+
+interface IHelixSub2SubMessageEndpoint is IHelixMessageEndpoint {
+    function fee() external view returns (uint256);
+    function lastDeliveredMessageId() external view returns (uint256);
+    function isMessageDelivered(uint256 messageId) external view returns(bool);
+    function sendMessage(
+        uint32  remoteSpecVersion,
+        uint256 remoteReceiveGasLimit,
+        address receiver,
+        bytes calldata encoded) external payable returns (uint256);
+}
+
 // File contracts/mapping-token/interfaces/IBacking.sol
 // License-Identifier: MIT
 
@@ -125,6 +148,26 @@ interface IBackingSupportNative {
     function unlockFromRemoteNative(
         address recipient,
         uint256 amount) external;
+}
+
+// File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
+// License-Identifier: MIT
+
+
+interface IErc20MappingTokenFactory {
+    function newErc20Contract(
+        address originalToken,
+        string memory bridgedChainName,
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        uint256 dailyLimit
+    ) external returns (address mappingToken);
+    function issueMappingToken(
+        address originalToken,
+        address recipient,
+        uint256 amount
+    ) external;
 }
 
 // File contracts/mapping-token/interfaces/IHelixApp.sol
@@ -149,178 +192,6 @@ interface IHelixAppSupportWithdrawFailed {
         address sender,
         uint256 amount
     ) external;
-}
-
-// File contracts/mapping-token/interfaces/IHelixMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixMessageEndpoint {
-    function sendMessage(address receiver, bytes calldata encoded) external payable returns (uint256);
-}
-
-// File contracts/mapping-token/interfaces/IHelixSub2SubMessageEndpoint.sol
-// License-Identifier: MIT
-
-
-interface IHelixSub2SubMessageEndpoint is IHelixMessageEndpoint {
-    function fee() external view returns (uint256);
-    function lastDeliveredMessageId() external view returns (uint256);
-    function isMessageDelivered(uint256 messageId) external view returns(bool);
-    function sendMessage(
-        uint32  remoteSpecVersion,
-        uint256 remoteReceiveGasLimit,
-        address receiver,
-        bytes calldata encoded) external payable returns (uint256);
-}
-
-// File contracts/mapping-token/interfaces/IErc20MappingTokenFactory.sol
-// License-Identifier: MIT
-
-
-interface IErc20MappingTokenFactory {
-    function newErc20Contract(
-        address originalToken,
-        string memory bridgedChainName,
-        string memory name,
-        string memory symbol,
-        uint8 decimals,
-        uint256 dailyLimit
-    ) external returns (address mappingToken);
-    function issueMappingToken(
-        address originalToken,
-        address recipient,
-        uint256 amount
-    ) external;
-}
-
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
-}
-
-// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
-
-
-/**
- * @dev Contract module which allows children to implement an emergency stop
- * mechanism that can be triggered by an authorized account.
- *
- * This module is used through inheritance. It will make available the
- * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
- * simply including this module, only once the modifiers are put in place.
- */
-abstract contract Pausable is Context {
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        _requireNotPaused();
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        _requirePaused();
-        _;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Throws if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        require(!paused(), "Pausable: paused");
-    }
-
-    /**
-     * @dev Throws if the contract is not paused.
-     */
-    function _requirePaused() internal view virtual {
-        require(paused(), "Pausable: not paused");
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
-    }
 }
 
 // File @zeppelin-solidity/contracts/access/IAccessControl.sol@v4.7.3
@@ -442,6 +313,85 @@ interface IAccessControlEnumerable is IAccessControl {
     function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
+
+
+/**
+ * @dev Interface of the ERC165 standard, as defined in the
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ *
+ * Implementers can declare support of contract interfaces, which can then be
+ * queried by others ({ERC165Checker}).
+ *
+ * For an implementation, see {ERC165}.
+ */
+interface IERC165 {
+    /**
+     * @dev Returns true if this contract implements the interface defined by
+     * `interfaceId`. See the corresponding
+     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     * to learn more about how these ids are created.
+     *
+     * This function call must use less than 30 000 gas.
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
+
+
+/**
+ * @dev Implementation of the {IERC165} interface.
+ *
+ * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
+ * for the additional interface id that will be supported. For example:
+ *
+ * ```solidity
+ * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+ *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
+ * }
+ * ```
+ *
+ * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
+ */
+abstract contract ERC165 is IERC165 {
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC165).interfaceId;
+    }
+}
+
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/Strings.sol)
@@ -515,60 +465,6 @@ library Strings {
      */
     function toHexString(address addr) internal pure returns (string memory) {
         return toHexString(uint256(uint160(addr)), _ADDRESS_LENGTH);
-    }
-}
-
-// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
-
-
-/**
- * @dev Interface of the ERC165 standard, as defined in the
- * https://eips.ethereum.org/EIPS/eip-165[EIP].
- *
- * Implementers can declare support of contract interfaces, which can then be
- * queried by others ({ERC165Checker}).
- *
- * For an implementation, see {ERC165}.
- */
-interface IERC165 {
-    /**
-     * @dev Returns true if this contract implements the interface defined by
-     * `interfaceId`. See the corresponding
-     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
-     * to learn more about how these ids are created.
-     *
-     * This function call must use less than 30 000 gas.
-     */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
-
-// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
-
-
-/**
- * @dev Implementation of the {IERC165} interface.
- *
- * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
- * for the additional interface id that will be supported. For example:
- *
- * ```solidity
- * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
- *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
- * }
- * ```
- *
- * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
- */
-abstract contract ERC165 is IERC165 {
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IERC165).interfaceId;
     }
 }
 
@@ -1249,6 +1145,110 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
     }
 }
 
+// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
+
+
+/**
+ * @dev Contract module which allows children to implement an emergency stop
+ * mechanism that can be triggered by an authorized account.
+ *
+ * This module is used through inheritance. It will make available the
+ * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
+ * the functions of your contract. Note that they will not be pausable by
+ * simply including this module, only once the modifiers are put in place.
+ */
+abstract contract Pausable is Context {
+    /**
+     * @dev Emitted when the pause is triggered by `account`.
+     */
+    event Paused(address account);
+
+    /**
+     * @dev Emitted when the pause is lifted by `account`.
+     */
+    event Unpaused(address account);
+
+    bool private _paused;
+
+    /**
+     * @dev Initializes the contract in unpaused state.
+     */
+    constructor() {
+        _paused = false;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is not paused.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    modifier whenNotPaused() {
+        _requireNotPaused();
+        _;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is paused.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    modifier whenPaused() {
+        _requirePaused();
+        _;
+    }
+
+    /**
+     * @dev Returns true if the contract is paused, and false otherwise.
+     */
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Throws if the contract is paused.
+     */
+    function _requireNotPaused() internal view virtual {
+        require(!paused(), "Pausable: paused");
+    }
+
+    /**
+     * @dev Throws if the contract is not paused.
+     */
+    function _requirePaused() internal view virtual {
+        require(paused(), "Pausable: not paused");
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function _pause() internal virtual whenNotPaused {
+        _paused = true;
+        emit Paused(_msgSender());
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function _unpause() internal virtual whenPaused {
+        _paused = false;
+        emit Unpaused(_msgSender());
+    }
+}
+
 // File contracts/mapping-token/v2/AccessController.sol
 // License-Identifier: MIT
 
@@ -1829,62 +1829,6 @@ contract MappingTokenFactory is AccessController, Initializable {
     }
 }
 
-// File @zeppelin-solidity/contracts/utils/structs/BitMaps.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/structs/BitMaps.sol)
-
-/**
- * @dev Library for managing uint256 to bool mapping in a compact and efficient way, providing the keys are sequential.
- * Largelly inspired by Uniswap's https://github.com/Uniswap/merkle-distributor/blob/master/contracts/MerkleDistributor.sol[merkle-distributor].
- */
-library BitMaps {
-    struct BitMap {
-        mapping(uint256 => uint256) _data;
-    }
-
-    /**
-     * @dev Returns whether the bit at `index` is set.
-     */
-    function get(BitMap storage bitmap, uint256 index) internal view returns (bool) {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        return bitmap._data[bucket] & mask != 0;
-    }
-
-    /**
-     * @dev Sets the bit at `index` to the boolean `value`.
-     */
-    function setTo(
-        BitMap storage bitmap,
-        uint256 index,
-        bool value
-    ) internal {
-        if (value) {
-            set(bitmap, index);
-        } else {
-            unset(bitmap, index);
-        }
-    }
-
-    /**
-     * @dev Sets the bit at `index`.
-     */
-    function set(BitMap storage bitmap, uint256 index) internal {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        bitmap._data[bucket] |= mask;
-    }
-
-    /**
-     * @dev Unsets the bit at `index`.
-     */
-    function unset(BitMap storage bitmap, uint256 index) internal {
-        uint256 bucket = index >> 8;
-        uint256 mask = 1 << (index & 0xff);
-        bitmap._data[bucket] &= ~mask;
-    }
-}
-
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
@@ -2311,6 +2255,62 @@ contract Erc20 is IERC20, Ownable {
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
+}
+
+// File @zeppelin-solidity/contracts/utils/structs/BitMaps.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/structs/BitMaps.sol)
+
+/**
+ * @dev Library for managing uint256 to bool mapping in a compact and efficient way, providing the keys are sequential.
+ * Largelly inspired by Uniswap's https://github.com/Uniswap/merkle-distributor/blob/master/contracts/MerkleDistributor.sol[merkle-distributor].
+ */
+library BitMaps {
+    struct BitMap {
+        mapping(uint256 => uint256) _data;
+    }
+
+    /**
+     * @dev Returns whether the bit at `index` is set.
+     */
+    function get(BitMap storage bitmap, uint256 index) internal view returns (bool) {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        return bitmap._data[bucket] & mask != 0;
+    }
+
+    /**
+     * @dev Sets the bit at `index` to the boolean `value`.
+     */
+    function setTo(
+        BitMap storage bitmap,
+        uint256 index,
+        bool value
+    ) internal {
+        if (value) {
+            set(bitmap, index);
+        } else {
+            unset(bitmap, index);
+        }
+    }
+
+    /**
+     * @dev Sets the bit at `index`.
+     */
+    function set(BitMap storage bitmap, uint256 index) internal {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        bitmap._data[bucket] |= mask;
+    }
+
+    /**
+     * @dev Unsets the bit at `index`.
+     */
+    function unset(BitMap storage bitmap, uint256 index) internal {
+        uint256 bucket = index >> 8;
+        uint256 mask = 1 << (index & 0xff);
+        bitmap._data[bucket] &= ~mask;
+    }
 }
 
 // File contracts/mapping-token/v2/erc20-mapping-protocol/Erc20Sub2SubMappingTokenFactory.sol

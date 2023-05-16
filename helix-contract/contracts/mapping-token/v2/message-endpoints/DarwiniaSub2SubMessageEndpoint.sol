@@ -2,10 +2,10 @@
 pragma solidity ^0.8.10;
 
 import "../AccessController.sol";
-import "@darwinia/contracts-periphery/contracts/s2s/endpoints/MessageEndpoint.sol";
+import "@darwinia/contracts-periphery/contracts/s2s/MessageEndpoint.sol";
 
 contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
-    constructor() {
+    constructor(uint16 _version, bytes4 _outboundLaneId, bytes4 _inboundLaneId) MessageEndpoint(_version, _outboundLaneId, _inboundLaneId) {
         _initialize(msg.sender);
     }
 
@@ -18,15 +18,8 @@ contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
         _setRemoteMessageTransactCallIndex(_remoteMessageTransactCallIndex);
     }
 
-    function setLocalAddress(address _storageAddress, address _dispatchAddress) external onlyAdmin {
-        _setStorageAddress(_storageAddress);
-        _setDispatchAddress(_dispatchAddress);
-    }
-
-    function setLocalCallInfo(bytes2 _callIndexOfSendMessage, bytes4 _outboundLaneId, bytes4 _inboundLaneId) external onlyAdmin {
+    function setLocalCallInfo(bytes2 _callIndexOfSendMessage) external onlyAdmin {
         _setSendMessageCallIndex(_callIndexOfSendMessage);
-        _setOutboundLaneId(_outboundLaneId);
-        _setInboundLaneId(_inboundLaneId);
     }
 
     function setLocalStorageKey(
@@ -48,7 +41,7 @@ contract DarwiniaSub2SubMessageEndpoint is AccessController, MessageEndpoint {
         return _remoteExecute(remoteSpecVersion, receiver, callPayload, remoteReceiveGasLimit);
     }
 
-    function _approved(address callReceiver, bytes calldata) internal view override whenNotPaused returns (bool) {
+    function _canBeExecuted(address callReceiver, bytes calldata) internal view override whenNotPaused returns (bool) {
         return hasRole(CALLEE_ROLE, callReceiver);
     }
 }

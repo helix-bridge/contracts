@@ -1,6 +1,7 @@
 {
   "darwinia2ethereum_sub2eth_ethereum": {
     "messageEndpoint": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
+    "messageEndpointV2": "0xe420ae2e32bd218f240fd52176267e669c0622a4",
     "mappingTokenFactoryLogic": "0x1928C29b8eCD6c877A2E6bEF01bD50C72E1be0cC",
     "mappingTokenFactoryAdmin": "0x66D86a686e50C98BaC236105eFAFb99Ee7605dc5",
     "mappingTokenFactoryProxy": "0xFBAD806Bdf9cEC2943be281FB355Da05068DE925",
@@ -10,6 +11,7 @@
   },
   "darwinia2ethereum_sub2eth_darwinia": {
     "messageEndpoint": "0x9C80EdD342b5D179c3a87946fC1F0963BfcaAa09",
+    "messageEndpointV2": "0xaa69C8955636A623b2AB0AEE7366B4bB3677051D",
     "backingLogic": "0x8A87497488073307E1a17e8A12475a94Afcb413f",
     "backingAdmin": "0x2FC7Def96561ca5e1f0Aa333cb78cFA51DeE3218",
     "backingProxy": "0xD1B10B114f1975d8BCc6cb6FC43519160e2AA978",

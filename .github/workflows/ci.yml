@@ -19,7 +19,7 @@ jobs:
       - name: setup-nvm
         uses: dcodeIO/setup-node-nvm@master
         with:
-          node-version: v16.0.0
+          node-version: v18.0.0
 
       - name: setup-yarn
         run: |

@@ -14,10 +14,113 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 9/27/2022
+ * 5/12/2023
  **/
 
 pragma solidity ^0.8.10;
+
+// File contracts/mapping-token/interfaces/IInboundLane.sol
+// License-Identifier: MIT
+
+
+interface IInboundLane {
+    struct RelayersRange {
+        uint64 front;
+        uint64 back;
+    }
+
+    struct InboundLaneNonce {
+        uint64 last_confirmed_nonce;
+        uint64 last_delivered_nonce;
+        RelayersRange relayer_range;
+    }
+
+    function inboundLaneNonce() view external returns(InboundLaneNonce memory);
+    function encodeMessageKey(uint64 nonce) view external returns(uint256);
+}
+
+// File contracts/mapping-token/interfaces/IOutboundLane.sol
+// License-Identifier: MIT
+
+
+interface IOutboundLane {
+    struct OutboundLaneNonce {
+        uint64 latest_received_nonce;
+        uint64 latest_generated_nonce;
+        uint64 oldest_unpruned_nonce;
+    }
+
+    function outboundLaneNonce() view external returns(OutboundLaneNonce memory);
+
+    function send_message(address targetContract, bytes calldata encoded) external payable returns (uint64);
+}
+
+// File contracts/mapping-token/interfaces/ICrossChainFilter.sol
+// License-Identifier: MIT
+
+
+/**
+ * @title A interface for message layer to filter unsafe message
+ * @author echo
+ * @notice The app layer must implement the interface `ICrossChainFilter`
+ */
+interface ICrossChainFilter {
+    /**
+     * @notice Verify the source sender and payload of source chain messages,
+     * Generally, app layer cross-chain messages require validation of sourceAccount
+     * @param bridgedChainPosition The source chain position which send the message
+     * @param bridgedLanePosition The source lane position which send the message
+     * @param sourceAccount The source contract address which send the message
+     * @param payload The calldata which encoded by ABI Encoding
+     * @return Can call target contract if returns true
+     */
+    function cross_chain_filter(uint32 bridgedChainPosition, uint32 bridgedLanePosition, address sourceAccount, bytes calldata payload) external view returns (bool);
+}
+
+// File contracts/mapping-token/interfaces/IFeeMarket.sol
+// License-Identifier: MIT
+
+pragma abicoder v2;
+
+interface IFeeMarket {
+    //  Relayer which delivery the messages
+    struct DeliveredRelayer {
+        // relayer account
+        address relayer;
+        // encoded message key begin
+        uint256 begin;
+        // encoded message key end
+        uint256 end;
+    }
+    function market_fee() external view returns (uint256 fee);
+
+    function assign(uint256 nonce) external payable returns(bool);
+    function settle(DeliveredRelayer[] calldata delivery_relayers, address confirm_relayer) external returns(bool);
+}
+
+// File contracts/mapping-token/interfaces/IHelixApp.sol
+// License-Identifier: MIT
+
+
+interface IHelixAppSupportWithdrawFailed {
+    function handleUnlockFailureFromRemote(
+        uint256 messageId,
+        address token,
+        address sender,
+        uint256 amount
+    ) external;
+    function handleUnlockFailureFromRemoteNative(
+        uint256 messageId,
+        address sender,
+        uint256 amount
+    ) external;
+    function handleIssuingFailureFromRemote(
+        uint256 messageId,
+        address token,
+        address sender,
+        uint256 amount
+    ) external;
+}
 
 // File @zeppelin-solidity/contracts/access/IAccessControl.sol@v4.7.3
 // License-Identifier: MIT
@@ -136,374 +239,6 @@ interface IAccessControlEnumerable is IAccessControl {
      * together with {getRoleMember} to enumerate all bearers of a role.
      */
     function getRoleMemberCount(bytes32 role) external view returns (uint256);
-}
-
-// File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (utils/structs/EnumerableSet.sol)
-
-
-/**
- * @dev Library for managing
- * https://en.wikipedia.org/wiki/Set_(abstract_data_type)[sets] of primitive
- * types.
- *
- * Sets have the following properties:
- *
- * - Elements are added, removed, and checked for existence in constant time
- * (O(1)).
- * - Elements are enumerated in O(n). No guarantees are made on the ordering.
- *
- * ```
- * contract Example {
- *     // Add the library methods
- *     using EnumerableSet for EnumerableSet.AddressSet;
- *
- *     // Declare a set state variable
- *     EnumerableSet.AddressSet private mySet;
- * }
- * ```
- *
- * As of v3.3.0, sets of type `bytes32` (`Bytes32Set`), `address` (`AddressSet`)
- * and `uint256` (`UintSet`) are supported.
- *
- * [WARNING]
- * ====
- *  Trying to delete such a structure from storage will likely result in data corruption, rendering the structure unusable.
- *  See https://github.com/ethereum/solidity/pull/11843[ethereum/solidity#11843] for more info.
- *
- *  In order to clean an EnumerableSet, you can either remove all elements one by one or create a fresh instance using an array of EnumerableSet.
- * ====
- */
-library EnumerableSet {
-    // To implement this library for multiple types with as little code
-    // repetition as possible, we write it in terms of a generic Set type with
-    // bytes32 values.
-    // The Set implementation uses private functions, and user-facing
-    // implementations (such as AddressSet) are just wrappers around the
-    // underlying Set.
-    // This means that we can only create new EnumerableSets for types that fit
-    // in bytes32.
-
-    struct Set {
-        // Storage of set values
-        bytes32[] _values;
-        // Position of the value in the `values` array, plus 1 because index 0
-        // means a value is not in the set.
-        mapping(bytes32 => uint256) _indexes;
-    }
-
-    /**
-     * @dev Add a value to a set. O(1).
-     *
-     * Returns true if the value was added to the set, that is if it was not
-     * already present.
-     */
-    function _add(Set storage set, bytes32 value) private returns (bool) {
-        if (!_contains(set, value)) {
-            set._values.push(value);
-            // The value is stored at length-1, but we add 1 to all indexes
-            // and use 0 as a sentinel value
-            set._indexes[value] = set._values.length;
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * @dev Removes a value from a set. O(1).
-     *
-     * Returns true if the value was removed from the set, that is if it was
-     * present.
-     */
-    function _remove(Set storage set, bytes32 value) private returns (bool) {
-        // We read and store the value's index to prevent multiple reads from the same storage slot
-        uint256 valueIndex = set._indexes[value];
-
-        if (valueIndex != 0) {
-            // Equivalent to contains(set, value)
-            // To delete an element from the _values array in O(1), we swap the element to delete with the last one in
-            // the array, and then remove the last element (sometimes called as 'swap and pop').
-            // This modifies the order of the array, as noted in {at}.
-
-            uint256 toDeleteIndex = valueIndex - 1;
-            uint256 lastIndex = set._values.length - 1;
-
-            if (lastIndex != toDeleteIndex) {
-                bytes32 lastValue = set._values[lastIndex];
-
-                // Move the last value to the index where the value to delete is
-                set._values[toDeleteIndex] = lastValue;
-                // Update the index for the moved value
-                set._indexes[lastValue] = valueIndex; // Replace lastValue's index to valueIndex
-            }
-
-            // Delete the slot where the moved value was stored
-            set._values.pop();
-
-            // Delete the index for the deleted slot
-            delete set._indexes[value];
-
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * @dev Returns true if the value is in the set. O(1).
-     */
-    function _contains(Set storage set, bytes32 value) private view returns (bool) {
-        return set._indexes[value] != 0;
-    }
-
-    /**
-     * @dev Returns the number of values on the set. O(1).
-     */
-    function _length(Set storage set) private view returns (uint256) {
-        return set._values.length;
-    }
-
-    /**
-     * @dev Returns the value stored at position `index` in the set. O(1).
-     *
-     * Note that there are no guarantees on the ordering of values inside the
-     * array, and it may change when more values are added or removed.
-     *
-     * Requirements:
-     *
-     * - `index` must be strictly less than {length}.
-     */
-    function _at(Set storage set, uint256 index) private view returns (bytes32) {
-        return set._values[index];
-    }
-
-    /**
-     * @dev Return the entire set in an array
-     *
-     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
-     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
-     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
-     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
-     */
-    function _values(Set storage set) private view returns (bytes32[] memory) {
-        return set._values;
-    }
-
-    // Bytes32Set
-
-    struct Bytes32Set {
-        Set _inner;
-    }
-
-    /**
-     * @dev Add a value to a set. O(1).
-     *
-     * Returns true if the value was added to the set, that is if it was not
-     * already present.
-     */
-    function add(Bytes32Set storage set, bytes32 value) internal returns (bool) {
-        return _add(set._inner, value);
-    }
-
-    /**
-     * @dev Removes a value from a set. O(1).
-     *
-     * Returns true if the value was removed from the set, that is if it was
-     * present.
-     */
-    function remove(Bytes32Set storage set, bytes32 value) internal returns (bool) {
-        return _remove(set._inner, value);
-    }
-
-    /**
-     * @dev Returns true if the value is in the set. O(1).
-     */
-    function contains(Bytes32Set storage set, bytes32 value) internal view returns (bool) {
-        return _contains(set._inner, value);
-    }
-
-    /**
-     * @dev Returns the number of values in the set. O(1).
-     */
-    function length(Bytes32Set storage set) internal view returns (uint256) {
-        return _length(set._inner);
-    }
-
-    /**
-     * @dev Returns the value stored at position `index` in the set. O(1).
-     *
-     * Note that there are no guarantees on the ordering of values inside the
-     * array, and it may change when more values are added or removed.
-     *
-     * Requirements:
-     *
-     * - `index` must be strictly less than {length}.
-     */
-    function at(Bytes32Set storage set, uint256 index) internal view returns (bytes32) {
-        return _at(set._inner, index);
-    }
-
-    /**
-     * @dev Return the entire set in an array
-     *
-     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
-     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
-     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
-     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
-     */
-    function values(Bytes32Set storage set) internal view returns (bytes32[] memory) {
-        return _values(set._inner);
-    }
-
-    // AddressSet
-
-    struct AddressSet {
-        Set _inner;
-    }
-
-    /**
-     * @dev Add a value to a set. O(1).
-     *
-     * Returns true if the value was added to the set, that is if it was not
-     * already present.
-     */
-    function add(AddressSet storage set, address value) internal returns (bool) {
-        return _add(set._inner, bytes32(uint256(uint160(value))));
-    }
-
-    /**
-     * @dev Removes a value from a set. O(1).
-     *
-     * Returns true if the value was removed from the set, that is if it was
-     * present.
-     */
-    function remove(AddressSet storage set, address value) internal returns (bool) {
-        return _remove(set._inner, bytes32(uint256(uint160(value))));
-    }
-
-    /**
-     * @dev Returns true if the value is in the set. O(1).
-     */
-    function contains(AddressSet storage set, address value) internal view returns (bool) {
-        return _contains(set._inner, bytes32(uint256(uint160(value))));
-    }
-
-    /**
-     * @dev Returns the number of values in the set. O(1).
-     */
-    function length(AddressSet storage set) internal view returns (uint256) {
-        return _length(set._inner);
-    }
-
-    /**
-     * @dev Returns the value stored at position `index` in the set. O(1).
-     *
-     * Note that there are no guarantees on the ordering of values inside the
-     * array, and it may change when more values are added or removed.
-     *
-     * Requirements:
-     *
-     * - `index` must be strictly less than {length}.
-     */
-    function at(AddressSet storage set, uint256 index) internal view returns (address) {
-        return address(uint160(uint256(_at(set._inner, index))));
-    }
-
-    /**
-     * @dev Return the entire set in an array
-     *
-     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
-     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
-     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
-     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
-     */
-    function values(AddressSet storage set) internal view returns (address[] memory) {
-        bytes32[] memory store = _values(set._inner);
-        address[] memory result;
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            result := store
-        }
-
-        return result;
-    }
-
-    // UintSet
-
-    struct UintSet {
-        Set _inner;
-    }
-
-    /**
-     * @dev Add a value to a set. O(1).
-     *
-     * Returns true if the value was added to the set, that is if it was not
-     * already present.
-     */
-    function add(UintSet storage set, uint256 value) internal returns (bool) {
-        return _add(set._inner, bytes32(value));
-    }
-
-    /**
-     * @dev Removes a value from a set. O(1).
-     *
-     * Returns true if the value was removed from the set, that is if it was
-     * present.
-     */
-    function remove(UintSet storage set, uint256 value) internal returns (bool) {
-        return _remove(set._inner, bytes32(value));
-    }
-
-    /**
-     * @dev Returns true if the value is in the set. O(1).
-     */
-    function contains(UintSet storage set, uint256 value) internal view returns (bool) {
-        return _contains(set._inner, bytes32(value));
-    }
-
-    /**
-     * @dev Returns the number of values on the set. O(1).
-     */
-    function length(UintSet storage set) internal view returns (uint256) {
-        return _length(set._inner);
-    }
-
-    /**
-     * @dev Returns the value stored at position `index` in the set. O(1).
-     *
-     * Note that there are no guarantees on the ordering of values inside the
-     * array, and it may change when more values are added or removed.
-     *
-     * Requirements:
-     *
-     * - `index` must be strictly less than {length}.
-     */
-    function at(UintSet storage set, uint256 index) internal view returns (uint256) {
-        return uint256(_at(set._inner, index));
-    }
-
-    /**
-     * @dev Return the entire set in an array
-     *
-     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
-     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
-     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
-     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
-     */
-    function values(UintSet storage set) internal view returns (uint256[] memory) {
-        bytes32[] memory store = _values(set._inner);
-        uint256[] memory result;
-
-        /// @solidity memory-safe-assembly
-        assembly {
-            result := store
-        }
-
-        return result;
-    }
 }
 
 // File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
@@ -907,6 +642,374 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
     }
 }
 
+// File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/structs/EnumerableSet.sol)
+
+
+/**
+ * @dev Library for managing
+ * https://en.wikipedia.org/wiki/Set_(abstract_data_type)[sets] of primitive
+ * types.
+ *
+ * Sets have the following properties:
+ *
+ * - Elements are added, removed, and checked for existence in constant time
+ * (O(1)).
+ * - Elements are enumerated in O(n). No guarantees are made on the ordering.
+ *
+ * ```
+ * contract Example {
+ *     // Add the library methods
+ *     using EnumerableSet for EnumerableSet.AddressSet;
+ *
+ *     // Declare a set state variable
+ *     EnumerableSet.AddressSet private mySet;
+ * }
+ * ```
+ *
+ * As of v3.3.0, sets of type `bytes32` (`Bytes32Set`), `address` (`AddressSet`)
+ * and `uint256` (`UintSet`) are supported.
+ *
+ * [WARNING]
+ * ====
+ *  Trying to delete such a structure from storage will likely result in data corruption, rendering the structure unusable.
+ *  See https://github.com/ethereum/solidity/pull/11843[ethereum/solidity#11843] for more info.
+ *
+ *  In order to clean an EnumerableSet, you can either remove all elements one by one or create a fresh instance using an array of EnumerableSet.
+ * ====
+ */
+library EnumerableSet {
+    // To implement this library for multiple types with as little code
+    // repetition as possible, we write it in terms of a generic Set type with
+    // bytes32 values.
+    // The Set implementation uses private functions, and user-facing
+    // implementations (such as AddressSet) are just wrappers around the
+    // underlying Set.
+    // This means that we can only create new EnumerableSets for types that fit
+    // in bytes32.
+
+    struct Set {
+        // Storage of set values
+        bytes32[] _values;
+        // Position of the value in the `values` array, plus 1 because index 0
+        // means a value is not in the set.
+        mapping(bytes32 => uint256) _indexes;
+    }
+
+    /**
+     * @dev Add a value to a set. O(1).
+     *
+     * Returns true if the value was added to the set, that is if it was not
+     * already present.
+     */
+    function _add(Set storage set, bytes32 value) private returns (bool) {
+        if (!_contains(set, value)) {
+            set._values.push(value);
+            // The value is stored at length-1, but we add 1 to all indexes
+            // and use 0 as a sentinel value
+            set._indexes[value] = set._values.length;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @dev Removes a value from a set. O(1).
+     *
+     * Returns true if the value was removed from the set, that is if it was
+     * present.
+     */
+    function _remove(Set storage set, bytes32 value) private returns (bool) {
+        // We read and store the value's index to prevent multiple reads from the same storage slot
+        uint256 valueIndex = set._indexes[value];
+
+        if (valueIndex != 0) {
+            // Equivalent to contains(set, value)
+            // To delete an element from the _values array in O(1), we swap the element to delete with the last one in
+            // the array, and then remove the last element (sometimes called as 'swap and pop').
+            // This modifies the order of the array, as noted in {at}.
+
+            uint256 toDeleteIndex = valueIndex - 1;
+            uint256 lastIndex = set._values.length - 1;
+
+            if (lastIndex != toDeleteIndex) {
+                bytes32 lastValue = set._values[lastIndex];
+
+                // Move the last value to the index where the value to delete is
+                set._values[toDeleteIndex] = lastValue;
+                // Update the index for the moved value
+                set._indexes[lastValue] = valueIndex; // Replace lastValue's index to valueIndex
+            }
+
+            // Delete the slot where the moved value was stored
+            set._values.pop();
+
+            // Delete the index for the deleted slot
+            delete set._indexes[value];
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @dev Returns true if the value is in the set. O(1).
+     */
+    function _contains(Set storage set, bytes32 value) private view returns (bool) {
+        return set._indexes[value] != 0;
+    }
+
+    /**
+     * @dev Returns the number of values on the set. O(1).
+     */
+    function _length(Set storage set) private view returns (uint256) {
+        return set._values.length;
+    }
+
+    /**
+     * @dev Returns the value stored at position `index` in the set. O(1).
+     *
+     * Note that there are no guarantees on the ordering of values inside the
+     * array, and it may change when more values are added or removed.
+     *
+     * Requirements:
+     *
+     * - `index` must be strictly less than {length}.
+     */
+    function _at(Set storage set, uint256 index) private view returns (bytes32) {
+        return set._values[index];
+    }
+
+    /**
+     * @dev Return the entire set in an array
+     *
+     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
+     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
+     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+     */
+    function _values(Set storage set) private view returns (bytes32[] memory) {
+        return set._values;
+    }
+
+    // Bytes32Set
+
+    struct Bytes32Set {
+        Set _inner;
+    }
+
+    /**
+     * @dev Add a value to a set. O(1).
+     *
+     * Returns true if the value was added to the set, that is if it was not
+     * already present.
+     */
+    function add(Bytes32Set storage set, bytes32 value) internal returns (bool) {
+        return _add(set._inner, value);
+    }
+
+    /**
+     * @dev Removes a value from a set. O(1).
+     *
+     * Returns true if the value was removed from the set, that is if it was
+     * present.
+     */
+    function remove(Bytes32Set storage set, bytes32 value) internal returns (bool) {
+        return _remove(set._inner, value);
+    }
+
+    /**
+     * @dev Returns true if the value is in the set. O(1).
+     */
+    function contains(Bytes32Set storage set, bytes32 value) internal view returns (bool) {
+        return _contains(set._inner, value);
+    }
+
+    /**
+     * @dev Returns the number of values in the set. O(1).
+     */
+    function length(Bytes32Set storage set) internal view returns (uint256) {
+        return _length(set._inner);
+    }
+
+    /**
+     * @dev Returns the value stored at position `index` in the set. O(1).
+     *
+     * Note that there are no guarantees on the ordering of values inside the
+     * array, and it may change when more values are added or removed.
+     *
+     * Requirements:
+     *
+     * - `index` must be strictly less than {length}.
+     */
+    function at(Bytes32Set storage set, uint256 index) internal view returns (bytes32) {
+        return _at(set._inner, index);
+    }
+
+    /**
+     * @dev Return the entire set in an array
+     *
+     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
+     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
+     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+     */
+    function values(Bytes32Set storage set) internal view returns (bytes32[] memory) {
+        return _values(set._inner);
+    }
+
+    // AddressSet
+
+    struct AddressSet {
+        Set _inner;
+    }
+
+    /**
+     * @dev Add a value to a set. O(1).
+     *
+     * Returns true if the value was added to the set, that is if it was not
+     * already present.
+     */
+    function add(AddressSet storage set, address value) internal returns (bool) {
+        return _add(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    /**
+     * @dev Removes a value from a set. O(1).
+     *
+     * Returns true if the value was removed from the set, that is if it was
+     * present.
+     */
+    function remove(AddressSet storage set, address value) internal returns (bool) {
+        return _remove(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    /**
+     * @dev Returns true if the value is in the set. O(1).
+     */
+    function contains(AddressSet storage set, address value) internal view returns (bool) {
+        return _contains(set._inner, bytes32(uint256(uint160(value))));
+    }
+
+    /**
+     * @dev Returns the number of values in the set. O(1).
+     */
+    function length(AddressSet storage set) internal view returns (uint256) {
+        return _length(set._inner);
+    }
+
+    /**
+     * @dev Returns the value stored at position `index` in the set. O(1).
+     *
+     * Note that there are no guarantees on the ordering of values inside the
+     * array, and it may change when more values are added or removed.
+     *
+     * Requirements:
+     *
+     * - `index` must be strictly less than {length}.
+     */
+    function at(AddressSet storage set, uint256 index) internal view returns (address) {
+        return address(uint160(uint256(_at(set._inner, index))));
+    }
+
+    /**
+     * @dev Return the entire set in an array
+     *
+     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
+     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
+     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+     */
+    function values(AddressSet storage set) internal view returns (address[] memory) {
+        bytes32[] memory store = _values(set._inner);
+        address[] memory result;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := store
+        }
+
+        return result;
+    }
+
+    // UintSet
+
+    struct UintSet {
+        Set _inner;
+    }
+
+    /**
+     * @dev Add a value to a set. O(1).
+     *
+     * Returns true if the value was added to the set, that is if it was not
+     * already present.
+     */
+    function add(UintSet storage set, uint256 value) internal returns (bool) {
+        return _add(set._inner, bytes32(value));
+    }
+
+    /**
+     * @dev Removes a value from a set. O(1).
+     *
+     * Returns true if the value was removed from the set, that is if it was
+     * present.
+     */
+    function remove(UintSet storage set, uint256 value) internal returns (bool) {
+        return _remove(set._inner, bytes32(value));
+    }
+
+    /**
+     * @dev Returns true if the value is in the set. O(1).
+     */
+    function contains(UintSet storage set, uint256 value) internal view returns (bool) {
+        return _contains(set._inner, bytes32(value));
+    }
+
+    /**
+     * @dev Returns the number of values on the set. O(1).
+     */
+    function length(UintSet storage set) internal view returns (uint256) {
+        return _length(set._inner);
+    }
+
+    /**
+     * @dev Returns the value stored at position `index` in the set. O(1).
+     *
+     * Note that there are no guarantees on the ordering of values inside the
+     * array, and it may change when more values are added or removed.
+     *
+     * Requirements:
+     *
+     * - `index` must be strictly less than {length}.
+     */
+    function at(UintSet storage set, uint256 index) internal view returns (uint256) {
+        return uint256(_at(set._inner, index));
+    }
+
+    /**
+     * @dev Return the entire set in an array
+     *
+     * WARNING: This operation will copy the entire storage to memory, which can be quite expensive. This is designed
+     * to mostly be used by view accessors that are queried without any gas fees. Developers should keep in mind that
+     * this function has an unbounded cost, and using it as part of a state-changing function may render the function
+     * uncallable if the set grows to a point where copying to memory consumes too much gas to fit in a block.
+     */
+    function values(UintSet storage set) internal view returns (uint256[] memory) {
+        bytes32[] memory store = _values(set._inner);
+        uint256[] memory result;
+
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := store
+        }
+
+        return result;
+    }
+}
+
 // File @zeppelin-solidity/contracts/access/AccessControlEnumerable.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.5.0) (access/AccessControlEnumerable.sol)
@@ -1124,109 +1227,6 @@ contract AccessController is AccessControlEnumerable, Pausable {
     }
 }
 
-// File contracts/mapping-token/interfaces/ICrossChainFilter.sol
-// License-Identifier: MIT
-
-
-/**
- * @title A interface for message layer to filter unsafe message
- * @author echo
- * @notice The app layer must implement the interface `ICrossChainFilter`
- */
-interface ICrossChainFilter {
-    /**
-     * @notice Verify the source sender and payload of source chain messages,
-     * Generally, app layer cross-chain messages require validation of sourceAccount
-     * @param bridgedChainPosition The source chain position which send the message
-     * @param bridgedLanePosition The source lane position which send the message
-     * @param sourceAccount The source contract address which send the message
-     * @param payload The calldata which encoded by ABI Encoding
-     * @return Can call target contract if returns true
-     */
-    function cross_chain_filter(uint32 bridgedChainPosition, uint32 bridgedLanePosition, address sourceAccount, bytes calldata payload) external view returns (bool);
-}
-
-// File contracts/mapping-token/interfaces/IHelixApp.sol
-// License-Identifier: MIT
-
-
-interface IHelixAppSupportWithdrawFailed {
-    function handleUnlockFailureFromRemote(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-    function handleUnlockFailureFromRemoteNative(
-        uint256 messageId,
-        address sender,
-        uint256 amount
-    ) external;
-    function handleIssuingFailureFromRemote(
-        uint256 messageId,
-        address token,
-        address sender,
-        uint256 amount
-    ) external;
-}
-
-// File contracts/mapping-token/interfaces/IFeeMarket.sol
-// License-Identifier: MIT
-
-pragma abicoder v2;
-
-interface IFeeMarket {
-    //  Relayer which delivery the messages
-    struct DeliveredRelayer {
-        // relayer account
-        address relayer;
-        // encoded message key begin
-        uint256 begin;
-        // encoded message key end
-        uint256 end;
-    }
-    function market_fee() external view returns (uint256 fee);
-
-    function assign(uint256 nonce) external payable returns(bool);
-    function settle(DeliveredRelayer[] calldata delivery_relayers, address confirm_relayer) external returns(bool);
-}
-
-// File contracts/mapping-token/interfaces/IOutboundLane.sol
-// License-Identifier: MIT
-
-
-interface IOutboundLane {
-    struct OutboundLaneNonce {
-        uint64 latest_received_nonce;
-        uint64 latest_generated_nonce;
-        uint64 oldest_unpruned_nonce;
-    }
-
-    function outboundLaneNonce() view external returns(OutboundLaneNonce memory);
-
-    function send_message(address targetContract, bytes calldata encoded) external payable returns (uint64);
-}
-
-// File contracts/mapping-token/interfaces/IInboundLane.sol
-// License-Identifier: MIT
-
-
-interface IInboundLane {
-    struct RelayersRange {
-        uint64 front;
-        uint64 back;
-    }
-
-    struct InboundLaneNonce {
-        uint64 last_confirmed_nonce;
-        uint64 last_delivered_nonce;
-        RelayersRange relayer_range;
-    }
-
-    function inboundLaneNonce() view external returns(InboundLaneNonce memory);
-    function encodeMessageKey(uint64 nonce) view external returns(uint256);
-}
-
 // File contracts/mapping-token/v2/message-endpoints/DarwiniaSub2EthMessageEndpoint.sol
 // License-Identifier: MIT
 
@@ -1239,14 +1239,17 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     address immutable public inboundLane;
     address immutable public outboundLane;
     address immutable public feeMarket;
+    uint16 immutable public version;
 
     address public remoteEndpoint;
 
     constructor(
+        uint16 _version,
         address _inboundLane,
         address _outboundLane,
         address _feeMarket
     ) {
+        version = _version;
         inboundLane = _inboundLane;
         outboundLane = _outboundLane;
         feeMarket = _feeMarket;
@@ -1281,13 +1284,21 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
         return IFeeMarket(feeMarket).market_fee();
     }
 
+    function nonceToMessageId(uint256 nonce) internal view returns(uint256) {
+        return (uint256(version) << 64) + nonce;
+    }
+
     function sendMessage(address receiver, bytes calldata message) external onlyCaller payable returns (uint256) {
         bytes memory messageWithCaller = abi.encodeWithSelector(
             DarwiniaSub2EthMessageEndpoint.recvMessage.selector,
             receiver,
             message
         );
-        return IOutboundLane(outboundLane).send_message{value: msg.value}(remoteEndpoint, messageWithCaller);
+        uint256 nonce = IOutboundLane(outboundLane).send_message{value: msg.value}(
+            remoteEndpoint,
+            messageWithCaller
+        );
+        return nonceToMessageId(nonce);
     }
 
     function recvMessage(
@@ -1302,12 +1313,12 @@ contract DarwiniaSub2EthMessageEndpoint is ICrossChainFilter, AccessController {
     // we use nonce as message id
     function currentDeliveredMessageId() public view returns(uint256) {
         IInboundLane.InboundLaneNonce memory inboundLaneNonce = IInboundLane(inboundLane).inboundLaneNonce();
-        return inboundLaneNonce.last_delivered_nonce + 1;
+        return nonceToMessageId(inboundLaneNonce.last_delivered_nonce + 1);
     }
 
     function isMessageDelivered(uint256 messageId) public view returns (bool) {
         IInboundLane.InboundLaneNonce memory inboundLaneNonce = IInboundLane(inboundLane).inboundLaneNonce();
-        uint256 lastMessageId = inboundLaneNonce.last_delivered_nonce;
-        return messageId <= lastMessageId;
+        uint256 lastMessageNonce = inboundLaneNonce.last_delivered_nonce;
+        return messageId <= nonceToMessageId(lastMessageNonce);
     }
 }

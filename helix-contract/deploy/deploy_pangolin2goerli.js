@@ -361,9 +361,9 @@ async function main() {
     const backingWallet = wallets[0];
     const mtfWallet = wallets[1];
 
-    //const deployed = await deploy(backingWallet, mtfWallet);
+    const deployed = await deploy(backingWallet, mtfWallet);
     ////const deployed = await deployWithExistContract(backingWallet, mtfWallet);
-    //console.log(deployed);
+    console.log(deployed);
     //const backingInfo = deployed.pangoro2goerli_sub2eth_pangoro;
     //const mtfInfo = deployed.pangoro2goerli_sub2eth_goerli;
     //await lockAndRemoteIssue(backingInfo.WRING, backingInfo.backingProxy, ethers.utils.parseEther("1.1"), backingWallet, "30");

@@ -1,6 +1,7 @@
 {
   "darwinia2ethereum_sub2eth_ethereum": {
     "messageEndpoint": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
+    "messageEndpointV2": "0xe420ae2e32bd218f240fd52176267e669c0622a4",
     "logicAddress": "0xD4d94a7dDF49be9917DD89AC136149D5Dcb44717",
     "proxyAdmin": "0x66D86a686e50C98BaC236105eFAFb99Ee7605dc5",
     "proxy": "0x5F8D4232367759bCe5d9488D3ade77FCFF6B9b6B",
@@ -8,6 +9,7 @@
   },
   "darwinia2ethereum_lp_darwinia": {
     "messageEndpoint": "0x9C80EdD342b5D179c3a87946fC1F0963BfcaAa09",
+    "messageEndpointV2": "0xaa69C8955636A623b2AB0AEE7366B4bB3677051D",
     "bridgeLogic": "0xb95e74D3ECaA6270559466576bFD62CE9745764B",
     "bridgeAdmin": "0x2FC7Def96561ca5e1f0Aa333cb78cFA51DeE3218",
     "bridgeProxy": "0x84f7a56483C100ECb12CbB4A31b7873dAE0d8E9B",

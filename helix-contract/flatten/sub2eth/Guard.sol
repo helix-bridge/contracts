@@ -14,10 +14,19 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 9/27/2022
+ * 5/12/2023
  **/
 
 pragma solidity ^0.8.10;
+
+// File contracts/mapping-token/interfaces/IWToken.sol
+// License-Identifier: MIT
+
+
+interface IWToken {
+    function deposit() external payable;
+    function withdraw(uint wad) external;
+}
 
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
 // License-Identifier: MIT
@@ -606,15 +615,6 @@ contract GuardRegistry {
     function encodeDataHash(bytes32 structHash) public view returns (bytes32) {
         return keccak256(abi.encodePacked(hex"1901", domainSeparator(), structHash));
     }
-}
-
-// File contracts/mapping-token/interfaces/IWToken.sol
-// License-Identifier: MIT
-
-
-interface IWToken {
-    function deposit() external payable;
-    function withdraw(uint wad) external;
 }
 
 // File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3

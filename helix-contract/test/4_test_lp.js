@@ -57,11 +57,13 @@ describe("darwinia<>eth lp bridge tests", () => {
       // deploy darwiniaMessageEndpoint
       const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
       const darwiniaMessageEndpoint = await messageEndpointContract.deploy(
+          2,
           darwiniaInboundLane.address,
           darwiniaOutboundLane.address,
           feeMarket.address);
       await darwiniaMessageEndpoint.deployed();
       const ethMessageEndpoint = await messageEndpointContract.deploy(
+          2,
           ethInboundLane.address,
           ethOutboundLane.address,
           feeMarket.address
@@ -467,6 +469,7 @@ describe("darwinia<>eth lp bridge tests", () => {
       // use endpoint to call
       const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
       const ethMessageEndpoint = await messageEndpointContract.deploy(
+          2,
           owner.address,
           owner.address,
           owner.address

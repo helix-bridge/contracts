@@ -1,19 +1,17 @@
 {
-  "pangoro2goerli_sub2eth_goerli": {
-    "messageEndpoint": "0x190304Fd18c7185637b055Cd91077374b49E2659",
-    "mappingTokenFactoryLogic": "0x55F5C311d105eDc5f34eaa940DA1816Ba4de575e",
-    "mappingTokenFactoryAdmin": "0x81E8220a2Ed7275982F59D316F02C2D301151F7C",
-    "mappingTokenFactoryProxy": "0xfcAcf3d08275031e5Bd453Cf2509301290858984",
-    "ring": "0x046D07d53926318d1F06c2c2A0F26a4de83E26c4",
-    "kton": "0xdD3Df59C868Fcd40fded7af0Cccc3E2C7bCb4f3C",
-    "guard": "0xB63846f957A97eC982b83Bb50957A519878196Ef"
-  },
-  "pangoro2goerli_sub2eth_pangoro": {
-    "messageEndpoint": "0x528985686C6EC07B8D9f7BfB0dCFed9f74520b83",
-    "backingLogic": "0x0B458df3B7c32096b1fa532BAFCBF452c3a0DC0C",
-    "backingAdmin": "0xF4aEF264D0e112D0bD1371278F39B3d80d1B4f8D",
-    "backingProxy": "0xaafFbF487e9dA8429E2E9502d0907e5fD6b0C320",
-    "WRING": "0x46f01081e800BF47e43e7bAa6D98d45F6a0251E4",
-    "KTON": "0x0000000000000000000000000000000000000402"
-  }
+    "pangolin": {
+        "messageEndpoint": "0x83B4e8287693Ef159D2231C5ACa485D5d2AdEb38",
+        "backingLogic": "0x492bAda46302BdC30950018f7d8fDE53701e6AFF",
+        "backingAdmin": "0xd12917F42E09e216623010EB5f15c39d4978d322",
+        "backingProxy": "0xeAb1F01a8f4A2687023B159c2063639Adad5304E",
+        "WRING": "0x3F3eDBda6124462a09E071c5D90e072E0d5d4ed4"
+    },
+    "goerli": {
+        "messageEndpoint": "0xA4A380B592ceC969bD43BA54F8833d88b8b24811",
+        "mtfLogic": "0x0446bc7C1F034E6f502c21c7222632cC8Ddf74d4",
+        "mtfAdmin": "0xF206aC3dbbc9ee2cddd07718Fa1785BEd4D0b375",
+        "mtfProxy": "0x2a5fE3Cd11c6eEf7e3CeA26553e2694f0B0A9f9e",
+        "ring": "0xeb93165E3CDb354c977A182AbF4fad3238E04319",
+        "guard": "0x8C986EC362A38cA4A6a3fd4188C5318c689A187d"
+    }
 }

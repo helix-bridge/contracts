@@ -65,7 +65,7 @@ module.exports = {
   defaultNetwork: 'hardhat',
   networks: {
     hardhat: {
-      blockGasLimit: 30000000,
+      blockGasLimit: 10000000,
       accounts: [
           {
               privateKey: "10abcdef10abcdef10abcdef10abcdef10abcdef10abcdef10abcdef10abcdef",

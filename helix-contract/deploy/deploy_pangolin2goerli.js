@@ -1,15 +1,15 @@
 var ProxyDeployer = require("./proxy.js");
 
-const backingFeeMarket = "0x25ee4212CfA2DC29E6a5e4A857b9656E439259c9";
-const backingOutboundLane = "0x2f6aE7fDbB7c0c613F7923Ddce3E5b71aFE71f78";
-const backingInboundLane = "0x8F02B779EaD342Bb431A2f6cCc7866EB1928AE88";
+const backingFeeMarket = "0x4DBdC9767F03dd078B5a1FC05053Dd0C071Cc005";
+const backingOutboundLane = "0xAbd165DE531d26c229F9E43747a8d683eAD54C6c";
+const backingInboundLane = "0xB59a893f5115c1Ca737E36365302550074C32023";
 
-const mtfFeeMarket = "0xdb5E16A6E25ABF29dbe26e701D1DDCad03180E92";
-const mtfOutboundLane = "0x449337BBe404CaE0bA82f3451661AF7481f37aaC";
-const mtfInboundLane = "0xBEF08069FD1F43CB48Afd436D73F1a59019B87D7";
+const mtfFeeMarket = "0x6c73B30a48Bb633DC353ed406384F73dcACcA5C3";
+const mtfOutboundLane = "0x9B5010d562dDF969fbb85bC72222919B699b5F54";
+const mtfInboundLane = "0x0F6e081B1054c59559Cf162e82503F3f560cA4AF";
 
 async function deployMessageEndpoint(wallet, inboundLane, ouboundLane, feeMarket, existedAddress) {
-    return await deployContract(wallet, "DarwiniaSub2EthMessageEndpoint", existedAddress, inboundLane, ouboundLane, feeMarket, {gasLimit: 2000000});
+    return await deployContract(wallet, "DarwiniaSub2EthMessageEndpoint", existedAddress, 2, inboundLane, ouboundLane, feeMarket, {gasLimit: 2000000});
 }
 
 async function deployContract(wallet, name, existedAddress, ...params) {
@@ -99,7 +99,8 @@ function wait(ms) {
 
 function wallet() {
     const privateKey = process.env.PRIKEY
-    const backingUrl = "https://pangoro-rpc.darwinia.network";
+    //const backingUrl = "https://pangoro-rpc.darwinia.network";
+    const backingUrl = "https://pangolin-rpc.darwinia.network";
     //const backingUrl = "g2.pangoro-p2p.darwinia.network:9933";
     //const mtfUrl = "https://eth-goerli.g.alchemy.com/v2/WerPq7On62-wy_ARssv291ZPg1TGR5vi";
     const mtfUrl = "https://rpc.ankr.com/eth_goerli";
@@ -112,6 +113,7 @@ function wallet() {
 
 async function deploy(backingWallet, mtfWallet) {
     // deploy
+    console.log("start to deploy");
     const backingMessageEndpoint = await deployMessageEndpoint(backingWallet, backingInboundLane, backingOutboundLane, backingFeeMarket, null);
     console.log("deploy backing message handle finished, address: ", backingMessageEndpoint.address);
     const mtfMessageEndpoint = await deployMessageEndpoint(mtfWallet, mtfInboundLane, mtfOutboundLane, mtfFeeMarket, null);
@@ -359,20 +361,20 @@ async function main() {
     const backingWallet = wallets[0];
     const mtfWallet = wallets[1];
 
-    //const deployed = await deploy(backingWallet, mtfWallet);
+    const deployed = await deploy(backingWallet, mtfWallet);
     ////const deployed = await deployWithExistContract(backingWallet, mtfWallet);
-    //console.log(deployed);
+    console.log(deployed);
     //const backingInfo = deployed.pangoro2goerli_sub2eth_pangoro;
     //const mtfInfo = deployed.pangoro2goerli_sub2eth_goerli;
     //await lockAndRemoteIssue(backingInfo.WRING, backingInfo.backingProxy, ethers.utils.parseEther("1.1"), backingWallet, "30");
     //await lockAndRemoteIssueNative(backingInfo.backingProxy, ethers.utils.parseEther("1.2"), backingWallet, "30");
     
-    const wethAddress = "0x46f01081e800BF47e43e7bAa6D98d45F6a0251E4";
-    const mtfAddress = "0xfcAcf3d08275031e5Bd453Cf2509301290858984";
-    const backingAddress = "0xaafFbF487e9dA8429E2E9502d0907e5fD6b0C320";
-    const ringAddress = "0x046D07d53926318d1F06c2c2A0F26a4de83E26c4";
-    const mtf = await ethers.getContractAt("Erc20Sub2EthMappingTokenFactory", mtfAddress, mtfWallet);
-    const backing = await ethers.getContractAt("Erc20Sub2EthBacking", backingAddress, backingWallet);
+    //const wethAddress = "0x46f01081e800BF47e43e7bAa6D98d45F6a0251E4";
+    //const mtfAddress = "0xfcAcf3d08275031e5Bd453Cf2509301290858984";
+    //const backingAddress = "0xaafFbF487e9dA8429E2E9502d0907e5fD6b0C320";
+    //const ringAddress = "0x046D07d53926318d1F06c2c2A0F26a4de83E26c4";
+    //const mtf = await ethers.getContractAt("Erc20Sub2EthMappingTokenFactory", mtfAddress, mtfWallet);
+    //const backing = await ethers.getContractAt("Erc20Sub2EthBacking", backingAddress, backingWallet);
 
     //const oldmtf = await ethers.getContractAt("Erc20Sub2EthMappingTokenFactory", "0x38d8af6834bc10856a161977534d0bca7419eacd", mtfWallet);
     //await oldmtf.transferMappingTokenOwnership("0x69e392E057B5994da2b0E9661039970Ac4c26b8c", mtfAddress);
@@ -384,7 +386,7 @@ async function main() {
 
     //console.log(await mtf.calcMaxWithdraw(ringAddress));
     //await lockAndRemoteIssue(wethAddress, backingAddress, ethers.utils.parseEther("1.7"), backingWallet, "100");
-    await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("300"), backingWallet, "100");
+    //await lockAndRemoteIssueNative(backingAddress, ethers.utils.parseEther("300"), backingWallet, "100");
     //await burnAndRemoteUnlock(ringAddress, mtfAddress, ethers.utils.parseEther("0.11"), mtfWallet, "0.01");
     //await burnAndRemoteUnlockNative(ringAddress, mtfAddress, ethers.utils.parseEther("0.12"), mtfWallet, "0.01");
 }
@@ -396,3 +398,24 @@ main()
     process.exit(1);
   });
     
+
+/*
+ *{
+  pangoro2goerli_sub2eth_goerli: {
+    messageEndpoint: '0xA4A380B592ceC969bD43BA54F8833d88b8b24811',
+    mappingTokenFactoryLogic: '0x0446bc7C1F034E6f502c21c7222632cC8Ddf74d4',
+    mappingTokenFactoryAdmin: '0xF206aC3dbbc9ee2cddd07718Fa1785BEd4D0b375',
+    mappingTokenFactoryProxy: '0x2a5fE3Cd11c6eEf7e3CeA26553e2694f0B0A9f9e',
+    ring: '0xeb93165E3CDb354c977A182AbF4fad3238E04319',
+    guard: '0x8C986EC362A38cA4A6a3fd4188C5318c689A187d'
+  },
+  pangoro2goerli_sub2eth_pangoro: {
+    messageEndpoint: '0x83B4e8287693Ef159D2231C5ACa485D5d2AdEb38',
+    backingLogic: '0x492bAda46302BdC30950018f7d8fDE53701e6AFF',
+    backingAdmin: '0xd12917F42E09e216623010EB5f15c39d4978d322',
+    backingProxy: '0xeAb1F01a8f4A2687023B159c2063639Adad5304E',
+    WRING: '0x3F3eDBda6124462a09E071c5D90e072E0d5d4ed4'
+  }
+  wring address is  0x3F3eDBda6124462a09E071c5D90e072E0d5d4ed4
+  ring address is  0xeb93165E3CDb354c977A182AbF4fad3238E04319
+}*/

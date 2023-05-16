@@ -50,11 +50,13 @@ describe("darwinia<>bsc mapping token tests", () => {
       // deploy darwiniaMessageEndpoint
       const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
       const darwiniaMessageEndpoint = await messageEndpointContract.deploy(
+          2,
           darwiniaInboundLane.address,
           darwiniaOutboundLane.address,
           feeMarket.address);
       await darwiniaMessageEndpoint.deployed();
       const bscMessageEndpoint = await messageEndpointContract.deploy(
+          2,
           bscInboundLane.address,
           bscOutboundLane.address,
           feeMarket.address
@@ -152,29 +154,44 @@ describe("darwinia<>bsc mapping token tests", () => {
       expect(await originalToken.balanceOf(owner.address)).to.equal(1000 - 200);
       // success message cannot be refunded
       await expect(mtf.remoteUnlockFailure(
-          1,
+          "0x20000000000000001",
           originalToken.address,
           owner.address,
           100,
           {value: ethers.utils.parseEther("50.0")}
       )).to.be.revertedWith("MappingTokenFactory:success message can't refund for failed");
       await expect(mtf.remoteUnlockFailure(
-          3,
+          "0x20000000000000003",
           originalToken.address,
           owner.address,
           100,
           {value: ethers.utils.parseEther("50.0")}
       )).to.be.revertedWith("MappingTokenFactory:the message is not checked by message layer");
       // invalid amount
-      await mtf.remoteUnlockFailure(2, originalToken.address, owner.address, 10, {value: ethers.utils.parseEther("50.0")});
+      await mtf.remoteUnlockFailure(
+          "0x20000000000000002",
+          originalToken.address,
+          owner.address,
+          10,
+          {value: ethers.utils.parseEther("50.0")});
       expect(await originalToken.balanceOf(backing.address)).to.equal(200);
       expect(await originalToken.balanceOf(owner.address)).to.equal(1000 - 200);
       // success
-      await mtf.remoteUnlockFailure(2, originalToken.address, owner.address, 100, {value: ethers.utils.parseEther("50.0")});
+      await mtf.remoteUnlockFailure(
+          "0x20000000000000002",
+          originalToken.address,
+          owner.address,
+          100,
+          {value: ethers.utils.parseEther("50.0")});
       expect(await originalToken.balanceOf(backing.address)).to.equal(100);
       expect(await originalToken.balanceOf(owner.address)).to.equal(1000 - 100);
       // duplicate refund
-      await mtf.remoteUnlockFailure(2, originalToken.address, owner.address, 100, {value: ethers.utils.parseEther("50.0")});
+      await mtf.remoteUnlockFailure(
+          "0x20000000000000002",
+          originalToken.address,
+          owner.address,
+          100,
+          {value: ethers.utils.parseEther("50.0")});
       expect(await originalToken.balanceOf(backing.address)).to.equal(100);
       expect(await originalToken.balanceOf(owner.address)).to.equal(1000 - 100);
 
@@ -203,26 +220,41 @@ describe("darwinia<>bsc mapping token tests", () => {
       expect(await mappedToken.balanceOf(mtf.address)).to.equal(0);
       // refund
       await expect(backing.remoteIssuingFailure(
-          4,
+          "0x20000000000000004",
           mappingTokenAddress,
           owner.address,
           7,
           {value: ethers.utils.parseEther("10.0")}
       )).to.be.revertedWith("Backing:success message can't refund for failed");
       await expect(backing.remoteIssuingFailure(
-          6,
+          "0x20000000000000006",
           mappingTokenAddress,
           owner.address,
           7,
           {value: ethers.utils.parseEther("10.0")}
       )).to.be.revertedWith("Backing:the message is not checked by message layer");
       // invalid amount
-      await backing.remoteIssuingFailure(5, mappingTokenAddress, owner.address, 6, {value: ethers.utils.parseEther("10.0")});
+      await backing.remoteIssuingFailure(
+          "0x20000000000000005",
+          mappingTokenAddress,
+          owner.address,
+          6,
+          {value: ethers.utils.parseEther("10.0")});
       expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 - 7);
-      await backing.remoteIssuingFailure(5, mappingTokenAddress, owner.address, 7, {value: ethers.utils.parseEther("10.0")});
+      await backing.remoteIssuingFailure(
+          "0x20000000000000005",
+          mappingTokenAddress,
+          owner.address,
+          7,
+          {value: ethers.utils.parseEther("10.0")});
       expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21);
       // duplicate refund
-      await backing.remoteIssuingFailure(5, mappingTokenAddress, owner.address, 7, {value: ethers.utils.parseEther("10.0")});
+      await backing.remoteIssuingFailure(
+          "0x20000000000000005",
+          mappingTokenAddress,
+          owner.address,
+          7,
+          {value: ethers.utils.parseEther("10.0")});
       expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21);
 
       expect(await mappedToken.name()).to.equal(tokenName + "[Darwinia Smart>");
@@ -296,7 +328,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 + 100 - 30);
       // refund
       transaction = await mtf.remoteUnlockFailureNative(
-          7,
+          "0x20000000000000007",
           owner.address,
           lockValue,
           {
@@ -325,7 +357,7 @@ describe("darwinia<>bsc mapping token tests", () => {
       expect(await mappedToken.balanceOf(owner.address)).to.equal(100 - 21 + 100 - 30 - burnValue);
       // refund
       transaction = await backing.remoteIssuingFailure(
-          8,
+          "0x20000000000000008",
           mappingTokenAddress,
           owner.address,
           burnValue,
@@ -408,6 +440,7 @@ describe("darwinia<>bsc mapping token tests", () => {
           wallets[1].address,
           100,
           false)).to.be.revertedWith("Guard: claim at invalid time");
+
       await network.provider.send("evm_increaseTime", [3600]);
       await expect(guard.claimByTimeout(
           2,
@@ -471,6 +504,7 @@ describe("darwinia<>bsc mapping token tests", () => {
 
       const messageEndpointContract = await ethers.getContractFactory("DarwiniaSub2EthMessageEndpoint");
       const darwiniaMessageEndpoint = await messageEndpointContract.deploy(
+          2,
           darwiniaInboundLane.address,
           owner.address,
           owner.address);

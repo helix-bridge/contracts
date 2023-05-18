@@ -5,7 +5,7 @@ import "../interface/ILnBridgeBackingV2.sol";
 import "./LnBridgeHelper.sol";
 
 contract LnBridgeIssuingV2 is LnBridgeHelper {
-    uint256 constant public MIN_WITHDRAW_TIMESTAMP = 30 * 60;
+    uint256 constant public MIN_REFUND_TIMESTAMP = 30 * 60;
     struct IssuedMessageInfo {
         uint64 nonce;
         uint64 lastRefundNonce;
@@ -34,15 +34,15 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
             receiver,
             amount));
         IssuedMessageInfo memory transferInfo = issuedMessages[transferId];
-        require(transferInfo.nonce == 0 || transferInfo.refundStartTime > 0, "lpBridgeIssuing:message exist");
-        require(transferInfo.refundStartTime + MIN_WITHDRAW_TIMESTAMP < block.timestamp, "refund time expired");
+        require(transferInfo.nonce == 0 || transferInfo.refundStartTime > 0, "lnBridgeIssuing:message exist");
+        require(transferInfo.refundStartTime == 0 || transferInfo.refundStartTime + MIN_REFUND_TIMESTAMP > block.timestamp, "refund time expired");
         if (lastInfo.refundStartTime > 0) {
             issuedMessages[transferId] = IssuedMessageInfo(nonce, nonce - 1, 0);
         } else {
             issuedMessages[transferId] = IssuedMessageInfo(nonce, lastInfo.lastRefundNonce, 0);
         }
         if (token == address(0)) {
-            require(msg.value == amount, "lpBridgeIssuing:invalid amount");
+            require(msg.value == amount, "lnBridgeIssuing:invalid amount");
             payable(receiver).transfer(amount);
         } else {
             _safeTransferFrom(token, msg.sender, receiver, uint256(amount));
@@ -80,25 +80,25 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
         );
     }
 
-    function _initCancelIssuing(
+    function initCancelIssuing(
         bytes32 lastTransferId,
         bytes32 lastBlockHash,
         address token,
         address receiver,
         uint64 nonce,
         uint112 amount
-    ) internal {
+    ) external {
         IssuedMessageInfo memory lastInfo = issuedMessages[lastTransferId];
         require(lastInfo.nonce + 1 == nonce, "invalid last transfer nonce");
         bytes32 transferId = keccak256(abi.encodePacked(
             lastTransferId,
             lastBlockHash,
+            nonce,
             token,
             receiver,
-            nonce,
             amount));
         IssuedMessageInfo memory transferInfo = issuedMessages[transferId];
-        require(transferInfo.nonce == 0, "lpBridgeIssuing:message exist");
+        require(transferInfo.nonce == 0, "lnBridgeIssuing:message exist");
         require(transferInfo.refundStartTime == 0, "refund has been init");
 
         uint64 lastRefundNonce = lastInfo.refundStartTime > 0 ? nonce - 1 : lastInfo.lastRefundNonce;
@@ -115,7 +115,7 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
         IssuedMessageInfo memory lastInfo = issuedMessages[lastTransferId];
         IssuedMessageInfo memory transferInfo = issuedMessages[transferId];
         require(transferInfo.nonce == lastInfo.nonce + 1, "invalid last transferInfo");
-        require(transferInfo.refundStartTime + MIN_WITHDRAW_TIMESTAMP < block.timestamp, "refund time expired");
+        require(transferInfo.refundStartTime + MIN_REFUND_TIMESTAMP < block.timestamp, "refund time not expired");
         IssuedMessageInfo memory lastRefundInfo = issuedMessages[lastRefundTransferId];
         require(lastRefundInfo.nonce == transferInfo.lastRefundNonce, "invalid last refundid");
         address receiver = refundReceiver[transferId];

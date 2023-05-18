@@ -38,7 +38,7 @@ contract LnArbitrumL1IssuingV2 is Initializable, LnAccessController, LnBridgeIss
             receiver,
             fundReceiver
         );
-        uint256 fee = IInbox(inbox).calculateRetryableSubmissionFee(withdrawCall.length, baseFee);
+        uint256 fee = inbox.calculateRetryableSubmissionFee(withdrawCall.length, baseFee);
         return fee + fee * percentIncrease / 100;
     }
 

@@ -14,7 +14,7 @@ contract LnBridgeHelper {
             receiver,
             amount
         ));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "lpBridgeHelper:transfer token failed");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transfer token failed");
     }
 
     function _safeTransferFrom(
@@ -29,7 +29,7 @@ contract LnBridgeHelper {
             receiver,
             amount
         ));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "lpBridgeHelper:transferFrom token failed");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
     }
 }
 

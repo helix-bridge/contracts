@@ -8,11 +8,12 @@ import "./base/LnBridgeBackingV2.sol";
 
 contract LnArbitrumL2BackingV2 is Initializable, LnAccessController, LnBridgeBackingV2 {
     address public remoteIssuing;
+    address public remoteIssuingOnL2;
 
     receive() external payable {}
 
     modifier onlyRemoteBridge() {
-        require(msg.sender == AddressAliasHelper.applyL1ToL2Alias(remoteIssuing), "LnArbitrumL2Backing:invalid remote caller");
+        require(msg.sender == remoteIssuingOnL2, "LnArbitrumL2Backing:invalid remote caller");
         _;
     }
 
@@ -31,6 +32,11 @@ contract LnArbitrumL2BackingV2 is Initializable, LnAccessController, LnBridgeBac
 
     function setRemoteIssuing(address _remoteIssuing) external onlyDao {
         remoteIssuing = _remoteIssuing;
+        remoteIssuingOnL2 = AddressAliasHelper.applyL1ToL2Alias(remoteIssuing);
+    }
+
+    function setRemoteIssuingOnL2(address _remoteIssuingOnL2) external onlyDao {
+        remoteIssuingOnL2 = _remoteIssuingOnL2;
     }
 
     // backing mode called

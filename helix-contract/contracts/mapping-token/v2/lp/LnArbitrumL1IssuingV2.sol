@@ -32,35 +32,30 @@ contract LnArbitrumL1IssuingV2 is Initializable, LnAccessController, LnBridgeIss
         address fundReceiver,
         uint256 percentIncrease
     ) external view returns(uint256) {
-        bytes memory withdrawCall = _encodeRefundCall(
+        bytes memory refundCall = _encodeRefundCall(
             lastRefundTransferId,
             transferId,
             receiver,
             fundReceiver
         );
-        uint256 fee = inbox.calculateRetryableSubmissionFee(withdrawCall.length, baseFee);
+        uint256 fee = inbox.calculateRetryableSubmissionFee(refundCall.length, baseFee);
         return fee + fee * percentIncrease / 100;
     }
 
-    function requestWithdrawMargin(
-        uint256 maxSubmissionCost,
-        uint256 maxGas,
-        uint256 gasPriceBid,
+    function submissionWithdrawFee(
+        uint256 baseFee,
         bytes32 lastRefundTransferId,
-        bytes32 transferId,
-        uint112 amount
-    ) payable external whenNotPaused {
+        bytes32 lastTransferId,
+        uint112 amount,
+        uint256 percentIncrease
+    ) external view returns(uint256) {
         bytes memory withdrawCall = _requestWithdrawMargin(
             lastRefundTransferId,
-            transferId,
+            lastTransferId,
             amount
         );
-        _sendMessage(
-            maxSubmissionCost,
-            maxGas,
-            gasPriceBid,
-            withdrawCall,
-            msg.value);
+        uint256 fee = inbox.calculateRetryableSubmissionFee(withdrawCall.length, baseFee);
+        return fee + fee * percentIncrease / 100;
     }
 
     function _sendMessage(

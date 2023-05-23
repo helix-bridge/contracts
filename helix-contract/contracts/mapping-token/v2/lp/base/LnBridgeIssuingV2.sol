@@ -15,6 +15,7 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
     mapping(bytes32 => address) public refundReceiver;
 
     event TransferRelayed(bytes32 transferId, address relayer);
+    event CancelIssuingInited(bytes32 transferId, uint256 timestamp);
 
     function relay(
         bytes32 lastTransferId,
@@ -104,6 +105,7 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
         uint64 lastRefundNonce = lastInfo.refundStartTime > 0 ? nonce - 1 : lastInfo.lastRefundNonce;
         issuedMessages[transferId] = IssuedMessageInfo(nonce, lastRefundNonce, uint64(block.timestamp));
         refundReceiver[transferId] = receiver;
+        emit CancelIssuingInited(transferId, block.timestamp);
     }
 
     // anyone can cancel

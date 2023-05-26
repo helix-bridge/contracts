@@ -57,7 +57,7 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         uint64 nonce,
         bytes32 transferId,
         bytes32 lastBlockHash,
-        address token,
+        address localToken,
         address remoteToken,
         uint112 amount,
         uint112 fee,

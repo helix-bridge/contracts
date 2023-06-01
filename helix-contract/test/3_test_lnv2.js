@@ -50,7 +50,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       const helixFee = 100;
       const initTokenBalance = 1000000;
       const fineFund = 100;
-      const margin = 2000;
+      var margin = 2000;
       const baseFee = 20;
       const liquidityFeeRate = 100;
       const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -131,6 +131,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address // receiver
       );
       let lockReceipt = await lockTransaction.wait();
@@ -198,6 +199,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address // receiver
       )).to.be.revertedWith("lnBridgeBacking:invalid last transferId");
       const lastBlockHash02 = (await ethers.provider.getBlock("latest")).hash;
@@ -208,6 +210,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address // receiver
       );
       const transferId02 = getTransferId(
@@ -281,6 +284,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       expect(await arbToken.balanceOf(feeReceiver)).to.equal(feeReceiverArbToken02);
       expect(await ethToken.balanceOf(relayer.address)).to.equal(relayerEthToken02);
       expect(await ethToken.balanceOf(other.address)).to.equal(otherEthToken02);
+      margin -= (transferAmount01 + relayerFee02 + fineFund);
 
       // check refund continous
       // 3 refund, 4 relayed, 5 refund
@@ -293,6 +297,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address // receiver
       );
       const transferId03 = getTransferId(
@@ -311,6 +316,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address // receiver
       );
       const transferId04 = getTransferId(
@@ -329,6 +335,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address // receiver
       );
       const transferId05 = getTransferId(
@@ -444,7 +451,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       const helixFee = 100;
       const initTokenBalance = 1000000;
       const fineFund = 100;
-      const margin = 2000;
+      var margin = 2000;
       const baseFee = 20;
       const liquidityFeeRate = 100;
       const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -504,6 +511,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
@@ -569,6 +577,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       )).to.be.revertedWith("lnBridgeBacking:invalid last transferId");
@@ -580,6 +589,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
@@ -642,6 +652,8 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       const balanceOtherAfterCancel = await ethers.provider.getBalance(other.address);
       const balanceBackingAfterCancel = await ethers.provider.getBalance(lnBacking.address);
       const relayerFee02 = baseFee + Math.floor(liquidityFeeRate * transferAmount01/100000);
+      margin -= (transferAmount01 + relayerFee02 + fineFund);
+      margin -= (transferAmount01 + relayerFee02 + fineFund);
       // check balance
       // arbtoken: other -> relayer (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01)
       //           lnBacking -> other (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01 + fineFund/2)
@@ -659,6 +671,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
@@ -678,6 +691,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
@@ -697,6 +711,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
         0, // providerIndex
         transferAmount01, // amount
         expectedFee, // expectedFee
+        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );

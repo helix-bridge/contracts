@@ -38,8 +38,8 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
     TokenInfo[] public tokens;
     // registered lnProviders
     // tokenIndex|32bit, providerIndex| 32bit
-    uint32 lnProviderSize;
-    mapping(uint256=>LnProviderInfo) lnProviders;
+    uint32 public lnProviderSize;
+    mapping(uint256=>LnProviderInfo) public lnProviders;
     // each time cross chain transfer, amount and fee can't be larger than type(uint112).max
     struct LockInfo {
         uint32 tokenIndex;
@@ -58,7 +58,6 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         bytes32 transferId,
         bytes32 lastBlockHash,
         address localToken,
-        address remoteToken,
         uint112 amount,
         uint112 fee,
         address receiver);
@@ -167,6 +166,7 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         uint32 providerIndex,
         uint112 amount,
         uint112 expectedFee,
+        uint112 expectedMargin,
         address receiver
     ) external payable {
         require(tokens.length > tokenIndex, "lnBridgeBacking:token not registered");
@@ -182,6 +182,7 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         require(providerInfo.margin >= amount + tokenInfo.fineFund + providerFee, "amount not valid");
         require(providerInfo.nonce + 1 == nonce, "nonce expired");
         require(expectedFee == tokenInfo.helixFee + providerFee, "fee is invalid");
+        require(expectedMargin <= providerInfo.margin, "margin updated");
         
         uint256 remoteAmount = uint256(amount) * 10**tokenInfo.remoteDecimals / 10**tokenInfo.localDecimals;
         require(remoteAmount < MAX_TRANSFER_AMOUNT, "lnBridgeBacking:overflow amount");
@@ -226,7 +227,6 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
             transferId,
             lastBlockHash,
             tokenInfo.localToken,
-            tokenInfo.remoteToken,
             amount,
             uint112(providerFee),
             receiver);

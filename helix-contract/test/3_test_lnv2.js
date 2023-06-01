@@ -110,7 +110,6 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await arbToken.connect(relayer).approve(lnBacking.address, initTokenBalance * 1000);
       await lnBacking.connect(relayer).registerOrUpdateLnProvider(
           0, // tokenIndex
-          0, // providerIndex
           margin, // margin
           baseFee, // basefee
           liquidityFeeRate // liquidity fee rate x/100,000
@@ -127,8 +126,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       const lockTransaction = await lnBacking.connect(other).lockAndRemoteIssuing(
         initTransferId, // lastTransferId
         1, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -195,8 +193,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await expect(lnBacking.connect(other).lockAndRemoteIssuing(
         initTransferId, // lastTransferId
         2, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -206,8 +203,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await lnBacking.connect(other).lockAndRemoteIssuing(
         transferId01, // lastTransferId
         2, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -293,8 +289,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await lnBacking.connect(other).lockAndRemoteIssuing(
         transferId02, // lastTransferId
         3, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -312,8 +307,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await lnBacking.connect(other).lockAndRemoteIssuing(
         transferId03, // lastTransferId
         4, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -331,8 +325,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await lnBacking.connect(other).lockAndRemoteIssuing(
         transferId04, // lastTransferId
         5, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -490,7 +483,6 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
 
       await lnBacking.connect(relayer).registerOrUpdateLnProvider(
           0, // tokenIndex
-          0, // providerIndex
           margin, // margin
           baseFee, // basefee
           liquidityFeeRate, // liquidity fee rate x/100,000
@@ -507,8 +499,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       const lockTransaction = await lnBacking.connect(other).lockAndRemoteIssuing(
         initTransferId, // lastTransferId
         1, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -573,8 +564,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await expect(lnBacking.connect(other).lockAndRemoteIssuing(
         initTransferId, // lastTransferId
         2, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -585,8 +575,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await lnBacking.connect(other).lockAndRemoteIssuing(
         transferId01, // lastTransferId
         2, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -667,8 +656,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await lnBacking.connect(other).lockAndRemoteIssuing(
         transferId02, // lastTransferId
         3, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -687,8 +675,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await lnBacking.connect(other).lockAndRemoteIssuing(
         transferId03, // lastTransferId
         4, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,
@@ -707,8 +694,7 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await lnBacking.connect(other).lockAndRemoteIssuing(
         transferId04, // lastTransferId
         5, // nonce
-        0, // tokenIndex
-        0, // providerIndex
+        0, // providerKey
         transferAmount01, // amount
         expectedFee, // expectedFee
         margin,

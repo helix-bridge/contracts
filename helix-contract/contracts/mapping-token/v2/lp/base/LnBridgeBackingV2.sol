@@ -65,8 +65,8 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         uint112 amount,
         uint112 fee,
         address receiver);
-    event LiquidityWithdrawn(uint64 providerKey, uint112 amount);
-    event Refund(bytes32 transferId, address receiver, address rewardReceiver);
+    event LiquidityWithdrawn(uint64 providerKey, address provider, uint112 amount);
+    event Refund(bytes32 transferId, uint64 providerKey, address provider, uint112 margin, address receiver, address rewardReceiver);
     // relayer
     event LnProviderUpdated(address provider, uint64 providerKey, uint112 margin, uint112 baseFee, uint8 liquidityfeeRate);
 
@@ -266,7 +266,8 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         // transfer back
         uint256 withdrawAmount = lockInfo.amount + tokenInfo.fineFund;
         require(lnProvider.config.margin >= withdrawAmount, "margin not enough");
-        lnProviders[lockInfo.providerKey].config.margin = lnProvider.config.margin - uint112(withdrawAmount);
+        uint112 updatedMargin = lnProvider.config.margin - uint112(withdrawAmount);
+        lnProviders[lockInfo.providerKey].config.margin = updatedMargin;
         uint256 fineFund = tokenInfo.fineFund/2;
         if (tokenInfo.localToken == address(0)) {
             payable(receiver).transfer(lockInfo.amount + fineFund);
@@ -276,7 +277,7 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
             _safeTransfer(tokenInfo.localToken, rewardReceiver, fineFund);
         }
 
-        emit Refund(transferId, receiver, rewardReceiver);
+        emit Refund(transferId, lockInfo.providerKey, lnProvider.provider, updatedMargin, receiver, rewardReceiver);
     }
 
     // lastTransfer is the latest refund transfer, all transfer must be relayed or refunded
@@ -298,13 +299,14 @@ contract LnBridgeBackingV2 is LnBridgeHelper {
         require(lnProvider.nonce == lastLockInfo.nonce, "invalid last transferid");
         TokenInfo memory tokenInfo = tokens[tokenIndex];
         require(lnProvider.config.margin >= amount, "margin not enough");
-        lnProviders[providerKey].config.margin = lnProvider.config.margin - amount;
+        uint112 updatedMargin = lnProvider.config.margin - amount;
+        lnProviders[providerKey].config.margin = updatedMargin;
         if (tokenInfo.localToken == address(0)) {
             payable(provider).transfer(amount);
         } else {
             _safeTransfer(tokenInfo.localToken, provider, amount);
         }
-        emit LiquidityWithdrawn(providerKey, amount);
+        emit LiquidityWithdrawn(providerKey, lnProvider.provider, updatedMargin);
     }
 
     function tokenLength() external view returns (uint) {

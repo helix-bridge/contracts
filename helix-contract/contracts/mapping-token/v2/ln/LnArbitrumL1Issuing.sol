@@ -4,9 +4,9 @@ pragma solidity ^0.8.10;
 import "@arbitrum/nitro-contracts/src/bridge/IInbox.sol";
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
-import "./base/LnBridgeIssuingV2.sol";
+import "./base/LnBridgeIssuing.sol";
 
-contract LnArbitrumL1IssuingV2 is Initializable, LnAccessController, LnBridgeIssuingV2 {
+contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssuing {
     IInbox public inbox;
     address public remoteBacking;
 

@@ -55,14 +55,14 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       const liquidityFeeRate = 100;
       const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
       //******* deploy lp bridge at ethereum *******
-      const lnBackingContract = await ethers.getContractFactory("LnArbitrumL2BackingV2");
+      const lnBackingContract = await ethers.getContractFactory("LnArbitrumL2Backing");
       const lnBacking = await lnBackingContract.deploy();
       await lnBacking.deployed();
       await lnBacking.initialize(dao);
       console.log("ln backing bridge address", lnBacking.address);
       await lnBacking.updateFeeReceiver(feeReceiver);
 
-      const lnIssuingContract = await ethers.getContractFactory("LnArbitrumL1IssuingV2");
+      const lnIssuingContract = await ethers.getContractFactory("LnArbitrumL1Issuing");
       const lnIssuing = await lnIssuingContract.deploy();
       await lnIssuing.deployed();
       await lnIssuing.initialize(dao, inbox.address);
@@ -450,14 +450,14 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
       const nativeTokenAddress = "0x0000000000000000000000000000000000000000";
       //******* deploy lp bridge at ethereum *******
-      const lnBackingContract = await ethers.getContractFactory("LnArbitrumL2BackingV2");
+      const lnBackingContract = await ethers.getContractFactory("LnArbitrumL2Backing");
       const lnBacking = await lnBackingContract.deploy();
       await lnBacking.deployed();
       await lnBacking.initialize(dao);
       console.log("ln backing bridge address", lnBacking.address);
       await lnBacking.updateFeeReceiver(feeReceiver);
 
-      const lnIssuingContract = await ethers.getContractFactory("LnArbitrumL1IssuingV2");
+      const lnIssuingContract = await ethers.getContractFactory("LnArbitrumL1Issuing");
       const lnIssuing = await lnIssuingContract.deploy();
       await lnIssuing.deployed();
       await lnIssuing.initialize(dao, inbox.address);

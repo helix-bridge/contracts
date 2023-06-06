@@ -4,12 +4,12 @@ pragma solidity ^0.8.10;
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "./LnBridgeHelper.sol";
 
-/// @title LnBridgeBackingV2
+/// @title LnBridgeBacking
 /// @notice LnBridgeBackingV2 is a contract to help user transfer token to liquidity node and generate proof,
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
 ///         Otherwise user can redeem the margin token from the backing contract.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnBridgeBackingV2 is LnBridgeHelper {
+contract LnBridgeBacking is LnBridgeHelper {
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
     // the Liquidity Node provider info

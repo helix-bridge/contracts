@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "../interface/ILnBridgeBackingV2.sol";
+import "../interface/ILnBridgeBacking.sol";
 import "./LnBridgeHelper.sol";
 
-contract LnBridgeIssuingV2 is LnBridgeHelper {
+contract LnBridgeIssuing is LnBridgeHelper {
     uint256 constant public MIN_REFUND_TIMESTAMP = 30 * 60;
     struct IssuedMessageInfo {
         uint64 nonce;
@@ -58,7 +58,7 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
         address rewardReceiver
     ) internal pure returns(bytes memory) {
         return abi.encodeWithSelector(
-            ILnBridgeBackingV2.refund.selector,
+            ILnBridgeBacking.refund.selector,
             lastRefundTransferId,
             transferId,
             receiver,
@@ -73,7 +73,7 @@ contract LnBridgeIssuingV2 is LnBridgeHelper {
         uint112 amount
     ) internal pure returns(bytes memory) {
         return abi.encodeWithSelector(
-            ILnBridgeBackingV2.withdrawMargin.selector,
+            ILnBridgeBacking.withdrawMargin.selector,
             lastRefundTransferId,
             lastTransferId,
             provider,

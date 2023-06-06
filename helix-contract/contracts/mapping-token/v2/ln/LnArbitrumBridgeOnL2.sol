@@ -4,16 +4,16 @@ pragma solidity ^0.8.10;
 import "@arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol";
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
-import "./base/LnBridgeBacking.sol";
+import "./base/LnBridgeSource.sol";
 
-contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacking {
-    address public remoteIssuing;
-    address public remoteIssuingOnL2;
+contract LnArbitrumBridgeOnL2 is Initializable, LnAccessController, LnBridgeSource {
+    address public remoteBridge;
+    address public remoteBridgeAlias;
 
     receive() external payable {}
 
     modifier onlyRemoteBridge() {
-        require(msg.sender == remoteIssuingOnL2, "LnArbitrumL2Backing:invalid remote caller");
+        require(msg.sender == remoteBridgeAlias, "LnArbitrumBridgeOnL2:invalid remote caller");
         _;
     }
 
@@ -30,16 +30,15 @@ contract LnArbitrumL2Backing is Initializable, LnAccessController, LnBridgeBacki
         _updateHelixFee(_tokenIndex, _helixFee);
     }
 
-    function setRemoteIssuing(address _remoteIssuing) external onlyDao {
-        remoteIssuing = _remoteIssuing;
-        remoteIssuingOnL2 = AddressAliasHelper.applyL1ToL2Alias(remoteIssuing);
+    function setRemoteBridge(address _remoteBridge) external onlyDao {
+        remoteBridge = _remoteBridge;
+        remoteBridgeAlias = AddressAliasHelper.applyL1ToL2Alias(remoteBridge);
     }
 
-    function setRemoteIssuingOnL2(address _remoteIssuingOnL2) external onlyDao {
-        remoteIssuingOnL2 = _remoteIssuingOnL2;
+    function setRemoteBridgeAlias(address _remoteBridgeAlias) external onlyDao {
+        remoteBridgeAlias = _remoteBridgeAlias;
     }
 
-    // backing mode called
     function registerToken(
         address local,
         address remote,

@@ -4,12 +4,12 @@ pragma solidity ^0.8.10;
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "./LnBridgeHelper.sol";
 
-/// @title LnBridgeBacking
-/// @notice LnBridgeBackingV2 is a contract to help user transfer token to liquidity node and generate proof,
+/// @title LnBridgeSource
+/// @notice LnBridgeSource is a contract to help user transfer token to liquidity node and generate proof,
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
-///         Otherwise user can redeem the margin token from the backing contract.
+///         Otherwise user can redeem the margin token from the source contract.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnBridgeBacking is LnBridgeHelper {
+contract LnBridgeSource is LnBridgeHelper {
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
     // the Liquidity Node provider info
@@ -71,12 +71,12 @@ contract LnBridgeBacking is LnBridgeHelper {
     event LnProviderUpdated(address provider, uint64 providerKey, uint112 margin, uint112 baseFee, uint8 liquidityfeeRate);
 
     function _setFeeReceiver(address _feeReceiver) internal {
-        require(_feeReceiver != address(this), "lnBridgeBacking:invalid helix fee receiver");
+        require(_feeReceiver != address(this), "lnBridgeSource:invalid helix fee receiver");
         feeReceiver = _feeReceiver;
     }
 
     function _updateHelixFee(uint32 _tokenIndex, uint112 _helixFee) internal {
-        require(_tokenIndex < tokens.length, "lnBridgeBacking:invalid token index");
+        require(_tokenIndex < tokens.length, "lnBridgeSource:invalid token index");
         tokens[_tokenIndex].helixFee = _helixFee;
     }
 
@@ -102,7 +102,7 @@ contract LnBridgeBacking is LnBridgeHelper {
         uint112 baseFee,
         uint8 liquidityFeeRate
     ) external payable {
-        require(tokenIndex < tokens.length, "lnBridgeBacking:invalid token index");
+        require(tokenIndex < tokens.length, "lnBridgeSource:invalid token index");
         require(liquidityFeeRate < LIQUIDITY_FEE_RATE_BASE, "invalid liquidity fee rate");
 
         uint256 addressKey = _lnProviderAddressKey(msg.sender, tokenIndex);
@@ -172,7 +172,7 @@ contract LnBridgeBacking is LnBridgeHelper {
     }
 
     // here, nonce must be continuous increments
-    function lockAndRemoteIssuing(
+    function transferAndLockMargin(
         bytes32 lastTransferId,
         uint64 nonce,
         uint64 providerKey,
@@ -183,9 +183,9 @@ contract LnBridgeBacking is LnBridgeHelper {
     ) external payable {
         uint32 tokenIndex = _lnProviderTokenIndex(providerKey);
         
-        require(tokens.length > tokenIndex, "lnBridgeBacking:token not registered");
-        require(lockInfos[lastTransferId].nonce + 1 == nonce, "lnBridgeBacking:invalid last transferId");
-        require(amount > 0, "lnBridgeBacking:invalid amount");
+        require(tokens.length > tokenIndex, "lnBridgeSource:token not registered");
+        require(lockInfos[lastTransferId].nonce + 1 == nonce, "lnBridgeSource:invalid last transferId");
+        require(amount > 0, "lnBridgeSource:invalid amount");
 
         TokenInfo memory tokenInfo = tokens[tokenIndex];
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
@@ -197,7 +197,7 @@ contract LnBridgeBacking is LnBridgeHelper {
         require(expectedMargin <= providerInfo.config.margin, "margin updated");
         
         uint256 remoteAmount = uint256(amount) * 10**tokenInfo.remoteDecimals / 10**tokenInfo.localDecimals;
-        require(remoteAmount < MAX_TRANSFER_AMOUNT, "lnBridgeBacking:overflow amount");
+        require(remoteAmount < MAX_TRANSFER_AMOUNT, "lnBridgeSource:overflow amount");
         bytes32 lastBlockHash = _lastBlockHash();
         bytes32 transferId = keccak256(abi.encodePacked(
             lastTransferId,
@@ -206,14 +206,14 @@ contract LnBridgeBacking is LnBridgeHelper {
             tokenInfo.remoteToken,
             receiver,
             uint112(remoteAmount)));
-        require(lockInfos[transferId].nonce == 0, "lnBridgeBacking:transferId exist");
+        require(lockInfos[transferId].nonce == 0, "lnBridgeSource:transferId exist");
         lockInfos[transferId] = LockInfo(providerKey, amount + uint112(providerFee), nonce, false);
 
         // increase nonce
         lnProviders[providerKey].nonce = nonce;
 
         if (tokenInfo.localToken == address(0)) {
-            require(amount + expectedFee == msg.value, "lnBridgeBacking:amount unmatched");
+            require(amount + expectedFee == msg.value, "lnBridgeSource:amount unmatched");
             payable(providerInfo.provider).transfer(amount + providerFee);
             if (tokenInfo.helixFee > 0) {
                 payable(feeReceiver).transfer(tokenInfo.helixFee);
@@ -259,7 +259,7 @@ contract LnBridgeBacking is LnBridgeHelper {
         LockInfo memory lockInfo = lockInfos[transferId];
         require(!lockInfo.hasRefund, "transfer has been refund");
         uint32 tokenIndex = _lnProviderTokenIndex(lockInfo.providerKey);
-        require(lockInfo.amount > 0 && tokenIndex < tokens.length, "lnBridgeBacking:invalid transferId");
+        require(lockInfo.amount > 0 && tokenIndex < tokens.length, "lnBridgeSource:invalid transferId");
         LnProviderInfo memory lnProvider = lnProviders[lockInfo.providerKey];
         TokenInfo memory tokenInfo = tokens[tokenIndex];
         lockInfos[transferId].hasRefund = true;

@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.10;
 
-interface ILnBridgeBacking {
+interface ILnBridgeSource {
     function refund(
         bytes32 lastRefundTransferId,
         bytes32 transferId,

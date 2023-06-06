@@ -4,11 +4,11 @@ pragma solidity ^0.8.10;
 import "@arbitrum/nitro-contracts/src/bridge/IInbox.sol";
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
-import "./base/LnBridgeIssuing.sol";
+import "./base/LnBridgeTarget.sol";
 
-contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssuing {
+contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarget {
     IInbox public inbox;
-    address public remoteBacking;
+    address public remoteBridge;
 
     event TransferCanceled(bytes32 transferId, address sender);
     event WithdrawMargin(bytes32 lastTransferId, uint112 amount);
@@ -20,8 +20,8 @@ contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssui
         _initialize(_dao);
     }
 
-    function setRemoteBacking(address _remoteBacking) external onlyDao {
-        remoteBacking = _remoteBacking;
+    function setRemoteBridge(address _remoteBridge) external onlyDao {
+        remoteBridge = _remoteBridge;
     }
 
     function submissionRefundFee(
@@ -66,7 +66,7 @@ contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssui
         uint256 prepaid
     ) internal returns(uint256) {
         return inbox.createRetryableTicket{ value: prepaid }(
-            remoteBacking,
+            remoteBridge,
             0,
             maxSubmissionCost,
             msg.sender,
@@ -77,7 +77,7 @@ contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssui
         );
     }
 
-    function requestCancelIssuing(
+    function requestCancelTransfer(
         bytes32 lastTransferId,
         bytes32 lastRefundTransferId,
         bytes32 transferId,
@@ -85,12 +85,12 @@ contract LnArbitrumL1Issuing is Initializable, LnAccessController, LnBridgeIssui
         uint256 maxGas,
         uint256 gasPriceBid
     ) payable external whenNotPaused {
-        bytes memory cancelIssuingCall = _requestCancelIssuing(
+        bytes memory cancelTransferCall = _requestCancelTransfer(
             lastRefundTransferId,
             lastTransferId,
             transferId
         );
-        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, cancelIssuingCall, msg.value);
+        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, cancelTransferCall, msg.value);
         emit TransferCanceled(transferId, msg.sender);
     }
 

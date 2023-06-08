@@ -37,6 +37,11 @@ contract LnBridgeSource is LnBridgeHelper {
         uint8 localDecimals;
         uint8 remoteDecimals;
     }
+    struct Snapshot {
+        bytes32 transferId;
+        uint112 depositedMargin;
+        uint112 totalFee;
+    }
     // registered token info
     TokenInfo[] public tokens;
     // registered lnProviders
@@ -173,18 +178,15 @@ contract LnBridgeSource is LnBridgeHelper {
 
     // here, nonce must be continuous increments
     function transferAndLockMargin(
-        bytes32 lastTransferId,
-        uint64 nonce,
+        Snapshot calldata snapshot,
         uint64 providerKey,
         uint112 amount,
-        uint112 expectedFee,
-        uint112 expectedMargin,
         address receiver
     ) external payable {
         uint32 tokenIndex = _lnProviderTokenIndex(providerKey);
+        uint64 nonce = lockInfos[snapshot.transferId].nonce + 1;
         
         require(tokens.length > tokenIndex, "lnBridgeSource:token not registered");
-        require(lockInfos[lastTransferId].nonce + 1 == nonce, "lnBridgeSource:invalid last transferId");
         require(amount > 0, "lnBridgeSource:invalid amount");
 
         TokenInfo memory tokenInfo = tokens[tokenIndex];
@@ -193,14 +195,14 @@ contract LnBridgeSource is LnBridgeHelper {
         
         require(providerInfo.config.margin >= amount + tokenInfo.fineFund + providerFee, "amount not valid");
         require(providerInfo.nonce + 1 == nonce, "nonce expired");
-        require(expectedFee == tokenInfo.helixFee + providerFee, "fee is invalid");
-        require(expectedMargin <= providerInfo.config.margin, "margin updated");
+        require(snapshot.totalFee == tokenInfo.helixFee + providerFee, "fee is invalid");
+        require(snapshot.depositedMargin <= providerInfo.config.margin, "margin updated");
         
         uint256 remoteAmount = uint256(amount) * 10**tokenInfo.remoteDecimals / 10**tokenInfo.localDecimals;
         require(remoteAmount < MAX_TRANSFER_AMOUNT, "lnBridgeSource:overflow amount");
         bytes32 lastBlockHash = _lastBlockHash();
         bytes32 transferId = keccak256(abi.encodePacked(
-            lastTransferId,
+            snapshot.transferId,
             lastBlockHash,
             nonce,
             tokenInfo.remoteToken,
@@ -213,7 +215,7 @@ contract LnBridgeSource is LnBridgeHelper {
         lnProviders[providerKey].nonce = nonce;
 
         if (tokenInfo.localToken == address(0)) {
-            require(amount + expectedFee == msg.value, "lnBridgeSource:amount unmatched");
+            require(amount + snapshot.totalFee == msg.value, "lnBridgeSource:amount unmatched");
             payable(providerInfo.provider).transfer(amount + providerFee);
             if (tokenInfo.helixFee > 0) {
                 payable(feeReceiver).transfer(tokenInfo.helixFee);

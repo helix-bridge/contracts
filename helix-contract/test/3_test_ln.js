@@ -124,12 +124,9 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       await arbToken.connect(other).approve(lnBridgeOnL2.address, 1000000000);
       const lastBlockHash = (await ethers.provider.getBlock("latest")).hash;
       const lockTransaction = await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        initTransferId, // lastTransferId
-        1, // nonce
+        [initTransferId, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address // receiver
       );
       let lockReceipt = await lockTransaction.wait();
@@ -191,22 +188,16 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       // lock
       // must be continuous
       await expect(lnBridgeOnL2.connect(other).transferAndLockMargin(
-        initTransferId, // lastTransferId
-        2, // nonce
+        [initTransferId, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address // receiver
-      )).to.be.revertedWith("lnBridgeSource:invalid last transferId");
+      )).to.be.revertedWith("nonce expired");
       const lastBlockHash02 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        transferId01, // lastTransferId
-        2, // nonce
+        [transferId01, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address // receiver
       );
       const transferId02 = getTransferId(
@@ -287,12 +278,9 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       // locks
       const lastBlockHash03 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        transferId02, // lastTransferId
-        3, // nonce
+        [transferId02, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address // receiver
       );
       const transferId03 = getTransferId(
@@ -305,12 +293,9 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       );
       const lastBlockHash04 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        transferId03, // lastTransferId
-        4, // nonce
+        [transferId03, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address // receiver
       );
       const transferId04 = getTransferId(
@@ -323,12 +308,9 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       );
       const lastBlockHash05 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        transferId04, // lastTransferId
-        5, // nonce
+        [transferId04, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address // receiver
       );
       const transferId05 = getTransferId(
@@ -497,12 +479,9 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       // 3.1.1 lock
       const lastBlockHash = (await ethers.provider.getBlock("latest")).hash;
       const lockTransaction = await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        initTransferId, // lastTransferId
-        1, // nonce
+        [initTransferId, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
@@ -562,23 +541,17 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       // lock
       // must be continuous
       await expect(lnBridgeOnL2.connect(other).transferAndLockMargin(
-        initTransferId, // lastTransferId
-        2, // nonce
+        [initTransferId, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
-      )).to.be.revertedWith("lnBridgeSource:invalid last transferId");
+      )).to.be.revertedWith("nonce expired");
       const lastBlockHash02 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        transferId01, // lastTransferId
-        2, // nonce
+        [transferId01, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
@@ -654,12 +627,9 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       // locks
       const lastBlockHash03 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        transferId02, // lastTransferId
-        3, // nonce
+        [transferId02, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
@@ -673,12 +643,9 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       );
       const lastBlockHash04 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        transferId03, // lastTransferId
-        4, // nonce
+        [transferId03, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
@@ -692,12 +659,9 @@ describe("darwinia<>eth lnv2 bridge tests", () => {
       );
       const lastBlockHash05 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        transferId04, // lastTransferId
-        5, // nonce
+        [transferId04, margin, expectedFee],
         0, // providerKey
         transferAmount01, // amount
-        expectedFee, // expectedFee
-        margin,
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );

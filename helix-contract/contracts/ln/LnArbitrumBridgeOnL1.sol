@@ -10,7 +10,6 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
     IInbox public inbox;
     address public remoteBridge;
 
-    event TransferCanceled(bytes32 transferId, address sender);
     event WithdrawMargin(bytes32 lastTransferId, uint112 amount);
 
     receive() external payable {}
@@ -28,15 +27,13 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
         uint256 baseFee,
         bytes32 lastRefundTransferId,
         bytes32 transferId,
-        address receiver,
-        address fundReceiver,
+        address slasher,
         uint256 percentIncrease
     ) external view returns(uint256) {
         bytes memory refundCall = _encodeRefundCall(
             lastRefundTransferId,
             transferId,
-            receiver,
-            fundReceiver
+            slasher
         );
         uint256 fee = inbox.calculateRetryableSubmissionFee(refundCall.length, baseFee);
         return fee + fee * percentIncrease / 100;
@@ -77,21 +74,38 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
         );
     }
 
-    function requestCancelTransfer(
-        bytes32 lastTransferId,
+    function slashAndRemoteRefund(
+        TransferParameter calldata params,
+        bytes32 lastRefundTransferId,
+        uint256 maxSubmissionCost,
+        uint256 maxGas,
+        uint256 gasPriceBid
+    ) payable external whenNotPaused {
+        bytes memory refundCallMessage = _slashAndRemoteRefund(
+            params,
+            lastRefundTransferId
+        );
+        uint256 valueUsed = address(0) == params.token ? params.amount : 0;
+        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, refundCallMessage, msg.value - valueUsed);
+    }
+
+    function retryRemoteRefund(
         bytes32 lastRefundTransferId,
         bytes32 transferId,
         uint256 maxSubmissionCost,
         uint256 maxGas,
         uint256 gasPriceBid
     ) payable external whenNotPaused {
-        bytes memory cancelTransferCall = _requestCancelTransfer(
+        address slasher = verifyAndGetSlasher(
             lastRefundTransferId,
-            lastTransferId,
             transferId
         );
-        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, cancelTransferCall, msg.value);
-        emit TransferCanceled(transferId, msg.sender);
+        bytes memory refundCallMessage = _encodeRefundCall(
+            lastRefundTransferId,
+            transferId,
+            slasher
+        );
+        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, refundCallMessage, msg.value);
     }
 
     function requestWithdrawMargin(

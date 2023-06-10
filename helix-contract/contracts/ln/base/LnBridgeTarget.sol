@@ -7,62 +7,91 @@ import "./LnBridgeHelper.sol";
 contract LnBridgeTarget is LnBridgeHelper {
     uint256 constant public MIN_REFUND_TIMESTAMP = 30 * 60;
     struct TransferInfo {
-        uint64 nonce;
-        uint64 lastRefundNonce;
-        uint64 refundStartTime;
+        uint48 nonce;
+        uint48 lastRefundNonce;
+        address slasher;
     }
+
     mapping(bytes32 => TransferInfo) public transferInfos;
     mapping(bytes32 => address) public refundReceiver;
 
-    event TransferRelayed(bytes32 transferId, address relayer);
-    event CancelTransferInited(bytes32 transferId, uint256 timestamp);
+    event TransferFilled(bytes32 transferId, address slasher);
 
-    function transferAndReleaseMargin(
-        bytes32 lastTransferId,
-        bytes32 lastBlockHash,
-        uint64 nonce,
-        address token,
-        address receiver,
-        uint112 amount
-    ) payable external {
-        TransferInfo memory lastInfo = transferInfos[lastTransferId];
-        require(lastInfo.nonce + 1 == nonce, "Invalid last transferId");
-        bytes32 transferId = keccak256(abi.encodePacked(
-            lastTransferId,
-            lastBlockHash,
-            nonce,
-            token,
-            receiver,
-            amount));
+    // fill transfer
+    // 1. if transfer is not refund or relayed, LnProvider relay message to fill the transfer, and the transfer finished on target chain
+    // 2. if transfer is timeout and not processed, slasher(any account) can fill the transfer and request refund
+    // if it's filled by slasher, we store the address of the slasher
+    function _fillTransfer(
+        TransferParameter calldata params,
+        address slasher
+    ) internal returns(bytes32 transferId, uint48 lastRefundNonce) {
+        TransferInfo memory lastInfo = transferInfos[params.lastTransferId];
+        require(lastInfo.nonce + 1 == params.nonce, "Invalid last transferId");
+        transferId = keccak256(abi.encodePacked(
+            params.lastTransferId,
+            params.lastBlockHash,
+            params.nonce,
+            params.timestamp,
+            params.token,
+            params.receiver,
+            params.amount));
         TransferInfo memory transferInfo = transferInfos[transferId];
-        require(transferInfo.nonce == 0 || transferInfo.refundStartTime > 0, "lnBridgeTarget:message exist");
-        require(transferInfo.refundStartTime == 0 || transferInfo.refundStartTime + MIN_REFUND_TIMESTAMP > block.timestamp, "refund time expired");
-        if (lastInfo.refundStartTime > 0) {
-            transferInfos[transferId] = TransferInfo(nonce, nonce - 1, 0);
+        require(transferInfo.nonce == 0, "lnBridgeTarget:message exist");
+        lastRefundNonce = lastInfo.slasher != address(0) ? params.nonce - 1 : lastInfo.lastRefundNonce;
+        transferInfos[transferId] = TransferInfo(params.nonce, lastRefundNonce, slasher);
+        if (params.token == address(0)) {
+            require(msg.value >= params.amount, "lnBridgeTarget:invalid amount");
+            payable(params.receiver).transfer(params.amount);
         } else {
-            transferInfos[transferId] = TransferInfo(nonce, lastInfo.lastRefundNonce, 0);
+            _safeTransferFrom(params.token, msg.sender, params.receiver, uint256(params.amount));
         }
-        if (token == address(0)) {
-            require(msg.value == amount, "lnBridgeTarget:invalid amount");
-            payable(receiver).transfer(amount);
-        } else {
-            _safeTransferFrom(token, msg.sender, receiver, uint256(amount));
-        }
-        emit TransferRelayed(transferId, msg.sender);
+        emit TransferFilled(transferId, slasher);
+    }
+
+    function transferAndReleaseMargin(TransferParameter calldata params) payable external {
+        _fillTransfer(params, address(0));
+    }
+
+    // The condition for slash is that the transfer has timed out
+    // Meanwhile we need to request a refund transaction to the source chain to withdraw the LnProvider's margin
+    // On the source chain, we need to verify all the transfers before has been relayed or slashed.
+    // So we needs to carry the the previous refund transferId to ensure that the slash is continuous.
+    function _slashAndRemoteRefund(
+        TransferParameter calldata params,
+        bytes32 lastRefundTransferId
+    ) internal returns(bytes memory message) {
+        require(block.timestamp > params.timestamp + MIN_REFUND_TIMESTAMP, "refund time not expired");
+        (bytes32 transferId, uint48 lastRefundNonce) = _fillTransfer(params, msg.sender);
+        TransferInfo memory lastRefundInfo = transferInfos[lastRefundTransferId];
+        require(lastRefundInfo.nonce == lastRefundNonce, "invalid last refund nonce");
+        message = _encodeRefundCall(
+            lastRefundTransferId,
+            transferId,
+            msg.sender
+        );
+    }
+
+    // we use this to verify that the transfer has been slashed by user and it can resend the refund request
+    function verifyAndGetSlasher(
+        bytes32 lastRefundTransferId,
+        bytes32 transferId
+    ) public view returns(address slasher) {
+        TransferInfo memory transferInfo = transferInfos[transferId];
+        TransferInfo memory lastRefundInfo = transferInfos[lastRefundTransferId];
+        require(lastRefundInfo.nonce == transferInfo.lastRefundNonce, "invalid last refund transfer");
+        return transferInfo.slasher;
     }
 
     function _encodeRefundCall(
         bytes32 lastRefundTransferId,
         bytes32 transferId,
-        address receiver,
-        address rewardReceiver
+        address slasher
     ) internal pure returns(bytes memory) {
         return abi.encodeWithSelector(
             ILnBridgeSource.refund.selector,
             lastRefundTransferId,
             transferId,
-            receiver,
-            rewardReceiver
+            slasher
         );
     }
 
@@ -78,55 +107,6 @@ contract LnBridgeTarget is LnBridgeHelper {
             lastTransferId,
             provider,
             amount
-        );
-    }
-
-    function initCancelTransfer(
-        bytes32 lastTransferId,
-        bytes32 lastBlockHash,
-        address token,
-        address receiver,
-        uint64 nonce,
-        uint112 amount
-    ) external {
-        TransferInfo memory lastInfo = transferInfos[lastTransferId];
-        require(lastInfo.nonce + 1 == nonce, "invalid last transfer nonce");
-        bytes32 transferId = keccak256(abi.encodePacked(
-            lastTransferId,
-            lastBlockHash,
-            nonce,
-            token,
-            receiver,
-            amount));
-        TransferInfo memory transferInfo = transferInfos[transferId];
-        require(transferInfo.nonce == 0, "lnBridgeTarget:message exist");
-        require(transferInfo.refundStartTime == 0, "refund has been init");
-
-        uint64 lastRefundNonce = lastInfo.refundStartTime > 0 ? nonce - 1 : lastInfo.lastRefundNonce;
-        transferInfos[transferId] = TransferInfo(nonce, lastRefundNonce, uint64(block.timestamp));
-        refundReceiver[transferId] = receiver;
-        emit CancelTransferInited(transferId, block.timestamp);
-    }
-
-    // anyone can cancel
-    function _requestCancelTransfer(
-        bytes32 lastRefundTransferId,
-        bytes32 lastTransferId,
-        bytes32 transferId
-    ) internal view returns(bytes memory message) {
-        TransferInfo memory lastInfo = transferInfos[lastTransferId];
-        TransferInfo memory transferInfo = transferInfos[transferId];
-        require(transferInfo.nonce == lastInfo.nonce + 1, "invalid last transferInfo");
-        require(transferInfo.refundStartTime + MIN_REFUND_TIMESTAMP < block.timestamp, "refund time not expired");
-        TransferInfo memory lastRefundInfo = transferInfos[lastRefundTransferId];
-        require(lastRefundInfo.nonce == transferInfo.lastRefundNonce, "invalid last refundid");
-        address receiver = refundReceiver[transferId];
-        require(receiver != address(0), "no receiver");
-        return _encodeRefundCall(
-            lastRefundTransferId,
-            transferId,
-            receiver,
-            msg.sender
         );
     }
 

@@ -53,10 +53,9 @@ contract LnArbitrumBridgeOnL2 is Initializable, LnAccessController, LnBridgeSour
     function refund(
         bytes32 lastRefundTransferId,
         bytes32 transferId,
-        address receiver,
-        address rewardReceiver
+        address slasher
     ) external onlyRemoteBridge whenNotPaused {
-        _refund(lastRefundTransferId, transferId, receiver, rewardReceiver);
+        _refund(lastRefundTransferId, transferId, slasher);
     }
 
     function withdrawMargin(

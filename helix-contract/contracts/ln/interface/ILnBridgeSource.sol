@@ -6,8 +6,7 @@ interface ILnBridgeSource {
     function refund(
         bytes32 lastRefundTransferId,
         bytes32 transferId,
-        address receiver,
-        address rewardReceiver
+        address slasher
     ) external;
     function withdrawMargin(
         bytes32 lastRefundTransferId,

@@ -22,8 +22,8 @@ contract LnBridgeSource is LnBridgeHelper {
     }
     struct LnProviderInfo {
         address provider;
-        uint64 nonce;
         LnProviderConfigure config;
+        bytes32 lastTransferId;
     }
     // the registered token info
     // localToken and remoteToken is the pair of erc20 token addresses
@@ -32,7 +32,7 @@ contract LnBridgeSource is LnBridgeHelper {
     struct TokenInfo {
         address localToken;
         address remoteToken;
-        uint112 helixFee;
+        uint112 systemFee;
         uint112 fineFund;
         uint8 localDecimals;
         uint8 remoteDecimals;
@@ -55,7 +55,7 @@ contract LnBridgeSource is LnBridgeHelper {
         uint64 providerKey; // tokenIndex << 32 + providerIndex
         // amount + fee
         uint112 amount;
-        uint64 nonce;
+        uint48 nonce;
         bool hasRefund;
     }
     // key: hash(lastKey, nonce, timestamp, providerKey, msg.sender, amount, tokenIndex)
@@ -63,7 +63,7 @@ contract LnBridgeSource is LnBridgeHelper {
     address public feeReceiver;
 
     event TokenLocked(
-        uint64 nonce,
+        uint48 nonce,
         bytes32 transferId,
         bytes32 lastBlockHash,
         address localToken,
@@ -71,18 +71,18 @@ contract LnBridgeSource is LnBridgeHelper {
         uint112 fee,
         address receiver);
     event LiquidityWithdrawn(uint64 providerKey, address provider, uint112 amount);
-    event Refund(bytes32 transferId, uint64 providerKey, address provider, uint112 margin, address receiver, address rewardReceiver);
+    event Refund(bytes32 transferId, uint64 providerKey, address provider, uint112 margin, address slasher);
     // relayer
     event LnProviderUpdated(address provider, uint64 providerKey, uint112 margin, uint112 baseFee, uint8 liquidityfeeRate);
 
     function _setFeeReceiver(address _feeReceiver) internal {
-        require(_feeReceiver != address(this), "lnBridgeSource:invalid helix fee receiver");
+        require(_feeReceiver != address(this), "lnBridgeSource:invalid system fee receiver");
         feeReceiver = _feeReceiver;
     }
 
-    function _updateHelixFee(uint32 _tokenIndex, uint112 _helixFee) internal {
+    function _updateHelixFee(uint32 _tokenIndex, uint112 _systemFee) internal {
         require(_tokenIndex < tokens.length, "lnBridgeSource:invalid token index");
-        tokens[_tokenIndex].helixFee = _helixFee;
+        tokens[_tokenIndex].systemFee = _systemFee;
     }
 
     function _lnProviderKey(uint32 tokenIndex, uint32 providerIndex) internal pure returns(uint64) {
@@ -122,7 +122,7 @@ contract LnBridgeSource is LnBridgeHelper {
             require(margin > 0, "invalid margin value");
             providerKey = _lnProviderKey(tokenIndex, lnProviderSize);
             lnProviderSize += 1;
-            lnProviders[providerKey] = LnProviderInfo(msg.sender, 0, config);
+            lnProviders[providerKey] = LnProviderInfo(msg.sender, config, bytes32(0));
             lnProviderIndexes[addressKey] = providerKey;
         } else {
             LnProviderInfo memory oldProviderInfo = lnProviders[providerKey];
@@ -147,7 +147,7 @@ contract LnBridgeSource is LnBridgeHelper {
     function _registerToken(
         address localToken,
         address remoteToken,
-        uint112 helixFee,
+        uint112 systemFee,
         uint112 fineFund,
         uint8 localDecimals,
         uint8 remoteDecimals
@@ -155,7 +155,7 @@ contract LnBridgeSource is LnBridgeHelper {
         tokens.push(TokenInfo(
             localToken,
             remoteToken,
-            helixFee,
+            systemFee,
             fineFund,
             localDecimals,
             remoteDecimals));
@@ -165,7 +165,7 @@ contract LnBridgeSource is LnBridgeHelper {
         return uint256(config.baseFee) + uint256(config.liquidityFeeRate) * uint256(amount) / LIQUIDITY_FEE_RATE_BASE;
     }
 
-    function fee(
+    function totalFee(
         uint64 providerKey,
         uint112 amount
     ) external view returns(uint256) {
@@ -173,10 +173,12 @@ contract LnBridgeSource is LnBridgeHelper {
         TokenInfo memory tokenInfo = tokens[tokenIndex];
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
         uint256 providerFee = calculateProviderFee(providerInfo.config, amount);
-        return providerFee + tokenInfo.helixFee;
+        return providerFee + tokenInfo.systemFee;
     }
 
-    // here, nonce must be continuous increments
+    // This function transfers tokens from the user to LnProvider and generates a proof on the source chain.
+    // The snapshot represents the state of the LN bridge for this LnProvider, obtained by the off-chain indexer.
+    // If the chain state is updated and does not match the snapshot state, the transaction will be reverted.
     function transferAndLockMargin(
         Snapshot calldata snapshot,
         uint64 providerKey,
@@ -184,7 +186,7 @@ contract LnBridgeSource is LnBridgeHelper {
         address receiver
     ) external payable {
         uint32 tokenIndex = _lnProviderTokenIndex(providerKey);
-        uint64 nonce = lockInfos[snapshot.transferId].nonce + 1;
+        uint48 nonce = lockInfos[snapshot.transferId].nonce + 1;
         
         require(tokens.length > tokenIndex, "lnBridgeSource:token not registered");
         require(amount > 0, "lnBridgeSource:invalid amount");
@@ -194,8 +196,8 @@ contract LnBridgeSource is LnBridgeHelper {
         uint256 providerFee = calculateProviderFee(providerInfo.config, amount);
         
         require(providerInfo.config.margin >= amount + tokenInfo.fineFund + providerFee, "amount not valid");
-        require(providerInfo.nonce + 1 == nonce, "nonce expired");
-        require(snapshot.totalFee == tokenInfo.helixFee + providerFee, "fee is invalid");
+        require(providerInfo.lastTransferId == snapshot.transferId, "snapshot expired");
+        require(snapshot.totalFee == tokenInfo.systemFee + providerFee, "fee is invalid");
         require(snapshot.depositedMargin <= providerInfo.config.margin, "margin updated");
         
         uint256 remoteAmount = uint256(amount) * 10**tokenInfo.remoteDecimals / 10**tokenInfo.localDecimals;
@@ -205,20 +207,20 @@ contract LnBridgeSource is LnBridgeHelper {
             snapshot.transferId,
             lastBlockHash,
             nonce,
+            uint64(block.timestamp),
             tokenInfo.remoteToken,
             receiver,
             uint112(remoteAmount)));
         require(lockInfos[transferId].nonce == 0, "lnBridgeSource:transferId exist");
         lockInfos[transferId] = LockInfo(providerKey, amount + uint112(providerFee), nonce, false);
 
-        // increase nonce
-        lnProviders[providerKey].nonce = nonce;
+        lnProviders[providerKey].lastTransferId = transferId;
 
         if (tokenInfo.localToken == address(0)) {
             require(amount + snapshot.totalFee == msg.value, "lnBridgeSource:amount unmatched");
             payable(providerInfo.provider).transfer(amount + providerFee);
-            if (tokenInfo.helixFee > 0) {
-                payable(feeReceiver).transfer(tokenInfo.helixFee);
+            if (tokenInfo.systemFee > 0) {
+                payable(feeReceiver).transfer(tokenInfo.systemFee);
             }
         } else {
             _safeTransferFrom(
@@ -227,12 +229,12 @@ contract LnBridgeSource is LnBridgeHelper {
                 providerInfo.provider,
                 amount + providerFee
             );
-            if (tokenInfo.helixFee > 0) {
+            if (tokenInfo.systemFee > 0) {
                 _safeTransferFrom(
                     tokenInfo.localToken,
                     msg.sender,
                     feeReceiver,
-                    tokenInfo.helixFee
+                    tokenInfo.systemFee
                 );
             }
         }
@@ -252,8 +254,7 @@ contract LnBridgeSource is LnBridgeHelper {
     function _refund(
         bytes32 lastRefundTransferId,
         bytes32 transferId,
-        address receiver,
-        address rewardReceiver
+        address slasher
     ) internal {
         // check lastTransfer
         LockInfo memory lastLockInfo = lockInfos[lastRefundTransferId];
@@ -270,16 +271,14 @@ contract LnBridgeSource is LnBridgeHelper {
         require(lnProvider.config.margin >= withdrawAmount, "margin not enough");
         uint112 updatedMargin = lnProvider.config.margin - uint112(withdrawAmount);
         lnProviders[lockInfo.providerKey].config.margin = updatedMargin;
-        uint256 fineFund = tokenInfo.fineFund/2;
+
         if (tokenInfo.localToken == address(0)) {
-            payable(receiver).transfer(lockInfo.amount + fineFund);
-            payable(rewardReceiver).transfer(fineFund);
+            payable(slasher).transfer(withdrawAmount);
         } else {
-            _safeTransfer(tokenInfo.localToken, receiver, lockInfo.amount + fineFund);
-            _safeTransfer(tokenInfo.localToken, rewardReceiver, fineFund);
+            _safeTransfer(tokenInfo.localToken, slasher, withdrawAmount);
         }
 
-        emit Refund(transferId, lockInfo.providerKey, lnProvider.provider, updatedMargin, receiver, rewardReceiver);
+        emit Refund(transferId, lockInfo.providerKey, lnProvider.provider, updatedMargin, slasher);
     }
 
     // lastTransfer is the latest refund transfer, all transfer must be relayed or refunded
@@ -298,7 +297,7 @@ contract LnBridgeSource is LnBridgeHelper {
         uint32 tokenIndex = _lnProviderTokenIndex(providerKey);
         LnProviderInfo memory lnProvider = lnProviders[providerKey];
         require(provider == lnProvider.provider, "invalid provider");
-        require(lnProvider.nonce == lastLockInfo.nonce, "invalid last transferid");
+        require(lnProvider.lastTransferId == lastTransferId, "invalid last transferid");
         TokenInfo memory tokenInfo = tokens[tokenIndex];
         require(lnProvider.config.margin >= amount, "margin not enough");
         uint112 updatedMargin = lnProvider.config.margin - amount;

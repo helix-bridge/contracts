@@ -13,7 +13,6 @@ contract LnBridgeTarget is LnBridgeHelper {
     }
 
     mapping(bytes32 => TransferInfo) public transferInfos;
-    mapping(bytes32 => address) public refundReceiver;
 
     event TransferFilled(bytes32 transferId, address slasher);
 
@@ -21,10 +20,12 @@ contract LnBridgeTarget is LnBridgeHelper {
     // 1. if transfer is not refund or relayed, LnProvider relay message to fill the transfer, and the transfer finished on target chain
     // 2. if transfer is timeout and not processed, slasher(any account) can fill the transfer and request refund
     // if it's filled by slasher, we store the address of the slasher
+    // expectedTransferId used to ensure the parameter is the same as on source chain
     function _fillTransfer(
         TransferParameter calldata params,
+        bytes32 expectedTransferId,
         address slasher
-    ) internal returns(bytes32 transferId, uint48 lastRefundNonce) {
+    ) internal returns(bytes32 transferId) {
         TransferInfo memory lastInfo = transferInfos[params.lastTransferId];
         require(lastInfo.nonce + 1 == params.nonce, "Invalid last transferId");
         transferId = keccak256(abi.encodePacked(
@@ -35,9 +36,13 @@ contract LnBridgeTarget is LnBridgeHelper {
             params.token,
             params.receiver,
             params.amount));
+        require(expectedTransferId == transferId, "check expected transferId failed");
         TransferInfo memory transferInfo = transferInfos[transferId];
+        // Make sure this transfer was never filled before 
         require(transferInfo.nonce == 0, "lnBridgeTarget:message exist");
-        lastRefundNonce = lastInfo.slasher != address(0) ? params.nonce - 1 : lastInfo.lastRefundNonce;
+        // Find the previous refund fill, it is a refund fill if the slasher is not zero address.
+        // We optimise storage gas by using nonce of fill id for that refund instead of directly use fill id.
+        uint48 lastRefundNonce = lastInfo.slasher != address(0) ? lastInfo.nonce : lastInfo.lastRefundNonce;
         transferInfos[transferId] = TransferInfo(params.nonce, lastRefundNonce, slasher);
         if (params.token == address(0)) {
             require(msg.value >= params.amount, "lnBridgeTarget:invalid amount");
@@ -48,8 +53,11 @@ contract LnBridgeTarget is LnBridgeHelper {
         emit TransferFilled(transferId, slasher);
     }
 
-    function transferAndReleaseMargin(TransferParameter calldata params) payable external {
-        _fillTransfer(params, address(0));
+    function transferAndReleaseMargin(
+        TransferParameter calldata params,
+        bytes32 expectedTransferId
+    ) payable external {
+        _fillTransfer(params, expectedTransferId, address(0));
     }
 
     // The condition for slash is that the transfer has timed out
@@ -58,12 +66,14 @@ contract LnBridgeTarget is LnBridgeHelper {
     // So we needs to carry the the previous refund transferId to ensure that the slash is continuous.
     function _slashAndRemoteRefund(
         TransferParameter calldata params,
+        bytes32 expectedTransferId,
         bytes32 lastRefundTransferId
     ) internal returns(bytes memory message) {
         require(block.timestamp > params.timestamp + MIN_REFUND_TIMESTAMP, "refund time not expired");
-        (bytes32 transferId, uint48 lastRefundNonce) = _fillTransfer(params, msg.sender);
-        TransferInfo memory lastRefundInfo = transferInfos[lastRefundTransferId];
-        require(lastRefundInfo.nonce == lastRefundNonce, "invalid last refund nonce");
+        bytes32 transferId = _fillTransfer(params, expectedTransferId, msg.sender);
+        // The same nonce indicate they have same transfer Id.
+        require(transferInfos[lastRefundTransferId].nonce == transferInfos[transferId].lastRefundNonce, "invalid last refund nonce");
+        // Do not refund `transferId` in source chain unless `lastRefundTransferId` has been refunded
         message = _encodeRefundCall(
             lastRefundTransferId,
             transferId,

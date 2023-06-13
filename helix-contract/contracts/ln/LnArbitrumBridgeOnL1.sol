@@ -77,12 +77,14 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
     function slashAndRemoteRefund(
         TransferParameter calldata params,
         bytes32 lastRefundTransferId,
+        bytes32 expectedTransferId,
         uint256 maxSubmissionCost,
         uint256 maxGas,
         uint256 gasPriceBid
     ) payable external whenNotPaused {
         bytes memory refundCallMessage = _slashAndRemoteRefund(
             params,
+            expectedTransferId,
             lastRefundTransferId
         );
         uint256 valueUsed = address(0) == params.token ? params.amount : 0;

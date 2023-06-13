@@ -51,7 +51,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const feeReceiver = "0x1000000000000000000000000000000000000001";
       const helixFee = 100;
       const initTokenBalance = 1000000;
-      const fineFund = 100;
+      const penaltyLnCollateral = 100;
       var margin = 2000;
       const baseFee = 20;
       const liquidityFeeRate = 100;
@@ -95,7 +95,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           arbToken.address,
           ethToken.address,
           helixFee,
-          fineFund,
+          penaltyLnCollateral,
           18,
           18
       );
@@ -137,6 +137,15 @@ describe("arb<>eth lnv2 bridge tests", () => {
       let lockReceipt = await lockTransaction.wait();
       let lockGasUsed = lockReceipt.cumulativeGasUsed;
       console.log("transferAndLockMargin gas used", lockGasUsed);
+      const transferId01 = getTransferId(
+          initTransferId, // lastTransferId
+          lastBlockHash, // lastBlockHash
+          1, // nonce
+          blockTimestamp,
+          ethToken.address, // remoteToken
+          other.address, // receiver
+          transferAmount01, // amount
+      );
       // 3.1.2 relay
       await ethToken.connect(relayer).approve(lnBridgeOnL1.address, 1000000000);
       const relayTransaction = await lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
@@ -148,7 +157,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
           blockTimestamp,
           ethToken.address, // token
           other.address
-        ]
+        ],
+        transferId01
       );
       let relayReceipt = await relayTransaction.wait();
       let relayGasUsed = relayReceipt.cumulativeGasUsed;
@@ -175,17 +185,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
       expect(await ethToken.balanceOf(other.address)).to.equal(otherEthToken01);
       // check transferId
       // source chain
-      const transferId01 = getTransferId(
-          initTransferId, // lastTransferId
-          lastBlockHash, // lastBlockHash
-          1, // nonce
-          blockTimestamp,
-          ethToken.address, // remoteToken
-          other.address, // receiver
-          transferAmount01, // amount
-      );
       const lockInfo01 = await lnBridgeOnL2.lockInfos(transferId01);
-      expect(lockInfo01.amount).to.equal(transferAmount01 + relayerFee01);
+      expect(lockInfo01.amountWithFeeAndPenalty).to.equal(transferAmount01 + relayerFee01 + penaltyLnCollateral);
       expect(lockInfo01.nonce).to.equal(1);
       // target chain
       const transferInfo01 = await lnBridgeOnL1.transferInfos(transferId01);
@@ -231,6 +232,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           initTransferId,
+          transferId01,
           0,
           0,
           200
@@ -254,6 +256,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address, // receiver
           ],
           transferId01,
+          transferId01,
           0,
           0,
           0
@@ -274,21 +277,22 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           initTransferId,
+          transferId02,
           0,
           0,
           200
       );
       // check balance
       // arbtoken: other -> relayer (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01)
-      //           lnBridgeOnL2 -> owner (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01 + fineFund)
+      //           lnBridgeOnL2 -> owner (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01 + penaltyLnCollateral)
       //           other -> feeReceive (helixFee)
       // ethtoken: owner -> other (transferAmount01)
       const relayerFee02 = baseFee + Math.floor(liquidityFeeRate * transferAmount01/100000);
       const relayerArbToken02 = relayerArbToken01 + transferAmount01 + relayerFee02;
-      const lnBridgeArbToken02 = lnBridgeArbToken01 - transferAmount01 - relayerFee02 - fineFund;
+      const lnBridgeArbToken02 = lnBridgeArbToken01 - transferAmount01 - relayerFee02 - penaltyLnCollateral;
       const otherArbToken02 = otherArbToken01 - transferAmount01 - relayerFee02 - helixFee;
       const feeReceiverArbToken02 = feeReceiverArbToken01 + helixFee;
-      const ownerArbToken02 = transferAmount01 + relayerFee02 + fineFund;
+      const ownerArbToken02 = transferAmount01 + relayerFee02 + penaltyLnCollateral;
       const relayerEthToken02 = relayerEthToken01;
       const otherEthToken02 = otherEthToken01 + transferAmount01;
       const ownerEthToken02 = initTokenBalance - transferAmount01;
@@ -300,7 +304,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
       expect(await ethToken.balanceOf(relayer.address)).to.equal(relayerEthToken02);
       expect(await ethToken.balanceOf(other.address)).to.equal(otherEthToken02);
       expect(await ethToken.balanceOf(owner.address)).to.equal(ownerEthToken02);
-      margin -= (transferAmount01 + relayerFee02 + fineFund);
+      margin -= (transferAmount01 + relayerFee02 + penaltyLnCollateral);
 
       // check refund continous
       // 3 refund, 4 relayed, 5 refund
@@ -375,6 +379,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           transferId02,
+          transferId03,
           0,
           0,
           0
@@ -390,7 +395,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
             blockTimestamp04,
             ethToken.address, // token
             other.address
-        ]
+        ],
+        transferId04
       );
       // refund 5 must after 3
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
@@ -404,6 +410,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           transferId04,
+          transferId05,
           0,
           0,
           0
@@ -420,6 +427,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           transferId03,
+          transferId05,
           0,
           0,
           200
@@ -446,6 +454,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           transferId03,
+          transferId05,
           0,
           0,
           200
@@ -460,7 +469,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
               blockTimestamp05,
               ethToken.address, // token
               other.address
-          ]
+          ],
+          transferId05
       )).to.revertedWith("lnBridgeTarget:message exist");
 
       console.log("ln bridge test finished");
@@ -479,7 +489,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const feeReceiver = "0x1000000000000000000000000000000000000001";
       const helixFee = 100;
       const initTokenBalance = 1000000;
-      const fineFund = 100;
+      const penaltyLnCollateral = 100;
       var margin = 2000;
       const baseFee = 20;
       const liquidityFeeRate = 100;
@@ -512,7 +522,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           nativeTokenAddress,
           nativeTokenAddress,
           helixFee,
-          fineFund,
+          penaltyLnCollateral,
           18,
           18
       );
@@ -551,6 +561,15 @@ describe("arb<>eth lnv2 bridge tests", () => {
           method: "evm_increaseTime",
           params: [18001],
       });
+      const transferId01 = getTransferId(
+          initTransferId, // lastTransferId
+          lastBlockHash, // lastBlockHash
+          1, // nonce
+          blockTimestamp,
+          nativeTokenAddress, // remoteToken
+          other.address, // receiver
+          transferAmount01, // amount
+      );
       const relayTransaction = await lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
         [
           initTransferId, // lastTransferId
@@ -561,6 +580,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           nativeTokenAddress, // token
           other.address
         ],
+        transferId01,
         { value: transferAmount01 }
       );
       let relayReceipt = await relayTransaction.wait();
@@ -582,18 +602,10 @@ describe("arb<>eth lnv2 bridge tests", () => {
 
       // check transferId
       // source chain
-      const transferId01 = getTransferId(
-          initTransferId, // lastTransferId
-          lastBlockHash, // lastBlockHash
-          1, // nonce
-          blockTimestamp,
-          nativeTokenAddress, // remoteToken
-          other.address, // receiver
-          transferAmount01, // amount
-      );
+      
       const lockInfo01 = await lnBridgeOnL2.lockInfos(transferId01);
       const relayerFee01 = baseFee + Math.floor(liquidityFeeRate * transferAmount01/100000);
-      expect(lockInfo01.amount).to.equal(transferAmount01 + relayerFee01);
+      expect(lockInfo01.amountWithFeeAndPenalty).to.equal(transferAmount01 + relayerFee01 + penaltyLnCollateral);
       expect(lockInfo01.nonce).to.equal(1);
       // target chain
       const transferInfo01 = await lnBridgeOnL1.transferInfos(transferId01);
@@ -643,6 +655,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address,
           ],
           initTransferId,
+          transferId01,
           0,
           0,
           200
@@ -659,6 +672,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address,
           ],
           initTransferId,
+          transferId02,
           0,
           0,
           200
@@ -686,6 +700,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address,
           ],
           initTransferId,
+          transferId02,
           0,
           0,
           200,
@@ -694,14 +709,14 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const balanceOtherAfterCancel = await ethers.provider.getBalance(other.address);
       const balanceBridgeAfterCancel = await ethers.provider.getBalance(lnBridgeOnL2.address);
       const relayerFee02 = baseFee + Math.floor(liquidityFeeRate * transferAmount01/100000);
-      margin -= (transferAmount01 + relayerFee02 + fineFund);
-      margin -= (transferAmount01 + relayerFee02 + fineFund);
+      margin -= (transferAmount01 + relayerFee02 + penaltyLnCollateral);
+      margin -= (transferAmount01 + relayerFee02 + penaltyLnCollateral);
       // check balance
       // arbtoken: other -> relayer (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01)
       //           slasher -> other (transferAmount01)
       //           other -> feeReceive (helixFee)
       expect(balanceOtherAfterCancel.sub(balanceOtherBeforeCancel)).to.equal(transferAmount01);
-      expect(balanceBridgeBeforeCancel.sub(balanceBridgeAfterCancel)).to.equal(transferAmount01 + relayerFee02 + fineFund);
+      expect(balanceBridgeBeforeCancel.sub(balanceBridgeAfterCancel)).to.equal(transferAmount01 + relayerFee02 + penaltyLnCollateral);
       // check refund continous
       // 3 refund, 4 relayed, 5 refund
       // locks
@@ -776,6 +791,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           transferId02,
+          transferId03,
           0,
           0,
           0,
@@ -792,6 +808,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           nativeTokenAddress, // token
           other.address
         ],
+        transferId04,
         { value: transferAmount01 }
       );
       // refund 5
@@ -807,6 +824,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           transferId03,
+          transferId05,
           0,
           0,
           200,
@@ -833,6 +851,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
               other.address
           ],
           transferId03,
+          transferId05,
           0,
           0,
           200,
@@ -849,6 +868,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           nativeTokenAddress, // token
           other.address
         ],
+        transferId05,
         { value: transferAmount01 }
       )).to.revertedWith("lnBridgeTarget:message exist");
 

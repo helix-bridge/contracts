@@ -56,7 +56,7 @@ contract LnBridgeSource is LnBridgeHelper {
         uint64 providerKey; // tokenIndex << 32 + providerIndex
         // amount + providerFee + penaltyLnCollateral
         uint112 amountWithFeeAndPenalty;
-        uint48 nonce;
+        uint64 nonce;
         bool hasRefund;
     }
     // key: hash(lastKey, nonce, timestamp, providerKey, msg.sender, amount, tokenIndex)
@@ -64,7 +64,7 @@ contract LnBridgeSource is LnBridgeHelper {
     address public feeReceiver;
 
     event TokenLocked(
-        uint48 nonce,
+        uint64 nonce,
         bytes32 transferId,
         bytes32 lastBlockHash,
         address localToken,
@@ -187,7 +187,7 @@ contract LnBridgeSource is LnBridgeHelper {
         address receiver
     ) external payable {
         uint32 tokenIndex = _lnProviderTokenIndex(providerKey);
-        uint48 nonce = lockInfos[snapshot.transferId].nonce + 1;
+        uint64 nonce = lockInfos[snapshot.transferId].nonce + 1;
         
         require(tokens.length > tokenIndex, "lnBridgeSource:token not registered");
         require(amount > 0, "lnBridgeSource:invalid amount");
@@ -205,6 +205,7 @@ contract LnBridgeSource is LnBridgeHelper {
         require(remoteAmount < MAX_TRANSFER_AMOUNT, "lnBridgeSource:overflow amount");
         bytes32 lastBlockHash = _lastBlockHash();
         bytes32 transferId = keccak256(abi.encodePacked(
+            providerKey,
             snapshot.transferId,
             lastBlockHash,
             nonce,
@@ -253,13 +254,13 @@ contract LnBridgeSource is LnBridgeHelper {
     // timestamp is the last transfer's time
     // lastTransfer is the latest refund transfer
     function _refund(
-        bytes32 lastRefundTransferId,
+        bytes32 latestSlashTransferId,
         bytes32 transferId,
         address slasher
     ) internal {
         // check lastTransfer
-        LockInfo memory lastLockInfo = lockInfos[lastRefundTransferId];
-        require(lastLockInfo.hasRefund || lastLockInfo.nonce == 0, "last transfer invalid");
+        LockInfo memory lastLockInfo = lockInfos[latestSlashTransferId];
+        require(lastLockInfo.hasRefund || latestSlashTransferId == INIT_SLASH_TRANSFER_ID, "latest slash transfer invalid");
         LockInfo memory lockInfo = lockInfos[transferId];
         require(!lockInfo.hasRefund, "transfer has been refund");
         uint32 tokenIndex = _lnProviderTokenIndex(lockInfo.providerKey);
@@ -267,7 +268,7 @@ contract LnBridgeSource is LnBridgeHelper {
         LnProviderInfo memory lnProvider = lnProviders[lockInfo.providerKey];
         TokenInfo memory tokenInfo = tokens[tokenIndex];
         lockInfos[transferId].hasRefund = true;
-        // transfer back
+        // transfer token to the slasher
         uint256 withdrawAmount = lockInfo.amountWithFeeAndPenalty;
         require(lnProvider.config.margin >= withdrawAmount, "margin not enough");
         uint112 updatedMargin = lnProvider.config.margin - uint112(withdrawAmount);
@@ -284,19 +285,20 @@ contract LnBridgeSource is LnBridgeHelper {
 
     // lastTransfer is the latest refund transfer, all transfer must be relayed or refunded
     function _withdrawMargin(
-        bytes32 lastRefundTransferId,
+        bytes32 latestSlashTransferId,
         bytes32 lastTransferId,
         address provider,
         uint112 amount
     ) internal {
-        // check lastTransfer
-        LockInfo memory lastRefundLockInfo = lockInfos[lastRefundTransferId];
-        require(lastRefundLockInfo.hasRefund || lastRefundLockInfo.nonce == 0, "last transfer invalid");
+        // check the latest slash transfer 
+        LockInfo memory lastRefundLockInfo = lockInfos[latestSlashTransferId];
+        require(lastRefundLockInfo.hasRefund || latestSlashTransferId == INIT_SLASH_TRANSFER_ID, "latest slash transfer invalid");
 
         LockInfo memory lastLockInfo = lockInfos[lastTransferId];
         uint64 providerKey = lastLockInfo.providerKey;
         uint32 tokenIndex = _lnProviderTokenIndex(providerKey);
         LnProviderInfo memory lnProvider = lnProviders[providerKey];
+        // use this condition to ensure that the withdraw message is sent by the provider
         require(provider == lnProvider.provider, "invalid provider");
         require(lnProvider.lastTransferId == lastTransferId, "invalid last transferid");
         TokenInfo memory tokenInfo = tokens[tokenIndex];

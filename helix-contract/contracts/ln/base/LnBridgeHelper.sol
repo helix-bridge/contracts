@@ -4,11 +4,14 @@ pragma solidity ^0.8.10;
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 
 contract LnBridgeHelper {
+    bytes32 constant public INIT_SLASH_TRANSFER_ID = bytes32(uint256(1));
+
     struct TransferParameter {
-        bytes32 lastTransferId;
+        uint64 providerKey;
+        bytes32 previousTransferId;
         bytes32 lastBlockHash;
         uint112 amount;
-        uint48 nonce;
+        uint64 nonce;
         uint64 timestamp;
         address token;
         address receiver;
@@ -44,7 +47,7 @@ contract LnBridgeHelper {
 
     function getTransferId(TransferParameter calldata param) pure public returns(bytes32) {
         return keccak256(abi.encodePacked(
-            param.lastTransferId,
+            param.previousTransferId,
             param.lastBlockHash,
             param.nonce,
             param.timestamp,

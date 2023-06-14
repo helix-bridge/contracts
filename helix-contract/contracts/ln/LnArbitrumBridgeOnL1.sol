@@ -25,13 +25,13 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
 
     function submissionRefundFee(
         uint256 baseFee,
-        bytes32 lastRefundTransferId,
+        bytes32 latestSlashTransferId,
         bytes32 transferId,
         address slasher,
         uint256 percentIncrease
     ) external view returns(uint256) {
         bytes memory refundCall = _encodeRefundCall(
-            lastRefundTransferId,
+            latestSlashTransferId,
             transferId,
             slasher
         );
@@ -41,13 +41,11 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
 
     function submissionWithdrawFee(
         uint256 baseFee,
-        bytes32 lastRefundTransferId,
         bytes32 lastTransferId,
         uint112 amount,
         uint256 percentIncrease
     ) external view returns(uint256) {
         bytes memory withdrawCall = _requestWithdrawMargin(
-            lastRefundTransferId,
             lastTransferId,
             amount
         );
@@ -76,7 +74,6 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
 
     function slashAndRemoteRefund(
         TransferParameter calldata params,
-        bytes32 lastRefundTransferId,
         bytes32 expectedTransferId,
         uint256 maxSubmissionCost,
         uint256 maxGas,
@@ -84,34 +81,23 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
     ) payable external whenNotPaused {
         bytes memory refundCallMessage = _slashAndRemoteRefund(
             params,
-            expectedTransferId,
-            lastRefundTransferId
+            expectedTransferId
         );
         uint256 valueUsed = address(0) == params.token ? params.amount : 0;
         _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, refundCallMessage, msg.value - valueUsed);
     }
 
     function retryRemoteRefund(
-        bytes32 lastRefundTransferId,
         bytes32 transferId,
         uint256 maxSubmissionCost,
         uint256 maxGas,
         uint256 gasPriceBid
     ) payable external whenNotPaused {
-        address slasher = verifyAndGetSlasher(
-            lastRefundTransferId,
-            transferId
-        );
-        bytes memory refundCallMessage = _encodeRefundCall(
-            lastRefundTransferId,
-            transferId,
-            slasher
-        );
+        bytes memory refundCallMessage = _retrySlashAndRemoteRefund(transferId);
         _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, refundCallMessage, msg.value);
     }
 
     function requestWithdrawMargin(
-        bytes32 lastRefundTransferId,
         bytes32 lastTransferId,
         uint112 amount,
         uint256 maxSubmissionCost,
@@ -119,7 +105,6 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
         uint256 gasPriceBid
     ) payable external whenNotPaused {
         bytes memory cancelWithdrawMarginCall = _requestWithdrawMargin(
-            lastRefundTransferId,
             lastTransferId,
             amount
         );

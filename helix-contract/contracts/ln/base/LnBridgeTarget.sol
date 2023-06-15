@@ -32,6 +32,16 @@ contract LnBridgeTarget is LnBridgeHelper {
     // 2. if transfer is timeout and not processed, slasher(any account) can fill the transfer and request refund
     // if it's filled by slasher, we store the address of the slasher
     // expectedTransferId used to ensure the parameter is the same as on source chain
+    // some cases
+    // 1) If transferId is not exist on source chain, it'll be rejected by source chain when refund.
+    // 2) If transferId exist on source chain. We have the same hash process on source and target chain, so the previousTransferId is trusted.
+    //    2.1) If transferId is the first transfer Id of this provider, then previousTransferId is zero and the latestSlashTransferId is INIT_SLASH_TRANSFER_ID
+    //    2.2) If transferId is not the first transfer, then it's latestSlashTransferId has the next two scenarios
+    //         * the previousTransfer is a refund transfer, then latestSlashTransferId is previousTransferId
+    //         * the previousTransfer is a normal relayed transfer, then latestSlashTransferId is previousTransfer's latestSlashTransferId
+    //    I.   transferId is trusted => previousTransferId is trusted => previousTransfer.previousTransferId is trusted => ... => firstTransfer is trusted
+    //    II.  transferId is trusted => previousTransferId is trusted => latestSlashTransferId is trusted if previousTransfer is a refund transfer
+    //    III. Both I and II => latestSlashTransferId is trusted if previousTransfer is normal relayed tranfer
     function _fillTransfer(
         TransferParameter calldata params,
         bytes32 expectedTransferId,

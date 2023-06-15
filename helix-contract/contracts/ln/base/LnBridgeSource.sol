@@ -7,7 +7,7 @@ import "./LnBridgeHelper.sol";
 /// @title LnBridgeSource
 /// @notice LnBridgeSource is a contract to help user transfer token to liquidity node and generate proof,
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
-///         Otherwise user can redeem the margin token from the source contract.
+///         Otherwise if timeout the slasher can paid for relayer and slash the transfer, then request refund from lnProvider's margin.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
 contract LnBridgeSource is LnBridgeHelper {
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
@@ -30,6 +30,8 @@ contract LnBridgeSource is LnBridgeHelper {
     // localToken and remoteToken is the pair of erc20 token addresses
     // if localToken == address(0), then it's native token
     // if remoteToken == address(0), then remote is native token
+    // * `protocolFee` is the protocol fee charged by system
+    // * `penaltyLnCollateral` is penalty from lnProvider when the transfer refund, if we adjust this value, it'll not affect the old transfers.
     struct TokenInfo {
         address localToken;
         address remoteToken;
@@ -38,6 +40,11 @@ contract LnBridgeSource is LnBridgeHelper {
         uint8 localDecimals;
         uint8 remoteDecimals;
     }
+    // the Snapshot is the state of the token bridge when user prepare to transfer across chains.
+    // If the snapshot updated when the across chain transfer confirmed, it will
+    // 1. if lastTransferId updated, revert
+    // 2. if margin decrease or totalFee increase, revert
+    // 3. if margin increase or totalFee decrease, success
     struct Snapshot {
         bytes32 transferId;
         uint112 depositedMargin;
@@ -55,11 +62,19 @@ contract LnBridgeSource is LnBridgeHelper {
     struct LockInfo {
         uint64 providerKey; // tokenIndex << 32 + providerIndex
         // amount + providerFee + penaltyLnCollateral
+        // the Indexer should be care about this value, it will frozen lnProvider's margin when the transfer not finished.
+        // and when the slasher refund success, this amount of token will be transfer from lnProvider's margin to slasher.
         uint112 amountWithFeeAndPenalty;
         uint64 nonce;
         bool hasRefund;
     }
-    // key: hash(lastKey, nonce, timestamp, providerKey, msg.sender, amount, tokenIndex)
+    // key: transferId = hash(providerKey, proviousTransferId, lastBlockhash, nonce, timestamp, remoteToken, receiver, remoteAmount)
+    // * `providerKey` is the unique identification of the token and lnProvider
+    // * `proviousTransferId` is used to ensure the continuous of the transfer
+    // * `lastBlockhash` is used as a random value to prevent predict of the future transferId
+    // * `nonce` is a consecutive number for generate unique transferId
+    // * `timestamp` is the block.timestmap to judge timeout on target chain(here we support source and target chain has the same world clock)
+    // * `remoteToken`, `receiver` and `remoteAmount` are used on target chain to transfer target token.
     mapping(bytes32 => LockInfo) public lockInfos;
     address public feeReceiver;
 
@@ -102,6 +117,8 @@ contract LnBridgeSource is LnBridgeHelper {
         return blockhash(block.number - 1);
     }
 
+    // lnProvider can register or update its configure by using this function
+    // * `margin` is the increased value of the deposited margin
     function registerOrUpdateLnProvider(
         uint32 tokenIndex,
         uint112 margin,
@@ -162,14 +179,24 @@ contract LnBridgeSource is LnBridgeHelper {
             remoteDecimals));
     }
 
+    function _updateProtocolFee(uint32 tokenIndex, uint112 protocolFee) internal {
+        require(tokenIndex < tokens.length, "invalid token index");
+        tokens[tokenIndex].protocolFee = protocolFee;
+    }
+
+    function _updatePenaltyLnCollateral(uint32 tokenIndex, uint112 penaltyLnCollateral) internal {
+        require(tokenIndex < tokens.length, "invalid token index");
+        tokens[tokenIndex].penaltyLnCollateral = penaltyLnCollateral;
+    }
+
     function calculateProviderFee(LnProviderConfigure memory config, uint112 amount) internal pure returns(uint256) {
         return uint256(config.baseFee) + uint256(config.liquidityFeeRate) * uint256(amount) / LIQUIDITY_FEE_RATE_BASE;
     }
 
-    function totalFee(
-        uint64 providerKey,
-        uint112 amount
-    ) external view returns(uint256) {
+    // the fee user should paid when transfer.
+    // totalFee = providerFee + protocolFee
+    // providerFee = provider.baseFee + provider.liquidityFeeRate * amount
+    function totalFee(uint64 providerKey, uint112 amount) external view returns(uint256) {
         uint32 tokenIndex = _lnProviderTokenIndex(providerKey);
         TokenInfo memory tokenInfo = tokens[tokenIndex];
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
@@ -180,6 +207,8 @@ contract LnBridgeSource is LnBridgeHelper {
     // This function transfers tokens from the user to LnProvider and generates a proof on the source chain.
     // The snapshot represents the state of the LN bridge for this LnProvider, obtained by the off-chain indexer.
     // If the chain state is updated and does not match the snapshot state, the transaction will be reverted.
+    // 1. the state(lastTransferId, fee, margin) must match snapshot
+    // 2. transferId not exist
     function transferAndLockMargin(
         Snapshot calldata snapshot,
         uint64 providerKey,
@@ -196,9 +225,12 @@ contract LnBridgeSource is LnBridgeHelper {
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
         uint256 providerFee = calculateProviderFee(providerInfo.config, amount);
         
+        // Note: this requirement is not enough to ensure that the lnProvider's margin is enough because there maybe some frozen margins in other transfers
         require(providerInfo.config.margin >= amount + tokenInfo.penaltyLnCollateral + uint112(providerFee), "amount not valid");
+
+        // the chain state not match snapshot
         require(providerInfo.lastTransferId == snapshot.transferId, "snapshot expired");
-        require(snapshot.totalFee == tokenInfo.protocolFee + providerFee, "fee is invalid");
+        require(snapshot.totalFee >= tokenInfo.protocolFee + providerFee, "fee is invalid");
         require(snapshot.depositedMargin <= providerInfo.config.margin, "margin updated");
         
         uint256 remoteAmount = uint256(amount) * 10**tokenInfo.remoteDecimals / 10**tokenInfo.localDecimals;
@@ -216,6 +248,7 @@ contract LnBridgeSource is LnBridgeHelper {
         require(lockInfos[transferId].nonce == 0, "lnBridgeSource:transferId exist");
         lockInfos[transferId] = LockInfo(providerKey, amount + tokenInfo.penaltyLnCollateral + uint112(providerFee), nonce, false);
 
+        // update the state to prevent other transfers using the same snapshot
         lnProviders[providerKey].lastTransferId = transferId;
 
         if (tokenInfo.localToken == address(0)) {
@@ -250,9 +283,10 @@ contract LnBridgeSource is LnBridgeHelper {
             receiver);
     }
 
-    // the token should be sent back to the msg.sender
-    // timestamp is the last transfer's time
-    // lastTransfer is the latest refund transfer
+    // this refund is called by remote message
+    // the token should be sent to the slasher who slash and finish the transfer on target chain.
+    // latestSlashTransferId is the latest slashed transfer trusted from the target chain, and the current refund transfer cannot be executed before the latestSlash transfer.
+    // after refund, the margin of lnProvider need to be updated
     function _refund(
         bytes32 latestSlashTransferId,
         bytes32 transferId,
@@ -284,6 +318,7 @@ contract LnBridgeSource is LnBridgeHelper {
     }
 
     // lastTransfer is the latest refund transfer, all transfer must be relayed or refunded
+    // if user use the snapshot before this transaction to send cross-chain transfer, it should be reverted because this `_withdrawMargin` will decrease margin.
     function _withdrawMargin(
         bytes32 latestSlashTransferId,
         bytes32 lastTransferId,

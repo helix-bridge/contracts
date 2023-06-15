@@ -102,11 +102,11 @@ contract LnBridgeSource is LnBridgeHelper {
     }
 
     function _lnProviderKey(uint32 tokenIndex, uint32 providerIndex) internal pure returns(uint64) {
-        return tokenIndex << 32 + providerIndex;
+        return (uint64(tokenIndex) << 32) + uint64(providerIndex);
     }
 
     function _lnProviderAddressKey(address addr, uint32 tokenIndex) internal pure returns(uint256) {
-        return uint256(uint160(addr)) << 32 + tokenIndex;
+        return (uint256(uint160(addr)) << 32) + uint256(tokenIndex);
     }
 
     function _lnProviderTokenIndex(uint64 providerKey) internal pure returns(uint32) {
@@ -136,10 +136,11 @@ contract LnBridgeSource is LnBridgeHelper {
             baseFee,
             liquidityFeeRate);
 
+        // the first provider index is 1, so if providerKey == 0 then the provider not exist
         if (providerKey == 0) {
             require(margin > 0, "invalid margin value");
-            providerKey = _lnProviderKey(tokenIndex, lnProviderSize);
             lnProviderSize += 1;
+            providerKey = _lnProviderKey(tokenIndex, lnProviderSize);
             lnProviders[providerKey] = LnProviderInfo(msg.sender, config, bytes32(0));
             lnProviderIndexes[addressKey] = providerKey;
         } else {

@@ -47,6 +47,7 @@ contract LnBridgeHelper {
 
     function getTransferId(TransferParameter calldata param) pure public returns(bytes32) {
         return keccak256(abi.encodePacked(
+            param.providerKey,
             param.previousTransferId,
             param.lastBlockHash,
             param.nonce,

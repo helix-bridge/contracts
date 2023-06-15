@@ -26,8 +26,8 @@ contract LnArbitrumBridgeOnL2 is Initializable, LnAccessController, LnBridgeSour
         _setFeeReceiver(_receiver);
     }
 
-    function updateHelixFee(uint32 _tokenIndex, uint112 _helixFee) external onlyDao {
-        _updateHelixFee(_tokenIndex, _helixFee);
+    function updateProtocolFee(uint32 _tokenIndex, uint112 _protocolFee) external onlyDao {
+        _updateProtocolFee(_tokenIndex, _protocolFee);
     }
 
     function setRemoteBridge(address _remoteBridge) external onlyDao {
@@ -42,29 +42,29 @@ contract LnArbitrumBridgeOnL2 is Initializable, LnAccessController, LnBridgeSour
     function registerToken(
         address local,
         address remote,
-        uint112 helixFee,
-        uint112 fineFund,
+        uint112 protocolFee,
+        uint112 penaltyLnCollateral,
         uint8 localDecimals,
         uint8 remoteDecimals
     ) external onlyOperator {
-        _registerToken(local, remote, helixFee, fineFund, localDecimals, remoteDecimals);
+        _registerToken(local, remote, protocolFee, penaltyLnCollateral, localDecimals, remoteDecimals);
     }
 
     function refund(
-        bytes32 lastRefundTransferId,
+        bytes32 latestSlashTransferId,
         bytes32 transferId,
         address slasher
     ) external onlyRemoteBridge whenNotPaused {
-        _refund(lastRefundTransferId, transferId, slasher);
+        _refund(latestSlashTransferId, transferId, slasher);
     }
 
     function withdrawMargin(
-        bytes32 lastRefundTransferId,
+        bytes32 latestSlashTransferId,
         bytes32 lastTransferId,
         address provider,
         uint112 amount
     ) external onlyRemoteBridge whenNotPaused {
-        _withdrawMargin(lastRefundTransferId, lastTransferId, provider, amount);
+        _withdrawMargin(latestSlashTransferId, lastTransferId, provider, amount);
     }
 }
 

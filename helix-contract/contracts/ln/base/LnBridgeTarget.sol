@@ -21,10 +21,24 @@ contract LnBridgeTarget is LnBridgeHelper {
     event TransferFilled(bytes32 transferId, address slasher);
 
     // if slasher is nonzero, then it's a slash fill transfer
-    function _latestSlashFillTransfer(bytes32 previousTransferId) internal view returns(bytes32) {
-        FillTransfer memory previous = fillTransfers[previousTransferId];
-        // Find the previous refund fill, it is a refund fill if the slasher is not zero address.
-        return previous.slasher != address(0) ? previousTransferId : previous.latestSlashTransferId;
+    function _checkPreviousAndFillTransfer(
+        bytes32 transferId,
+        bytes32 previousTransferId,
+        address slasher
+    ) internal {
+        // the first fill transfer, we fill the INIT_SLASH_TRANSFER_ID as the latest slash transferId
+        if (previousTransferId == bytes32(0)) {
+            fillTransfers[transferId] = FillTransfer(INIT_SLASH_TRANSFER_ID, slasher);
+        } else {
+            // Find the previous refund fill, it is a refund fill if the slasher is not zero address.
+            FillTransfer memory previous = fillTransfers[previousTransferId];
+            bytes32 latestSlashTransferId = previous.slasher != address(0) ? previousTransferId : previous.latestSlashTransferId;
+            // we use latestSlashTransferId to store the latest slash transferId, and indicate that the fill transfer has been filled.
+            // 1. if previous.slasher != 0, then previous has been filled
+            // 2. if previous.latestSlashTransferId != 0, then previous has been filled
+            require(latestSlashTransferId != bytes32(0), "invalid latest slash transfer");
+            fillTransfers[transferId] = FillTransfer(latestSlashTransferId, slasher);
+        }
     }
 
     // fill transfer
@@ -61,14 +75,7 @@ contract LnBridgeTarget is LnBridgeHelper {
         // Make sure this transfer was never filled before 
         require(fillTransfer.latestSlashTransferId == bytes32(0), "lnBridgeTarget:message exist");
 
-        // the first fill transfer, we fill the INIT_SLASH_TRANSFER_ID as the latest slash transferId
-        if (params.previousTransferId == bytes32(0)) {
-            fillTransfers[transferId] = FillTransfer(INIT_SLASH_TRANSFER_ID, slasher);
-        } else {
-            bytes32 latestSlashTransferId = _latestSlashFillTransfer(params.previousTransferId);
-            require(latestSlashTransferId != bytes32(0), "invalid latest slash transfer");
-            fillTransfers[transferId] = FillTransfer(latestSlashTransferId, slasher);
-        }
+        _checkPreviousAndFillTransfer(transferId, params.previousTransferId, slasher);
 
         if (params.token == address(0)) {
             require(msg.value >= params.amount, "lnBridgeTarget:invalid amount");
@@ -106,7 +113,7 @@ contract LnBridgeTarget is LnBridgeHelper {
     }
 
     // we use this to verify that the transfer has been slashed by user and it can resend the refund request
-    function _retrySlashAndRemoteRefund(bytes32 transferId) public view returns(bytes memory message) {
+    function _retrySlashAndRemoteRefund(bytes32 transferId) internal view returns(bytes memory message) {
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.slasher != address(0), "invalid refund transfer");
         message = _encodeRefundCall(

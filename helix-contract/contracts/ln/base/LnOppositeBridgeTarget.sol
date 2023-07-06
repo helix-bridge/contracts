@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "../interface/ILnBridgeSource.sol";
+import "../interface/ILnOppositeBridgeSource.sol";
 import "./LnBridgeHelper.sol";
 
 contract LnOppositeBridgeTarget is LnBridgeHelper {
@@ -62,7 +62,7 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
     //    II.  transferId is trusted => previousTransferId is trusted => latestSlashTransferId is trusted if previousTransfer is a refund transfer
     //    III. Both I and II => latestSlashTransferId is trusted if previousTransfer is normal relayed tranfer
     function _fillTransfer(
-        TransferParameter calldata params,
+        ILnOppositeBridgeSource.TransferParameter calldata params,
         bytes32 expectedTransferId
     ) internal {
         bytes32 transferId = keccak256(abi.encodePacked(
@@ -90,7 +90,7 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
     }
 
     function transferAndReleaseMargin(
-        TransferParameter calldata params,
+        ILnOppositeBridgeSource.TransferParameter calldata params,
         bytes32 expectedTransferId
     ) payable external {
         // normal relay message, fill slasher as zero
@@ -104,7 +104,7 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
     // On the source chain, we need to verify all the transfers before has been relayed or slashed.
     // So we needs to carry the the previous shash transferId to ensure that the slash is continuous.
     function _slashAndRemoteRefund(
-        TransferParameter calldata params,
+        ILnOppositeBridgeSource.TransferParameter calldata params,
         bytes32 expectedTransferId
     ) internal returns(bytes memory message) {
         require(block.timestamp > params.timestamp + MIN_REFUND_TIMESTAMP, "refund time not expired");
@@ -149,7 +149,7 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
         address slasher
     ) internal pure returns(bytes memory) {
         return abi.encodeWithSelector(
-            ILnBridgeSource.slash.selector,
+            ILnOppositeBridgeSource.slash.selector,
             latestSlashTransferId,
             transferId,
             provider,
@@ -167,7 +167,7 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
         require(latestSlashTransferId != bytes32(0), "invalid last transfer");
 
         return abi.encodeWithSelector(
-            ILnBridgeSource.withdrawMargin.selector,
+            ILnOppositeBridgeSource.withdrawMargin.selector,
             latestSlashTransferId,
             lastTransferId,
             msg.sender,

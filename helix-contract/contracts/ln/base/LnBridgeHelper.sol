@@ -6,17 +6,6 @@ import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 contract LnBridgeHelper {
     bytes32 constant public INIT_SLASH_TRANSFER_ID = bytes32(uint256(1));
 
-    struct TransferParameter {
-        bytes32 previousTransferId;
-        address provider;
-        address sourceToken;
-        address targetToken;
-        bytes32 lastBlockHash;
-        uint112 amount;
-        uint64 timestamp;
-        address receiver;
-    }
-
     function _safeTransfer(
         address token,
         address receiver,

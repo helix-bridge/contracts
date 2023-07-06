@@ -77,12 +77,12 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
         require(expectedTransferId == transferId, "check expected transferId failed");
         bytes32 latestSlashTransferId = fillTransfers[transferId];
         // Make sure this transfer was never filled before 
-        require(latestSlashTransferId == bytes32(0), "lnBridgeTarget:message exist");
+        require(latestSlashTransferId == bytes32(0), "LnOppositeBridgeTarget:message exist");
 
         _checkPreviousAndFillTransfer(transferId, params.previousTransferId);
 
         if (params.targetToken == address(0)) {
-            require(msg.value >= params.amount, "lnBridgeTarget:invalid amount");
+            require(msg.value >= params.amount, "LnOppositeBridgeTarget:invalid amount");
             payable(params.receiver).transfer(params.amount);
         } else {
             _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));

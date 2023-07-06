@@ -4,54 +4,65 @@ pragma solidity ^0.8.10;
 import "@arbitrum/nitro-contracts/src/bridge/IInbox.sol";
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
-import "./base/LnOppositeBridgeTarget.sol";
+import "./base/LnPositiveBridgeSource.sol";
 
-contract LnArbitrumBridgeOnL1Target is Initializable, LnAccessController, LnOppositeBridgeTarget {
+contract Eth2ArbSource is Initializable, LnAccessController, LnPositiveBridgeSource {
     IInbox public inbox;
     address public remoteBridge;
 
-    event WithdrawMargin(bytes32 lastTransferId, uint112 amount);
+    event WithdrawMargin(address sourceToken, uint112 amount);
 
     receive() external payable {}
 
     function initialize(address _dao, address _inbox) public initializer {
         inbox = IInbox(_inbox);
         _initialize(_dao);
+        _setFeeReceiver(_dao);
+    }
+
+    function updateFeeReceiver(address _receiver) external onlyDao {
+        _setFeeReceiver(_receiver);
+    }
+
+    function setTokenInfo(address _sourceToken, uint112 _protocolFee, uint112 _penalty) external onlyDao {
+        _setTokenInfo(_sourceToken, _protocolFee, _penalty);
     }
 
     function setRemoteBridge(address _remoteBridge) external onlyDao {
         remoteBridge = _remoteBridge;
     }
 
-    function submissionRefundFee(
+    function submissionSlashFee(
         uint256 baseFee,
-        bytes32 latestSlashTransferId,
-        bytes32 transferId,
-        address provider,
-        address sourceToken,
+        ILnPositiveBridgeTarget.TransferParameter memory params,
         address slasher,
+        uint112 fee,
+        uint112 penalty,
         uint256 percentIncrease
     ) external view returns(uint256) {
         bytes memory slashCall = _encodeSlashCall(
-            latestSlashTransferId,
-            transferId,
-            provider,
-            sourceToken,
-            slasher
+            params,
+            slasher,
+            fee,
+            penalty
         );
-        uint256 fee = inbox.calculateRetryableSubmissionFee(slashCall.length, baseFee);
-        return fee + fee * percentIncrease / 100;
+        uint256 submissionFee = inbox.calculateRetryableSubmissionFee(slashCall.length, baseFee);
+        return submissionFee + submissionFee * percentIncrease / 100;
     }
 
     function submissionWithdrawFee(
         uint256 baseFee,
         bytes32 lastTransferId,
+        uint64 withdrawNonce,
+        address provider,
         address sourceToken,
         uint112 amount,
         uint256 percentIncrease
     ) external view returns(uint256) {
-        bytes memory withdrawCall = _requestWithdrawMargin(
+        bytes memory withdrawCall = _encodeWithdrawCall(
             lastTransferId,
+            withdrawNonce,
+            provider,
             sourceToken,
             amount
         );
@@ -78,46 +89,34 @@ contract LnArbitrumBridgeOnL1Target is Initializable, LnAccessController, LnOppo
         );
     }
 
-    function slashAndRemoteRefund(
-        TransferParameter calldata params,
+    // this function can retry
+    function slashAndRemoteRelease(
+        ILnPositiveBridgeTarget.TransferParameter calldata params,
         bytes32 expectedTransferId,
         uint256 maxSubmissionCost,
         uint256 maxGas,
         uint256 gasPriceBid
     ) payable external whenNotPaused {
-        bytes memory refundCallMessage = _slashAndRemoteRefund(
-            params,
-            expectedTransferId
+        bytes memory slashCallMessage = _slashAndRemoteRelease(
+           params,
+           expectedTransferId
         );
-        uint256 valueUsed = address(0) == params.targetToken ? params.amount : 0;
-        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, refundCallMessage, msg.value - valueUsed);
-    }
-
-    function retryRemoteRefund(
-        bytes32 transferId,
-        uint256 maxSubmissionCost,
-        uint256 maxGas,
-        uint256 gasPriceBid
-    ) payable external whenNotPaused {
-        bytes memory refundCallMessage = _retrySlashAndRemoteRefund(transferId);
-        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, refundCallMessage, msg.value);
+        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, slashCallMessage, msg.value);
     }
 
     function requestWithdrawMargin(
-        bytes32 lastTransferId,
         address sourceToken,
         uint112 amount,
         uint256 maxSubmissionCost,
         uint256 maxGas,
         uint256 gasPriceBid
     ) payable external whenNotPaused {
-        bytes memory cancelWithdrawMarginCall = _requestWithdrawMargin(
-            lastTransferId,
+        bytes memory withdrawCallMessage = _withdrawMargin(
             sourceToken,
             amount
         );
-        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, cancelWithdrawMarginCall, msg.value);
-        emit WithdrawMargin(lastTransferId, amount);
+        _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, withdrawCallMessage, msg.value);
+        emit WithdrawMargin(sourceToken, amount);
     }
 }
 

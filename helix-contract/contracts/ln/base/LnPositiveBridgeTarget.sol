@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "../interface/ILnBridgeSource.sol";
+import "../interface/ILnPositiveBridgeTarget.sol";
 import "./LnBridgeHelper.sol";
 
-contract LnBridgeTarget is LnBridgeHelper {
+contract LnPositiveBridgeTarget is LnBridgeHelper {
     uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
 
     struct TokenInfo {
@@ -20,12 +20,12 @@ contract LnBridgeTarget is LnBridgeHelper {
     }
 
     // token infos
-    // remoteToken => token info
+    // sourceToken => token info
     mapping(address=>TokenInfo) tokenInfos;
 
     // providerKey => margin
     // providerKey = hash(provider, sourceToken)
-    mapping(bytes32=>ProviderInfo) lnProviderMargins;
+    mapping(bytes32=>ProviderInfo) lnProviderInfos;
 
     // if slasher == address(0), this FillTransfer is relayed by lnProvider
     // otherwise, this FillTransfer is slashed by slasher
@@ -40,14 +40,37 @@ contract LnBridgeTarget is LnBridgeHelper {
 
     event TransferFilled(bytes32 transferId, address slasher);
 
-    function _fillTransfer(
+    function _registerToken(
+        address sourceToken,
+        address targetToken,
+        uint8 sourceDecimals,
+        uint8 targetDecimals
+    ) internal {
+        tokenInfos[sourceToken] = TokenInfo(targetToken, sourceDecimals, targetDecimals, true);
+    }
+
+    function depositProviderMargin(
+        address sourceToken,
+        uint256 margin
+    ) external payable {
+        require(margin > 0, "invalid margin");
+        bytes32 providerKey = getProviderKey(msg.sender, sourceToken);
+        lnProviderInfos[providerKey].margin += margin;
+        if (sourceToken == address(0)) {
+            require(msg.value == margin, "invalid margin value");
+        } else {
+            _safeTransferFrom(sourceToken, msg.sender, address(this), margin);
+        }
+    }
+
+    function fillTransferAndReleaseMargin(
         bytes32 lastTransferId,
         bytes32 expectedTransferId,
         address sourceToken,
         uint112 amount,
         uint64 timestamp,
         address receiver
-    ) internal {
+    ) external payable {
         TokenInfo memory tokenInfo = tokenInfos[sourceToken];
         require(tokenInfo.isRegistered, "token has not been registered");
         bytes32 transferId = keccak256(abi.encodePacked(
@@ -79,13 +102,13 @@ contract LnBridgeTarget is LnBridgeHelper {
         address provider,
         address sourceToken,
         uint112 amount
-    ) external {
+    ) internal {
         // ensure all transfer has finished
         FillTransfer memory lastFillTransfer = fillTransfers[lastTransferId];
         require(lastFillTransfer.timestamp > 0, "last transfer not exist");
 
         bytes32 providerKey = getProviderKey(provider, sourceToken);
-        ProviderInfo memory providerInfo = lnProviderMargins[providerKey];
+        ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
         // all the early withdraw info ignored
         require(providerInfo.withdrawNonce < withdrawNonce, "withdraw nonce expired");
 
@@ -96,7 +119,7 @@ contract LnBridgeTarget is LnBridgeHelper {
         uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
 
         require(providerInfo.margin >= targetAmount, "margin not enough");
-        lnProviderMargins[providerKey] = ProviderInfo(providerInfo.margin - targetAmount, withdrawNonce);
+        lnProviderInfos[providerKey] = ProviderInfo(providerInfo.margin - targetAmount, withdrawNonce);
 
         if (tokenInfo.targetToken == address(0)) {
             payable(provider).transfer(targetAmount);
@@ -106,54 +129,48 @@ contract LnBridgeTarget is LnBridgeHelper {
     }
 
     function _slash(
-        bytes32 lastTransferId,
-        address provider,
+        ILnPositiveBridgeTarget.TransferParameter memory params,
         address slasher,
-        address sourceToken,
-        uint112 amount,
         uint112 fee,
-        uint112 penalty,
-        uint64 timestamp,
-        address receiver
+        uint112 penalty
     ) internal {
-        FillTransfer memory lastFillTransfer = fillTransfers[lastTransferId];
-        require(lastFillTransfer.timestamp > 0, "last transfer not exist");
+        require(fillTransfers[params.lastTransferId].timestamp > 0, "last transfer not exist");
 
         bytes32 transferId = keccak256(abi.encodePacked(
-            lastTransferId,
-            msg.sender,
-            sourceToken,
-            amount,
-            timestamp,
-            receiver));
+            params.lastTransferId,
+            params.provider,
+            params.sourceToken,
+            params.amount,
+            params.timestamp,
+            params.receiver));
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.slasher == address(0), "transfer has been slashed");
         // transfer is not filled
-        TokenInfo memory tokenInfo = tokenInfos[sourceToken];
+        TokenInfo memory tokenInfo = tokenInfos[params.sourceToken];
         require(tokenInfo.isRegistered, "token has not been registered");
-        bytes32 providerKey = getProviderKey(provider, sourceToken);
-        ProviderInfo memory providerInfo = lnProviderMargins[providerKey];
+        bytes32 providerKey = getProviderKey(params.provider, params.sourceToken);
+        ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
         if (fillTransfer.timestamp == 0) {
-            require(timestamp < block.timestamp - MIN_SLASH_TIMESTAMP, "time not expired");
+            require(params.timestamp < block.timestamp - MIN_SLASH_TIMESTAMP, "time not expired");
             fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), slasher);
 
             // 1. transfer token to receiver
             // 2. trnasfer fee and penalty to slasher
-            uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
+            uint256 targetAmount = uint256(params.amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
             // update margin
             uint256 marginCost = targetAmount + fee + penalty;
             require(providerInfo.margin >= marginCost, "margin not enough");
-            lnProviderMargins[providerKey].margin = providerInfo.margin - marginCost;
+            lnProviderInfos[providerKey].margin = providerInfo.margin - marginCost;
 
             if (tokenInfo.targetToken == address(0)) {
-                payable(receiver).transfer(targetAmount);
+                payable(params.receiver).transfer(targetAmount);
                 payable(slasher).transfer(fee + penalty);
             } else {
-                _safeTransferFrom(tokenInfo.targetToken, address(this), receiver, uint256(targetAmount));
+                _safeTransferFrom(tokenInfo.targetToken, address(this), params.receiver, uint256(targetAmount));
                 _safeTransferFrom(tokenInfo.targetToken, address(this), slasher, fee + penalty);
             }
         } else {
-            require(fillTransfer.timestamp > timestamp + MIN_SLASH_TIMESTAMP, "time not expired");
+            require(fillTransfer.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP, "time not expired");
             // If the transfer fills timeout and no slasher sends the slash message, the margin of this transfer will be locked forever.
             // We utilize this requirement to release the margin.
             // One scenario is when the margin is insufficient due to the execution of slashes after this particular slash transfer.
@@ -163,7 +180,7 @@ contract LnBridgeTarget is LnBridgeHelper {
             fillTransfers[transferId].slasher = slasher;
             // transfer penalty to slasher
             require(providerInfo.margin >= penalty, "margin not enough");
-            lnProviderMargins[providerKey].margin = providerInfo.margin - penalty;
+            lnProviderInfos[providerKey].margin = providerInfo.margin - penalty;
             if (tokenInfo.targetToken == address(0)) {
                 payable(slasher).transfer(penalty);
             } else {

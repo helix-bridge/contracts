@@ -3,15 +3,19 @@
 pragma solidity >=0.8.10;
 
 interface ILnPositiveBridgeTarget {
+    struct TransferParameter {
+        bytes32 lastTransferId;
+        address provider;
+        address sourceToken;
+        uint112 amount;
+        uint64 timestamp;
+        address receiver;
+    }
+
     function slash(
-        bytes32 lastTransferId,
-        address provider,
-        address slasher,
-        address token,
-        uint112 amount,
-        uint64 timestamp,
-        address receiver
+        TransferParameter memory params
     ) external;
+
     function withdraw(
         bytes32 lastTransferId,
         uint64 withdrawNonce,

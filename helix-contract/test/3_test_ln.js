@@ -70,14 +70,14 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const initSlashTransferId = "0x0000000000000000000000000000000000000000000000000000000000000001";
       const zeroAddress = "0x0000000000000000000000000000000000000000";
       //******* deploy lp bridge at ethereum *******
-      const lnBridgeContractOnL2 = await ethers.getContractFactory("LnArbitrumBridgeOnL2Source");
+      const lnBridgeContractOnL2 = await ethers.getContractFactory("Arb2EthSource");
       const lnBridgeOnL2 = await lnBridgeContractOnL2.deploy();
       await lnBridgeOnL2.deployed();
       await lnBridgeOnL2.initialize(dao);
       console.log("ln bridge on L2 address", lnBridgeOnL2.address);
       await lnBridgeOnL2.updateFeeReceiver(feeReceiver);
 
-      const lnBridgeContractOnL1 = await ethers.getContractFactory("LnArbitrumBridgeOnL1Target");
+      const lnBridgeContractOnL1 = await ethers.getContractFactory("Arb2EthTarget");
       const lnBridgeOnL1 = await lnBridgeContractOnL1.deploy();
       await lnBridgeOnL1.deployed();
       await lnBridgeOnL1.initialize(dao, inbox.address);
@@ -291,7 +291,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         0,
         0,
         0
-      )).to.be.revertedWith("lnBridgeTarget:message exist");
+      )).to.be.revertedWith("LnOppositeBridgeTarget:message exist");
       console.log("check exist message slash finished");
 
       // mock sender address
@@ -507,7 +507,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           other.address
         ],
         transferId05
-      )).to.revertedWith("lnBridgeTarget:message exist");
+      )).to.revertedWith("LnOppositeBridgeTarget:message exist");
 
       console.log("ln bridge test finished");
   });
@@ -534,14 +534,14 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const nativeTokenAddress = "0x0000000000000000000000000000000000000000";
       const zeroAddress = "0x0000000000000000000000000000000000000000";
       //******* deploy lp bridge at ethereum *******
-      const lnBridgeContractOnL2 = await ethers.getContractFactory("LnArbitrumBridgeOnL2Source");
+      const lnBridgeContractOnL2 = await ethers.getContractFactory("Arb2EthSource");
       const lnBridgeOnL2 = await lnBridgeContractOnL2.deploy();
       await lnBridgeOnL2.deployed();
       await lnBridgeOnL2.initialize(dao);
       console.log("ln bridge on L2 address", lnBridgeOnL2.address);
       await lnBridgeOnL2.updateFeeReceiver(feeReceiver);
 
-      const lnBridgeContractOnL1 = await ethers.getContractFactory("LnArbitrumBridgeOnL1Target");
+      const lnBridgeContractOnL1 = await ethers.getContractFactory("Arb2EthTarget");
       const lnBridgeOnL1 = await lnBridgeContractOnL1.deploy();
       await lnBridgeOnL1.deployed();
       await lnBridgeOnL1.initialize(dao, inbox.address);
@@ -714,7 +714,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         0,
         0,
         200
-      )).to.be.revertedWith("lnBridgeTarget:message exist");
+      )).to.be.revertedWith("LnOppositeBridgeTarget:message exist");
 
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
         [
@@ -952,7 +952,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         ],
         transferId05,
         { value: transferAmount01 }
-      )).to.revertedWith("lnBridgeTarget:message exist");
+      )).to.revertedWith("LnOppositeBridgeTarget:message exist");
 
       console.log("ln bridge test native finished");
   });

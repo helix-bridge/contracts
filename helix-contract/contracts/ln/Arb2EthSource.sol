@@ -6,14 +6,14 @@ import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
 import "./base/LnOppositeBridgeSource.sol";
 
-contract LnArbitrumBridgeOnL2Source is Initializable, LnAccessController, LnOppositeBridgeSource {
+contract Arb2EthSource is Initializable, LnAccessController, LnOppositeBridgeSource {
     address public remoteBridge;
     address public remoteBridgeAlias;
 
     receive() external payable {}
 
     modifier onlyRemoteBridge() {
-        require(msg.sender == remoteBridgeAlias, "LnArbitrumBridgeOnL2:invalid remote caller");
+        require(msg.sender == remoteBridgeAlias, "Arb2EthSource:invalid remote caller");
         _;
     }
 
@@ -40,14 +40,14 @@ contract LnArbitrumBridgeOnL2Source is Initializable, LnAccessController, LnOppo
     }
 
     function registerToken(
-        address local,
-        address remote,
+        address sourceToken,
+        address targetToken,
         uint112 protocolFee,
         uint112 penaltyLnCollateral,
-        uint8 localDecimals,
-        uint8 remoteDecimals
+        uint8 sourceDecimals,
+        uint8 targetDecimals
     ) external onlyOperator {
-        _registerToken(local, remote, protocolFee, penaltyLnCollateral, localDecimals, remoteDecimals);
+        _registerToken(sourceToken, targetToken, protocolFee, penaltyLnCollateral, sourceDecimals, targetDecimals);
     }
 
     function slash(

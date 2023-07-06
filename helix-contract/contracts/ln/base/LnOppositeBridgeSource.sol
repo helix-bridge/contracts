@@ -94,7 +94,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
     event LnProviderUpdated(address provider, address token, uint112 margin, uint112 baseFee, uint8 liquidityfeeRate);
 
     function _setFeeReceiver(address _feeReceiver) internal {
-        require(_feeReceiver != address(this), "lnBridgeSource:invalid system fee receiver");
+        require(_feeReceiver != address(this), "LnOppositeBridgeSource:invalid system fee receiver");
         feeReceiver = _feeReceiver;
     }
 
@@ -187,7 +187,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint112 amount,
         address receiver
     ) external payable {
-        require(amount > 0, "lnBridgeSource:invalid amount");
+        require(amount > 0, "LnOppositeBridgeSource:invalid amount");
 
         bytes32 providerKey = getProviderKey(snapshot.provider, snapshot.sourceToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
@@ -205,7 +205,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         require(snapshot.depositedMargin <= providerInfo.config.margin, "margin updated");
         
         uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
-        require(targetAmount < MAX_TRANSFER_AMOUNT, "lnBridgeSource:overflow amount");
+        require(targetAmount < MAX_TRANSFER_AMOUNT, "LnOppositeBridgeSource:overflow amount");
         bytes32 lastBlockHash = _lastBlockHash();
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
@@ -216,14 +216,14 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             lastBlockHash,
             uint64(block.timestamp),
             uint112(targetAmount)));
-        require(lockInfos[transferId].amountWithFeeAndPenalty == 0, "lnBridgeSource:transferId exist");
+        require(lockInfos[transferId].amountWithFeeAndPenalty == 0, "LnOppositeBridgeSource:transferId exist");
         lockInfos[transferId] = LockInfo(amount + tokenInfo.penaltyLnCollateral + uint112(providerFee), false);
 
         // update the state to prevent other transfers using the same snapshot
         lnProviders[providerKey].lastTransferId = transferId;
 
         if (snapshot.sourceToken == address(0)) {
-            require(amount + snapshot.totalFee == msg.value, "lnBridgeSource:amount unmatched");
+            require(amount + snapshot.totalFee == msg.value, "LnOppositeBridgeSource:amount unmatched");
             payable(snapshot.provider).transfer(amount + providerFee);
             if (tokenInfo.protocolFee > 0) {
                 payable(feeReceiver).transfer(tokenInfo.protocolFee);

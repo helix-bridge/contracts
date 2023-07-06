@@ -4,40 +4,45 @@ pragma solidity ^0.8.10;
 import "../interface/ILnBridgeSource.sol";
 import "./LnBridgeHelper.sol";
 
-contract LnBridgeTarget is LnBridgeHelper {
+contract LnOppositeBridgeTarget is LnBridgeHelper {
     uint256 constant public MIN_REFUND_TIMESTAMP = 30 * 60;
 
     // if slasher == address(0), this FillTransfer is relayed by lnProvider
     // otherwise, this FillTransfer is slashed by slasher
     // if there is no slash transfer before, then it's latestSlashTransferId is assigned by INIT_SLASH_TRANSFER_ID, a special flag
-    struct FillTransfer {
-        bytes32 latestSlashTransferId;
+    struct SlashInfo {
+        address provider;
+        address sourceToken;
         address slasher;
     }
 
-    // transferId => FillTransfer
-    mapping(bytes32 => FillTransfer) public fillTransfers;
+    // transferId => latest slash transfer Id
+    mapping(bytes32 => bytes32) public fillTransfers;
+    // transferId => Slash info
+    mapping(bytes32 => SlashInfo) public slashInfos;
 
     event TransferFilled(bytes32 transferId, address slasher);
 
     // if slasher is nonzero, then it's a slash fill transfer
     function _checkPreviousAndFillTransfer(
         bytes32 transferId,
-        bytes32 previousTransferId,
-        address slasher
+        bytes32 previousTransferId
     ) internal {
         // the first fill transfer, we fill the INIT_SLASH_TRANSFER_ID as the latest slash transferId
         if (previousTransferId == bytes32(0)) {
-            fillTransfers[transferId] = FillTransfer(INIT_SLASH_TRANSFER_ID, slasher);
+            fillTransfers[transferId] = INIT_SLASH_TRANSFER_ID;
         } else {
             // Find the previous refund fill, it is a refund fill if the slasher is not zero address.
-            FillTransfer memory previous = fillTransfers[previousTransferId];
-            bytes32 latestSlashTransferId = previous.slasher != address(0) ? previousTransferId : previous.latestSlashTransferId;
-            // we use latestSlashTransferId to store the latest slash transferId, and indicate that the fill transfer has been filled.
+            bytes32 previousLatestSlashTransferId = fillTransfers[previousTransferId];
+            require(previousLatestSlashTransferId != bytes32(0), "invalid latest slash transfer");
+
+            SlashInfo memory previousSlashInfo = slashInfos[previousTransferId];
+            // we use latestSlashTransferId to store the latest slash transferId
             // 1. if previous.slasher != 0, then previous has been filled
             // 2. if previous.latestSlashTransferId != 0, then previous has been filled
-            require(latestSlashTransferId != bytes32(0), "invalid latest slash transfer");
-            fillTransfers[transferId] = FillTransfer(latestSlashTransferId, slasher);
+            bytes32 latestSlashTransferId = previousSlashInfo.slasher != address(0) ? previousTransferId : previousLatestSlashTransferId;
+
+            fillTransfers[transferId] = latestSlashTransferId;
         }
     }
 
@@ -58,32 +63,30 @@ contract LnBridgeTarget is LnBridgeHelper {
     //    III. Both I and II => latestSlashTransferId is trusted if previousTransfer is normal relayed tranfer
     function _fillTransfer(
         TransferParameter calldata params,
-        bytes32 expectedTransferId,
-        address slasher
+        bytes32 expectedTransferId
     ) internal {
         bytes32 transferId = keccak256(abi.encodePacked(
-            params.providerKey,
             params.previousTransferId,
-            params.lastBlockHash,
-            params.nonce,
-            params.timestamp,
-            params.token,
+            params.provider,
+            params.sourceToken,
+            params.targetToken,
             params.receiver,
+            params.lastBlockHash,
+            params.timestamp,
             params.amount));
         require(expectedTransferId == transferId, "check expected transferId failed");
-        FillTransfer memory fillTransfer = fillTransfers[transferId];
+        bytes32 latestSlashTransferId = fillTransfers[transferId];
         // Make sure this transfer was never filled before 
-        require(fillTransfer.latestSlashTransferId == bytes32(0), "lnBridgeTarget:message exist");
+        require(latestSlashTransferId == bytes32(0), "lnBridgeTarget:message exist");
 
-        _checkPreviousAndFillTransfer(transferId, params.previousTransferId, slasher);
+        _checkPreviousAndFillTransfer(transferId, params.previousTransferId);
 
-        if (params.token == address(0)) {
+        if (params.targetToken == address(0)) {
             require(msg.value >= params.amount, "lnBridgeTarget:invalid amount");
             payable(params.receiver).transfer(params.amount);
         } else {
-            _safeTransferFrom(params.token, msg.sender, params.receiver, uint256(params.amount));
+            _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));
         }
-        emit TransferFilled(transferId, slasher);
     }
 
     function transferAndReleaseMargin(
@@ -91,7 +94,9 @@ contract LnBridgeTarget is LnBridgeHelper {
         bytes32 expectedTransferId
     ) payable external {
         // normal relay message, fill slasher as zero
-        _fillTransfer(params, expectedTransferId, address(0));
+        _fillTransfer(params, expectedTransferId);
+
+        emit TransferFilled(expectedTransferId, address(0));
     }
 
     // The condition for slash is that the transfer has timed out
@@ -103,51 +108,70 @@ contract LnBridgeTarget is LnBridgeHelper {
         bytes32 expectedTransferId
     ) internal returns(bytes memory message) {
         require(block.timestamp > params.timestamp + MIN_REFUND_TIMESTAMP, "refund time not expired");
-        _fillTransfer(params, expectedTransferId, msg.sender);
+        _fillTransfer(params, expectedTransferId);
+
+        // slasher = msg.sender
+        slashInfos[expectedTransferId] = SlashInfo(params.provider, params.sourceToken, msg.sender);
+
         // Do not refund `transferId` in source chain unless `latestSlashTransferId` has been refunded
-        message = _encodeRefundCall(
-            fillTransfers[expectedTransferId].latestSlashTransferId,
+        message = _encodeSlashCall(
+            fillTransfers[expectedTransferId],
             expectedTransferId,
+            params.provider,
+            params.sourceToken,
             msg.sender
         );
+        emit TransferFilled(expectedTransferId, msg.sender);
     }
 
     // we use this to verify that the transfer has been slashed by user and it can resend the refund request
     function _retrySlashAndRemoteRefund(bytes32 transferId) internal view returns(bytes memory message) {
-        FillTransfer memory fillTransfer = fillTransfers[transferId];
-        require(fillTransfer.slasher != address(0), "invalid refund transfer");
-        message = _encodeRefundCall(
-            fillTransfer.latestSlashTransferId,
+        bytes32 latestSlashTransferId = fillTransfers[transferId];
+        // transfer must be filled
+        require(latestSlashTransferId != bytes32(0), "invalid transfer id");
+        // transfer must be slashed
+        SlashInfo memory slashInfo = slashInfos[transferId];
+        require(slashInfo.slasher != address(0), "slasher not exist");
+        message = _encodeSlashCall(
+            latestSlashTransferId,
             transferId,
-            fillTransfer.slasher
+            slashInfo.provider,
+            slashInfo.sourceToken,
+            slashInfo.slasher
         );
     }
 
-    function _encodeRefundCall(
+    function _encodeSlashCall(
         bytes32 latestSlashTransferId,
         bytes32 transferId,
+        address provider,
+        address sourceToken,
         address slasher
     ) internal pure returns(bytes memory) {
         return abi.encodeWithSelector(
-            ILnBridgeSource.refund.selector,
+            ILnBridgeSource.slash.selector,
             latestSlashTransferId,
             transferId,
+            provider,
+            sourceToken,
             slasher
         );
     }
 
     function _requestWithdrawMargin(
         bytes32 lastTransferId,
+        address sourceToken,
         uint112 amount
     ) internal view returns(bytes memory message) {
-        FillTransfer memory fillTransfer = fillTransfers[lastTransferId];
-        require(fillTransfer.latestSlashTransferId != bytes32(0), "invalid last transfer");
+        bytes32 latestSlashTransferId = fillTransfers[lastTransferId];
+        require(latestSlashTransferId != bytes32(0), "invalid last transfer");
 
         return abi.encodeWithSelector(
             ILnBridgeSource.withdrawMargin.selector,
-            fillTransfer.latestSlashTransferId,
+            latestSlashTransferId,
             lastTransferId,
             msg.sender,
+            sourceToken,
             amount
         );
     }

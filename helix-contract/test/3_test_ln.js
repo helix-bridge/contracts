@@ -14,25 +14,34 @@ async function getBlockTimestamp() {
 }
 
 function getTransferId(
-    providerKey,
     lastTransferId,
-    lastBlockHash,
-    nonce,
-    timestamp,
-    remoteToken,
+    provider,
+    sourceToken,
+    targetToken,
     receiver,
+    lastBlockHash,
+    timestamp,
     amount
 ) {
     const encoded = ethers.utils.solidityPack([
-        "uint64",
         "bytes32",
-        "bytes32",
-        "uint64",
-        "uint64",
         "address",
         "address",
+        "address",
+        "address",
+        "bytes32",
+        "uint64",
         "uint112",
-    ], [providerKey, lastTransferId, lastBlockHash, nonce, timestamp, remoteToken, receiver, amount]);
+    ], [
+        lastTransferId,
+        provider,
+        sourceToken,
+        targetToken,
+        receiver,
+        lastBlockHash,
+        timestamp,
+        amount
+    ]);
     return ethUtil.keccak256(encoded);
 }
 
@@ -61,14 +70,14 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const initSlashTransferId = "0x0000000000000000000000000000000000000000000000000000000000000001";
       const zeroAddress = "0x0000000000000000000000000000000000000000";
       //******* deploy lp bridge at ethereum *******
-      const lnBridgeContractOnL2 = await ethers.getContractFactory("LnArbitrumBridgeOnL2");
+      const lnBridgeContractOnL2 = await ethers.getContractFactory("LnArbitrumBridgeOnL2Source");
       const lnBridgeOnL2 = await lnBridgeContractOnL2.deploy();
       await lnBridgeOnL2.deployed();
       await lnBridgeOnL2.initialize(dao);
       console.log("ln bridge on L2 address", lnBridgeOnL2.address);
       await lnBridgeOnL2.updateFeeReceiver(feeReceiver);
 
-      const lnBridgeContractOnL1 = await ethers.getContractFactory("LnArbitrumBridgeOnL1");
+      const lnBridgeContractOnL1 = await ethers.getContractFactory("LnArbitrumBridgeOnL1Target");
       const lnBridgeOnL1 = await lnBridgeContractOnL1.deploy();
       await lnBridgeOnL1.deployed();
       await lnBridgeOnL1.initialize(dao, inbox.address);
@@ -115,8 +124,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
       await ethToken.mint(owner.address, initTokenBalance);
 
       await arbToken.connect(relayer).approve(lnBridgeOnL2.address, initTokenBalance * 1000);
-      await lnBridgeOnL2.connect(relayer).registerOrUpdateLnProvider(
-          0, // tokenIndex
+      await lnBridgeOnL2.connect(relayer).updateProviderFeeAndMargin(
+          arbToken.address, // tokenIndex
           margin, // margin
           baseFee, // basefee
           liquidityFeeRate // liquidity fee rate x/100,000
@@ -131,7 +140,13 @@ describe("arb<>eth lnv2 bridge tests", () => {
       await arbToken.connect(other).approve(lnBridgeOnL2.address, 1000000000);
       const lastBlockHash = (await ethers.provider.getBlock("latest")).hash;
       const lockTransaction = await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, initTransferId, margin, expectedFee],
+        [
+            relayer.address,
+            arbToken.address,
+            initTransferId,
+            margin,
+            expectedFee
+        ],
         transferAmount01, // amount
         other.address // receiver
       );
@@ -140,26 +155,26 @@ describe("arb<>eth lnv2 bridge tests", () => {
       let lockGasUsed = lockReceipt.cumulativeGasUsed;
       console.log("transferAndLockMargin gas used", lockGasUsed);
       const transferId01 = getTransferId(
-          1,
           initTransferId, // lastTransferId
-          lastBlockHash, // lastBlockHash
-          1, // nonce
-          blockTimestamp,
-          ethToken.address, // remoteToken
+          relayer.address, // provider
+          arbToken.address, // sourceToken
+          ethToken.address, // targetToken
           other.address, // receiver
+          lastBlockHash, // lastBlockHash
+          blockTimestamp,
           transferAmount01, // amount
       );
       // 3.1.2 relay
       await ethToken.connect(relayer).approve(lnBridgeOnL1.address, 1000000000);
       const relayTransaction = await lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
         [
-          1,
           initTransferId, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
           lastBlockHash,
           transferAmount01,
-          1, //nonce
           blockTimestamp,
-          ethToken.address, // token
           other.address
         ],
         transferId01
@@ -191,54 +206,68 @@ describe("arb<>eth lnv2 bridge tests", () => {
       // source chain
       const lockInfo01 = await lnBridgeOnL2.lockInfos(transferId01);
       expect(lockInfo01.amountWithFeeAndPenalty).to.equal(transferAmount01 + relayerFee01 + penaltyLnCollateral);
-      expect(lockInfo01.nonce).to.equal(1);
       // target chain
       const transferInfo01 = await lnBridgeOnL1.fillTransfers(transferId01);
-      expect(transferInfo01.latestSlashTransferId).to.equal(initSlashTransferId);
-      expect(transferInfo01.slasher).to.equal(zeroAddress);
+      expect(transferInfo01).to.equal(initSlashTransferId);
+      const slashInfo01 = await lnBridgeOnL1.slashInfos(transferId01);
+      expect(slashInfo01.slasher).to.equal(zeroAddress);
 
       // refund 02
       // lock
       // must be continuous
+      console.log("check continuous");
       await expect(lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, initTransferId, margin, expectedFee],
+        [
+          relayer.address,
+          arbToken.address,
+          initTransferId,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address // receiver
       )).to.be.revertedWith("snapshot expired");
       const lastBlockHash02 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, transferId01, margin, expectedFee],
+        [
+          relayer.address,
+          arbToken.address,
+          transferId01,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address // receiver
       );
       const blockTimestamp02 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId02 = getTransferId(
-          1,
           transferId01, // lastTransferId
-          lastBlockHash02, // lastBlockHash
-          2, // nonce
-          blockTimestamp02,
-          ethToken.address, // remoteToken
+          relayer.address, // provider
+          arbToken.address, // sourceToken
+          ethToken.address, // targetToken
           other.address, // receiver
+          lastBlockHash02, // lastBlockHash
+          blockTimestamp02,
           transferAmount01, // amount
       );
       // cannot refund before expired
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId01,
-              lastBlockHash02,
-              transferAmount01,
-              2,
-              blockTimestamp02,
-              ethToken.address,
-              other.address
-          ],
-          transferId01,
-          0,
-          0,
-          200
+        [
+          transferId01, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          lastBlockHash02,
+          transferAmount01,
+          blockTimestamp02,
+          other.address
+        ],
+        transferId01,
+        0,
+        0,
+        200
       )).to.be.revertedWith("refund time not expired");
+      console.log("check expired slash finished");
       await hre.network.provider.request({
           method: "evm_increaseTime",
           //params: [await lnBridgeOnL1.MIN_REFUND_TIMESTAMP() + 1],
@@ -248,41 +277,42 @@ describe("arb<>eth lnv2 bridge tests", () => {
       // start refund
       // 1. relayed transfer cannot refund, try to refund transfer01 failed
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              initTransferId, // lastTransferId
-              lastBlockHash, // lastBlockHash
-              transferAmount01, // amount
-              1, // nonce
-              blockTimestamp,
-              ethToken.address, // remoteToken
-              other.address, // receiver
-          ],
-          transferId01,
-          0,
-          0,
-          0
+        [
+          initTransferId, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          lastBlockHash,
+          transferAmount01,
+          blockTimestamp,
+          other.address
+        ],
+        transferId01,
+        0,
+        0,
+        0
       )).to.be.revertedWith("lnBridgeTarget:message exist");
+      console.log("check exist message slash finished");
 
       // mock sender address
       await lnBridgeOnL2.setRemoteBridgeAlias(inbox.address);
       // request success
       await ethToken.approve(lnBridgeOnL1.address, 1000000000);
       await lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId01,
-              lastBlockHash02,
-              transferAmount01,
-              2,
-              blockTimestamp02,
-              ethToken.address,
-              other.address
-          ],
-          transferId02,
-          0,
-          0,
-          200
+        [
+          transferId01, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          lastBlockHash02,
+          transferAmount01,
+          blockTimestamp02,
+          other.address
+        ],
+        transferId02,
+        0,
+        0,
+        200
       );
       // check balance
       // arbtoken: other -> relayer (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01)
@@ -307,59 +337,78 @@ describe("arb<>eth lnv2 bridge tests", () => {
       expect(await ethToken.balanceOf(other.address)).to.equal(otherEthToken02);
       expect(await ethToken.balanceOf(owner.address)).to.equal(ownerEthToken02);
       margin -= (transferAmount01 + relayerFee02 + penaltyLnCollateral);
+      console.log("check normal slash finished");
 
       // check refund continous
       // 3 refund, 4 relayed, 5 refund
       // locks
       const lastBlockHash03 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, transferId02, margin, expectedFee],
+        [
+          relayer.address,
+          arbToken.address,
+          transferId02,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address // receiver
       );
       const blockTimestamp03 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId03 = getTransferId(
-          1,
           transferId02, // lastTransferId
-          lastBlockHash03, // lastBlockHash
-          3, // nonce
-          blockTimestamp03,
-          ethToken.address, // remoteToken
+          relayer.address, // provider
+          arbToken.address, // sourceToken
+          ethToken.address, // targetToken
           other.address, // receiver
+          lastBlockHash03, // lastBlockHash
+          blockTimestamp03,
           transferAmount01, // amount
       );
       const lastBlockHash04 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, transferId03, margin, expectedFee],
+        [
+          relayer.address,
+          arbToken.address,
+          transferId03,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address // receiver
       );
       const blockTimestamp04 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId04 = getTransferId(
-          1,
           transferId03, // lastTransferId
-          lastBlockHash04, // lastBlockHash
-          4, // nonce
-          blockTimestamp04,
-          ethToken.address, // remoteToken
+          relayer.address, // provider
+          arbToken.address, // sourceToken
+          ethToken.address, // targetToken
           other.address, // receiver
+          lastBlockHash04, // lastBlockHash
+          blockTimestamp04,
           transferAmount01, // amount
       );
       const lastBlockHash05 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, transferId04, margin, expectedFee],
+        [
+          relayer.address,
+          arbToken.address,
+          transferId04,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address // receiver
       );
       const blockTimestamp05 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId05 = getTransferId(
-          1,
           transferId04, // lastTransferId
-          lastBlockHash05, // lastBlockHash
-          5, // nonce
-          blockTimestamp05,
-          ethToken.address, // remoteToken
+          relayer.address, // provider
+          arbToken.address, // sourceToken
+          ethToken.address, // targetToken
           other.address, // receiver
+          lastBlockHash05, // lastBlockHash
+          blockTimestamp05,
           transferAmount01, // amount
       );
       // refund 3
@@ -371,54 +420,55 @@ describe("arb<>eth lnv2 bridge tests", () => {
 
       // slash 03 failed on remote
       await lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId02,
-              lastBlockHash03,
-              transferAmount01,
-              3,
-              blockTimestamp03,
-              ethToken.address,
-              other.address
-          ],
-          transferId03,
-          0,
-          0,
-          0
+        [
+          transferId02, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          lastBlockHash03,
+          transferAmount01,
+          blockTimestamp03,
+          other.address
+        ],
+        transferId03,
+        0,
+        0,
+        0
       );
 
       // relay 4
       await lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
         [
-            1,
-            transferId03, // lastTransferId
-            lastBlockHash04,
-            transferAmount01,
-            4, //nonce
-            blockTimestamp04,
-            ethToken.address, // token
-            other.address
+          transferId03, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          lastBlockHash04,
+          transferAmount01,
+          blockTimestamp04,
+          other.address
         ],
         transferId04
       );
       // refund 5 must after 3
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId04,
-              lastBlockHash05,
-              transferAmount01,
-              5,
-              blockTimestamp05,
-              ethToken.address,
-              other.address
-          ],
-          transferId05,
-          0,
-          0,
-          200
+        [
+          transferId04, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          lastBlockHash05,
+          transferAmount01,
+          blockTimestamp05,
+          other.address
+        ],
+        transferId05,
+        0,
+        0,
+        200
       )).to.be.revertedWith("arbitrum mock call failed");
 
+      console.log("check retry function");
       // retry 3
       await lnBridgeOnL1.retryRemoteRefund(
           transferId03,
@@ -429,34 +479,34 @@ describe("arb<>eth lnv2 bridge tests", () => {
 
       // then refund 5
       await lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId04,
-              lastBlockHash05,
-              transferAmount01,
-              5,
-              blockTimestamp05,
-              ethToken.address,
-              other.address
-          ],
-          transferId05,
-          0,
-          0,
-          200
+        [
+          transferId04, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          lastBlockHash05,
+          transferAmount01,
+          blockTimestamp05,
+          other.address
+        ],
+        transferId05,
+        0,
+        0,
+        200
       );
       // cannot relay the refunded
       await expect(lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
-          [
-              1,
-              transferId04, // lastTransferId
-              lastBlockHash05,
-              transferAmount01,
-              5, //nonce
-              blockTimestamp05,
-              ethToken.address, // token
-              other.address
-          ],
-          transferId05
+        [
+          transferId04, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          lastBlockHash05,
+          transferAmount01,
+          blockTimestamp05,
+          other.address
+        ],
+        transferId05
       )).to.revertedWith("lnBridgeTarget:message exist");
 
       console.log("ln bridge test finished");
@@ -484,14 +534,14 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const nativeTokenAddress = "0x0000000000000000000000000000000000000000";
       const zeroAddress = "0x0000000000000000000000000000000000000000";
       //******* deploy lp bridge at ethereum *******
-      const lnBridgeContractOnL2 = await ethers.getContractFactory("LnArbitrumBridgeOnL2");
+      const lnBridgeContractOnL2 = await ethers.getContractFactory("LnArbitrumBridgeOnL2Source");
       const lnBridgeOnL2 = await lnBridgeContractOnL2.deploy();
       await lnBridgeOnL2.deployed();
       await lnBridgeOnL2.initialize(dao);
       console.log("ln bridge on L2 address", lnBridgeOnL2.address);
       await lnBridgeOnL2.updateFeeReceiver(feeReceiver);
 
-      const lnBridgeContractOnL1 = await ethers.getContractFactory("LnArbitrumBridgeOnL1");
+      const lnBridgeContractOnL1 = await ethers.getContractFactory("LnArbitrumBridgeOnL1Target");
       const lnBridgeOnL1 = await lnBridgeContractOnL1.deploy();
       await lnBridgeOnL1.deployed();
       await lnBridgeOnL1.initialize(dao, inbox.address);
@@ -515,8 +565,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
       );
       console.log("register native token finished");
 
-      await lnBridgeOnL2.connect(relayer).registerOrUpdateLnProvider(
-          0, // tokenIndex
+      await lnBridgeOnL2.connect(relayer).updateProviderFeeAndMargin(
+          zeroAddress,
           margin, // margin
           baseFee, // basefee
           liquidityFeeRate, // liquidity fee rate x/100,000
@@ -531,7 +581,13 @@ describe("arb<>eth lnv2 bridge tests", () => {
       // 3.1.1 lock
       const lastBlockHash = (await ethers.provider.getBlock("latest")).hash;
       const lockTransaction = await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, initTransferId, margin, expectedFee],
+        [
+          relayer.address,
+          zeroAddress,
+          initTransferId,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
@@ -548,24 +604,24 @@ describe("arb<>eth lnv2 bridge tests", () => {
           params: [18001],
       });
       const transferId01 = getTransferId(
-          1,
           initTransferId, // lastTransferId
-          lastBlockHash, // lastBlockHash
-          1, // nonce
-          blockTimestamp,
-          nativeTokenAddress, // remoteToken
+          relayer.address, // provider
+          zeroAddress, // sourceToken
+          zeroAddress, // targetToken
           other.address, // receiver
+          lastBlockHash, // lastBlockHash
+          blockTimestamp,
           transferAmount01, // amount
       );
       const relayTransaction = await lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
         [
-          1,
           initTransferId, // lastTransferId
+          relayer.address, // provider
+          zeroAddress,
+          zeroAddress, // token
           lastBlockHash,
           transferAmount01,
-          1, //nonce
           blockTimestamp,
-          nativeTokenAddress, // token
           other.address
         ],
         transferId01,
@@ -594,74 +650,87 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const lockInfo01 = await lnBridgeOnL2.lockInfos(transferId01);
       const relayerFee01 = baseFee + Math.floor(liquidityFeeRate * transferAmount01/100000);
       expect(lockInfo01.amountWithFeeAndPenalty).to.equal(transferAmount01 + relayerFee01 + penaltyLnCollateral);
-      expect(lockInfo01.nonce).to.equal(1);
       // target chain
-      const transferInfo01 = await lnBridgeOnL1.fillTransfers(transferId01);
-      expect(transferInfo01.latestSlashTransferId).to.equal(initSlashTransferId);
-      expect(transferInfo01.slasher).to.equal(zeroAddress);
+      const latestSlashTransferId = await lnBridgeOnL1.fillTransfers(transferId01);
+      expect(latestSlashTransferId).to.equal(initSlashTransferId);
+      const slashInfo = await lnBridgeOnL1.slashInfos(transferId01);
+      expect(slashInfo.slasher).to.equal(zeroAddress);
 
+      console.log("start to check continuous");
       // refund 02
       // lock
       // must be continuous
       await expect(lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, initTransferId, margin, expectedFee],
+        [
+          relayer.address,
+          zeroAddress,
+          initTransferId,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       )).to.be.revertedWith("snapshot expired");
       const lastBlockHash02 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, transferId01, margin, expectedFee],
+        [
+          relayer.address,
+          zeroAddress,
+          transferId01,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
       const blockTimestamp02 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId02 = getTransferId(
-          1,
           transferId01, // lastTransferId
-          lastBlockHash02, // lastBlockHash
-          2, // nonce
-          blockTimestamp02,
-          nativeTokenAddress, // remoteToken
+          relayer.address, // provider
+          zeroAddress, // sourceToken
+          zeroAddress, // targetToken
           other.address, // receiver
+          lastBlockHash02, // lastBlockHash
+          blockTimestamp02,
           transferAmount01, // amount
       );
       // refund
       // start refund
       // 1. relayed transfer cannot refund, try to refund transfer01 failed
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              initTransferId,
-              lastBlockHash,
-              transferAmount01,
-              1,
-              blockTimestamp,
-              nativeTokenAddress,
-              other.address,
-          ],
-          transferId01,
-          0,
-          0,
-          200
+        [
+          initTransferId, // lastTransferId
+          relayer.address, // provider
+          zeroAddress,
+          zeroAddress, // token
+          lastBlockHash,
+          transferAmount01,
+          blockTimestamp,
+          other.address
+        ],
+        transferId01,
+        0,
+        0,
+        200
       )).to.be.revertedWith("lnBridgeTarget:message exist");
 
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId01,
-              lastBlockHash02,
-              transferAmount01,
-              2,
-              blockTimestamp02,
-              nativeTokenAddress,
-              other.address,
-          ],
-          transferId02,
-          0,
-          0,
-          200
+        [
+          transferId01, // lastTransferId
+          relayer.address, // provider
+          nativeTokenAddress,
+          nativeTokenAddress, // token
+          lastBlockHash02,
+          transferAmount01,
+          blockTimestamp02,
+          other.address
+        ],
+        transferId02,
+        0,
+        0,
+        200
       )).to.be.revertedWith("refund time not expired");
 
       // 3. wait for timeout
@@ -676,21 +745,21 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const balanceOtherBeforeCancel = await ethers.provider.getBalance(other.address);
       const balanceBridgeBeforeCancel = await ethers.provider.getBalance(lnBridgeOnL2.address);
       await lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId01,
-              lastBlockHash02,
-              transferAmount01,
-              2,
-              blockTimestamp02,
-              nativeTokenAddress,
-              other.address,
-          ],
-          transferId02,
-          0,
-          0,
-          200,
-          { value: transferAmount01 }
+        [
+          transferId01, // lastTransferId
+          relayer.address, // provider
+          nativeTokenAddress,
+          nativeTokenAddress, // token
+          lastBlockHash02,
+          transferAmount01,
+          blockTimestamp02,
+          other.address
+        ],
+        transferId02,
+        0,
+        0,
+        200,
+        { value: transferAmount01 }
       );
       const balanceOtherAfterCancel = await ethers.provider.getBalance(other.address);
       const balanceBridgeAfterCancel = await ethers.provider.getBalance(lnBridgeOnL2.address);
@@ -704,8 +773,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
       expect(balanceOtherAfterCancel.sub(balanceOtherBeforeCancel)).to.equal(transferAmount01);
       expect(balanceBridgeBeforeCancel.sub(balanceBridgeAfterCancel)).to.equal(transferAmount01 + relayerFee02 + penaltyLnCollateral);
 
-      await lnBridgeOnL2.connect(relayer).registerOrUpdateLnProvider(
-          0, // tokenIndex
+      await lnBridgeOnL2.connect(relayer).updateProviderFeeAndMargin(
+          nativeTokenAddress,
           0, // margin
           baseFee, // basefee
           liquidityFeeRate, // liquidity fee rate x/100,000
@@ -716,56 +785,74 @@ describe("arb<>eth lnv2 bridge tests", () => {
       // locks
       const lastBlockHash03 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, transferId02, margin, expectedFee],
+        [
+          relayer.address,
+          nativeTokenAddress,
+          transferId02,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
       const blockTimestamp03 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId03 = getTransferId(
-          1,
           transferId02, // lastTransferId
-          lastBlockHash03, // lastBlockHash
-          3, // nonce
-          blockTimestamp03,
-          nativeTokenAddress, // remoteToken
+          relayer.address, // provider
+          nativeTokenAddress, // sourceToken
+          nativeTokenAddress, // targetToken
           other.address, // receiver
+          lastBlockHash03, // lastBlockHash
+          blockTimestamp03,
           transferAmount01, // amount
       );
       const lastBlockHash04 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, transferId03, margin, expectedFee],
+        [
+          relayer.address,
+          nativeTokenAddress,
+          transferId03,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
       const blockTimestamp04 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId04 = getTransferId(
-          1,
           transferId03, // lastTransferId
-          lastBlockHash04, // lastBlockHash
-          4, // nonce
-          blockTimestamp04,
-          nativeTokenAddress, // remoteToken
+          relayer.address, // provider
+          nativeTokenAddress, // sourceToken
+          nativeTokenAddress, // targetToken
           other.address, // receiver
+          lastBlockHash04, // lastBlockHash
+          blockTimestamp04,
           transferAmount01, // amount
       );
       const lastBlockHash05 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
-        [1, transferId04, margin, expectedFee],
+        [
+          relayer.address,
+          nativeTokenAddress,
+          transferId04,
+          margin,
+          expectedFee
+        ],
         transferAmount01, // amount
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       );
       const blockTimestamp05 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId05 = getTransferId(
-          1,
           transferId04, // lastTransferId
-          lastBlockHash05, // lastBlockHash
-          5, // nonce
-          blockTimestamp05,
-          nativeTokenAddress, // remoteToken
+          relayer.address, // provider
+          nativeTokenAddress, // sourceToken
+          nativeTokenAddress, // targetToken
           other.address, // receiver
+          lastBlockHash05, // lastBlockHash
+          blockTimestamp05,
           transferAmount01, // amount
       );
       await hre.network.provider.request({
@@ -775,32 +862,32 @@ describe("arb<>eth lnv2 bridge tests", () => {
       });
       // refund 3 failed on remote
       await lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId02,
-              lastBlockHash03,
-              transferAmount01,
-              3,
-              blockTimestamp03,
-              nativeTokenAddress,
-              other.address
-          ],
-          transferId03,
-          0,
-          0,
-          0,
-          { value: transferAmount01 }
+        [
+          transferId02, // lastTransferId
+          relayer.address, // provider
+          nativeTokenAddress,
+          nativeTokenAddress, // token
+          lastBlockHash03,
+          transferAmount01,
+          blockTimestamp03,
+          other.address
+        ],
+        transferId03,
+        0,
+        0,
+        0,
+        { value: transferAmount01 }
       )
       // relay 4
       await lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
         [
-          1,
           transferId03, // lastTransferId
+          relayer.address, // provider
+          nativeTokenAddress,
+          nativeTokenAddress, // token
           lastBlockHash04,
           transferAmount01,
-          4, //nonce
           blockTimestamp04,
-          nativeTokenAddress, // token
           other.address
         ],
         transferId04,
@@ -809,21 +896,21 @@ describe("arb<>eth lnv2 bridge tests", () => {
       // refund 5
       // refund 5 must after 3
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId04,
-              lastBlockHash05,
-              transferAmount01,
-              5,
-              blockTimestamp05,
-              nativeTokenAddress,
-              other.address
-          ],
-          transferId05,
-          0,
-          0,
-          200,
-          { value: transferAmount01 }
+        [
+          transferId04, // lastTransferId
+          relayer.address, // provider
+          nativeTokenAddress,
+          nativeTokenAddress, // token
+          lastBlockHash05,
+          transferAmount01,
+          blockTimestamp05,
+          other.address
+        ],
+        transferId05,
+        0,
+        0,
+        200,
+        { value: transferAmount01 }
       )).to.be.revertedWith("arbitrum mock call failed");
 
       // retry 3
@@ -835,32 +922,32 @@ describe("arb<>eth lnv2 bridge tests", () => {
       );
       // then refund 5
       lnBridgeOnL1.slashAndRemoteRefund(
-          [
-              1,
-              transferId04,
-              lastBlockHash05,
-              transferAmount01,
-              5,
-              blockTimestamp05,
-              nativeTokenAddress,
-              other.address
-          ],
-          transferId05,
-          0,
-          0,
-          200,
-          { value: transferAmount01 }
+        [
+          transferId04, // lastTransferId
+          relayer.address, // provider
+          nativeTokenAddress,
+          nativeTokenAddress, // token
+          lastBlockHash05,
+          transferAmount01,
+          blockTimestamp05,
+          other.address
+        ],
+        transferId05,
+        0,
+        0,
+        200,
+        { value: transferAmount01 }
       )
       // cannot relay the refunded
       await expect(lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
         [
-          1,
           transferId04, // lastTransferId
+          relayer.address, // provider
+          nativeTokenAddress,
+          nativeTokenAddress, // token
           lastBlockHash05,
           transferAmount01,
-          5, //nonce
           blockTimestamp05,
-          nativeTokenAddress, // token
           other.address
         ],
         transferId05,

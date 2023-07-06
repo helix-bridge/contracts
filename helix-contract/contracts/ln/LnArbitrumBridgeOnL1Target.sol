@@ -4,9 +4,9 @@ pragma solidity ^0.8.10;
 import "@arbitrum/nitro-contracts/src/bridge/IInbox.sol";
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
-import "./base/LnBridgeTarget.sol";
+import "./base/LnOppositeBridgeTarget.sol";
 
-contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarget {
+contract LnArbitrumBridgeOnL1Target is Initializable, LnAccessController, LnOppositeBridgeTarget {
     IInbox public inbox;
     address public remoteBridge;
 
@@ -27,26 +27,32 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
         uint256 baseFee,
         bytes32 latestSlashTransferId,
         bytes32 transferId,
+        address provider,
+        address sourceToken,
         address slasher,
         uint256 percentIncrease
     ) external view returns(uint256) {
-        bytes memory refundCall = _encodeRefundCall(
+        bytes memory slashCall = _encodeSlashCall(
             latestSlashTransferId,
             transferId,
+            provider,
+            sourceToken,
             slasher
         );
-        uint256 fee = inbox.calculateRetryableSubmissionFee(refundCall.length, baseFee);
+        uint256 fee = inbox.calculateRetryableSubmissionFee(slashCall.length, baseFee);
         return fee + fee * percentIncrease / 100;
     }
 
     function submissionWithdrawFee(
         uint256 baseFee,
         bytes32 lastTransferId,
+        address sourceToken,
         uint112 amount,
         uint256 percentIncrease
     ) external view returns(uint256) {
         bytes memory withdrawCall = _requestWithdrawMargin(
             lastTransferId,
+            sourceToken,
             amount
         );
         uint256 fee = inbox.calculateRetryableSubmissionFee(withdrawCall.length, baseFee);
@@ -83,7 +89,7 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
             params,
             expectedTransferId
         );
-        uint256 valueUsed = address(0) == params.token ? params.amount : 0;
+        uint256 valueUsed = address(0) == params.targetToken ? params.amount : 0;
         _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, refundCallMessage, msg.value - valueUsed);
     }
 
@@ -99,6 +105,7 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
 
     function requestWithdrawMargin(
         bytes32 lastTransferId,
+        address sourceToken,
         uint112 amount,
         uint256 maxSubmissionCost,
         uint256 maxGas,
@@ -106,6 +113,7 @@ contract LnArbitrumBridgeOnL1 is Initializable, LnAccessController, LnBridgeTarg
     ) payable external whenNotPaused {
         bytes memory cancelWithdrawMarginCall = _requestWithdrawMargin(
             lastTransferId,
+            sourceToken,
             amount
         );
         _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, cancelWithdrawMarginCall, msg.value);

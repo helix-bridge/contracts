@@ -4,9 +4,9 @@ pragma solidity ^0.8.10;
 import "@arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol";
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
-import "./base/LnBridgeSource.sol";
+import "./base/LnOppositeBridgeSource.sol";
 
-contract LnArbitrumBridgeOnL2 is Initializable, LnAccessController, LnBridgeSource {
+contract LnArbitrumBridgeOnL2Source is Initializable, LnAccessController, LnOppositeBridgeSource {
     address public remoteBridge;
     address public remoteBridgeAlias;
 
@@ -26,8 +26,8 @@ contract LnArbitrumBridgeOnL2 is Initializable, LnAccessController, LnBridgeSour
         _setFeeReceiver(_receiver);
     }
 
-    function updateProtocolFee(uint32 _tokenIndex, uint112 _protocolFee) external onlyDao {
-        _updateProtocolFee(_tokenIndex, _protocolFee);
+    function updateProtocolFee(address token, uint112 _protocolFee) external onlyDao {
+        _updateProtocolFee(token, _protocolFee);
     }
 
     function setRemoteBridge(address _remoteBridge) external onlyDao {
@@ -50,21 +50,24 @@ contract LnArbitrumBridgeOnL2 is Initializable, LnAccessController, LnBridgeSour
         _registerToken(local, remote, protocolFee, penaltyLnCollateral, localDecimals, remoteDecimals);
     }
 
-    function refund(
+    function slash(
         bytes32 latestSlashTransferId,
         bytes32 transferId,
+        address provider,
+        address sourceToken,
         address slasher
     ) external onlyRemoteBridge whenNotPaused {
-        _refund(latestSlashTransferId, transferId, slasher);
+        _slash(latestSlashTransferId, transferId, sourceToken, provider, slasher);
     }
 
     function withdrawMargin(
         bytes32 latestSlashTransferId,
         bytes32 lastTransferId,
         address provider,
+        address sourceToken,
         uint112 amount
     ) external onlyRemoteBridge whenNotPaused {
-        _withdrawMargin(latestSlashTransferId, lastTransferId, provider, amount);
+        _withdrawMargin(latestSlashTransferId, lastTransferId, provider, sourceToken, amount);
     }
 }
 

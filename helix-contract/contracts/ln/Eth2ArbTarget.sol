@@ -30,15 +30,6 @@ contract Eth2ArbTarget is Initializable, LnAccessController, LnPositiveBridgeTar
         remoteBridgeAlias = _remoteBridgeAlias;
     }
 
-    function registerToken(
-        address sourceToken,
-        address targetToken,
-        uint8 sourceDecimals,
-        uint8 targetDecimals
-    ) external onlyOperator {
-        _registerToken(sourceToken, targetToken, sourceDecimals, targetDecimals);
-    }
-
     function slash(
         ILnPositiveBridgeTarget.TransferParameter memory params,
         address slasher,

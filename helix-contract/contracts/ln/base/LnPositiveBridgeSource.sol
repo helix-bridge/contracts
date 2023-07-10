@@ -13,6 +13,22 @@ import "../interface/ILnPositiveBridgeTarget.sol";
 contract LnPositiveBridgeSource is LnBridgeHelper {
     uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
+    uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
+    // the registered token info
+    // sourceToken and targetToken is the pair of erc20 token addresses
+    // if sourceToken == address(0), then it's native token
+    // if targetToken == address(0), then remote is native token
+    // * `protocolFee` is the protocol fee charged by system
+    // * `penaltyLnCollateral` is penalty from lnProvider when the transfer refund, if we adjust this value, it'll not affect the old transfers.
+    struct TokenInfo {
+        address targetToken;
+        uint112 protocolFee;
+        uint112 penaltyLnCollateral;
+        uint8 sourceDecimals;
+        uint8 targetDecimals;
+        bool isRegistered;
+    }
+
     struct LnProviderFee {
         uint112 baseFee;
         uint8 liquidityFeeRate;
@@ -37,11 +53,6 @@ contract LnPositiveBridgeSource is LnBridgeHelper {
         uint64 withdrawNonce;
     }
 
-    struct TokenInfo {
-        uint112 protocolFee;
-        uint112 penalty;
-    }
-    
     struct LockInfo {
         uint112 fee;
         uint112 penalty;
@@ -74,8 +85,22 @@ contract LnPositiveBridgeSource is LnBridgeHelper {
         protocolFeeReceiver = _feeReceiver;
     }
 
-    function _setTokenInfo(address _sourceToken, uint112 _protocolFee, uint112 _penalty) internal {
-        tokenInfos[_sourceToken] = TokenInfo(_protocolFee, _penalty);
+    function _setTokenInfo(
+        address _sourceToken,
+        address _targetToken,
+        uint112 _protocolFee,
+        uint112 _penaltyLnCollateral,
+        uint8 _sourceDecimals,
+        uint8 _targetDecimals
+    ) internal {
+        tokenInfos[_sourceToken] = TokenInfo(
+            _targetToken,
+            _protocolFee,
+            _penaltyLnCollateral,
+            _sourceDecimals,
+            _targetDecimals,
+            true
+        );
     }
 
     // lnProvider can set provider fee on source chain
@@ -126,23 +151,27 @@ contract LnPositiveBridgeSource is LnBridgeHelper {
         uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
 
         TokenInfo memory tokenInfo = tokenInfos[snapshot.sourceToken];
+        require(tokenInfo.isRegistered, "token not registered");
         
         // the chain state not match snapshot
         require(providerInfo.lastTransferId == snapshot.transferId, "snapshot expired:transfer");
         require(snapshot.withdrawNonce == providerInfo.withdrawNonce, "snapshot expired:withdraw");
         require(snapshot.totalFee >= providerFee + tokenInfo.protocolFee && providerFee > 0, "fee is invalid");
         
+        uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
+        require(targetAmount < MAX_TRANSFER_AMOUNT, "lnBridgeSource:overflow amount");
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
             snapshot.provider,
             snapshot.sourceToken,
-            amount,
+            tokenInfo.targetToken,
+            receiver,
             uint64(block.timestamp),
-            receiver));
-        require(lockInfos[transferId].isLocked, "lnBridgeSource:transferId exist");
+            uint112(targetAmount)));
+        require(!lockInfos[transferId].isLocked, "lnBridgeSource:transferId exist");
         // if the transfer refund, then the fee and penalty should be given to slasher, but the protocol fee is ignored
         // and we use the penalty value configure at the moment transfer confirmed
-        lockInfos[transferId] = LockInfo(snapshot.totalFee, tokenInfo.penalty, true);
+        lockInfos[transferId] = LockInfo(snapshot.totalFee, tokenInfo.penaltyLnCollateral, true);
 
         // update the state to prevent other transfers using the same snapshot
         lnProviders[providerKey].lastTransferId = transferId;
@@ -188,9 +217,10 @@ contract LnPositiveBridgeSource is LnBridgeHelper {
            params.lastTransferId,
            params.provider,
            params.sourceToken,
-           params.amount,
+           params.targetToken,
+           params.receiver,
            params.timestamp,
-           params.receiver));
+           params.amount));
         require(expectedTransferId == transferId, "expected transfer id not match");
         LockInfo memory lockInfo = lockInfos[transferId];
         require(lockInfo.isLocked && params.timestamp > 0, "lock info not match");

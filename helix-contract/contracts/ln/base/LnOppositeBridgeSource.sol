@@ -12,19 +12,7 @@ import "./LnBridgeHelper.sol";
 contract LnOppositeBridgeSource is LnBridgeHelper {
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
-    // the Liquidity Node provider info
-    // Liquidity Node need register first
-    struct LnProviderConfigure {
-        uint112 margin;
-        uint112 baseFee;
-        // liquidityFeeRate / 100,000 * amount = liquidityFee
-        // the max liquidity fee rate is 0.255%
-        uint8 liquidityFeeRate;
-    }
-    struct LnProviderInfo {
-        LnProviderConfigure config;
-        bytes32 lastTransferId;
-    }
+
     // the registered token info
     // sourceToken and targetToken is the pair of erc20 token addresses
     // if sourceToken == address(0), then it's native token
@@ -39,6 +27,20 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint8 targetDecimals;
         bool isRegistered;
     }
+    // the Liquidity Node provider info
+    // Liquidity Node need register first
+    struct LnProviderConfigure {
+        uint112 margin;
+        uint112 baseFee;
+        // liquidityFeeRate / 100,000 * amount = liquidityFee
+        // the max liquidity fee rate is 0.255%
+        uint8 liquidityFeeRate;
+    }
+    struct LnProviderInfo {
+        LnProviderConfigure config;
+        bytes32 lastTransferId;
+    }
+    
     // the Snapshot is the state of the token bridge when user prepare to transfer across chains.
     // If the snapshot updated when the across chain transfer confirmed, it will
     // 1. if lastTransferId updated, revert

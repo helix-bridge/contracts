@@ -94,6 +94,7 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
         bytes32 expectedTransferId
     ) payable external {
         // normal relay message, fill slasher as zero
+        require(params.provider == msg.sender, "invalid provider");
         _fillTransfer(params, expectedTransferId);
 
         emit TransferFilled(expectedTransferId, address(0));

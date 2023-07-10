@@ -24,8 +24,22 @@ contract Eth2ArbSource is Initializable, LnAccessController, LnPositiveBridgeSou
         _setFeeReceiver(_receiver);
     }
 
-    function setTokenInfo(address _sourceToken, uint112 _protocolFee, uint112 _penalty) external onlyDao {
-        _setTokenInfo(_sourceToken, _protocolFee, _penalty);
+    function setTokenInfo(
+        address _sourceToken,
+        address _targetToken,
+        uint112 _protocolFee,
+        uint112 _penaltyLnCollateral,
+        uint8 _sourceDecimals,
+        uint8 _targetDecimals
+    ) external onlyDao {
+        _setTokenInfo(
+            _sourceToken,
+            _targetToken,
+            _protocolFee,
+            _penaltyLnCollateral,
+            _sourceDecimals,
+            _targetDecimals
+        );
     }
 
     function setRemoteBridge(address _remoteBridge) external onlyDao {

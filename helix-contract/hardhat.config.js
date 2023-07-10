@@ -79,6 +79,10 @@ module.exports = {
               privateKey: "30abcdef10abcdef10abcdef10abcdef10abcdef10abcdef10abcdef10abcdef",
               balance: "100000000000000000000000",
           },
+          {
+              privateKey: "40abcdef10abcdef10abcdef10abcdef10abcdef10abcdef10abcdef10abcdef",
+              balance: "100000000000000000000000",
+          },
       ]
     },
     dev: {

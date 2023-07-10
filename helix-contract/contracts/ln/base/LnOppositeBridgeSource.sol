@@ -54,26 +54,19 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint112 totalFee;
     }
     // registered token info
-    //TokenInfo[] public tokens;
     // sourceToken => token info
     mapping(address=>TokenInfo) public tokenInfos;
     // registered lnProviders
-    // tokenIndex|32bit, providerIndex| 32bit
-    uint32 public lnProviderSize;
     mapping(bytes32=>LnProviderInfo) public lnProviders;
-    // Use this store to limit the number of registered providers per address 
-    mapping(uint256=>uint64) public lnProviderIndexes;
     // each time cross chain transfer, amount and fee can't be larger than type(uint112).max
     struct LockInfo {
-        // uint64 providerKey; // tokenIndex << 32 + providerIndex
         // amount + providerFee + penaltyLnCollateral
         // the Indexer should be care about this value, it will frozen lnProvider's margin when the transfer not finished.
         // and when the slasher refund success, this amount of token will be transfer from lnProvider's margin to slasher.
         uint112 amountWithFeeAndPenalty;
         bool hasSlashed;
     }
-    // key: transferId = hash(providerKey, proviousTransferId, nonce, timestamp, targetToken, receiver, targetAmount)
-    // * `providerKey` is the unique identification of the token and lnProvider
+    // key: transferId = hash(proviousTransferId, nonce, timestamp, targetToken, receiver, targetAmount)
     // * `proviousTransferId` is used to ensure the continuous of the transfer
     // * `nonce` is a consecutive number for generate unique transferId
     // * `timestamp` is the block.timestmap to judge timeout on target chain(here we support source and target chain has the same world clock)

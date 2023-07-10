@@ -19,7 +19,6 @@ function getTransferId(
     sourceToken,
     targetToken,
     receiver,
-    lastBlockHash,
     timestamp,
     amount
 ) {
@@ -29,7 +28,6 @@ function getTransferId(
         "address",
         "address",
         "address",
-        "bytes32",
         "uint64",
         "uint112",
     ], [
@@ -38,7 +36,6 @@ function getTransferId(
         sourceToken,
         targetToken,
         receiver,
-        lastBlockHash,
         timestamp,
         amount
     ]);
@@ -138,7 +135,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const expectedFee = Math.floor(transferAmount01 * 100 / 100000 + 20 + helixFee);
       // 3.1.1 lock
       await arbToken.connect(other).approve(lnBridgeOnL2.address, 1000000000);
-      const lastBlockHash = (await ethers.provider.getBlock("latest")).hash;
       const lockTransaction = await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
             relayer.address,
@@ -160,7 +156,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           arbToken.address, // sourceToken
           ethToken.address, // targetToken
           other.address, // receiver
-          lastBlockHash, // lastBlockHash
           blockTimestamp,
           transferAmount01, // amount
       );
@@ -172,7 +167,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash,
           transferAmount01,
           blockTimestamp,
           other.address
@@ -227,7 +221,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
         transferAmount01, // amount
         other.address // receiver
       )).to.be.revertedWith("snapshot expired");
-      const lastBlockHash02 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -246,7 +239,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           arbToken.address, // sourceToken
           ethToken.address, // targetToken
           other.address, // receiver
-          lastBlockHash02, // lastBlockHash
           blockTimestamp02,
           transferAmount01, // amount
       );
@@ -257,7 +249,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash02,
           transferAmount01,
           blockTimestamp02,
           other.address
@@ -282,7 +273,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash,
           transferAmount01,
           blockTimestamp,
           other.address
@@ -304,7 +294,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash02,
           transferAmount01,
           blockTimestamp02,
           other.address
@@ -342,7 +331,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
       // check refund continous
       // 3 refund, 4 relayed, 5 refund
       // locks
-      const lastBlockHash03 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -361,11 +349,9 @@ describe("arb<>eth lnv2 bridge tests", () => {
           arbToken.address, // sourceToken
           ethToken.address, // targetToken
           other.address, // receiver
-          lastBlockHash03, // lastBlockHash
           blockTimestamp03,
           transferAmount01, // amount
       );
-      const lastBlockHash04 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -384,11 +370,9 @@ describe("arb<>eth lnv2 bridge tests", () => {
           arbToken.address, // sourceToken
           ethToken.address, // targetToken
           other.address, // receiver
-          lastBlockHash04, // lastBlockHash
           blockTimestamp04,
           transferAmount01, // amount
       );
-      const lastBlockHash05 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -407,7 +391,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           arbToken.address, // sourceToken
           ethToken.address, // targetToken
           other.address, // receiver
-          lastBlockHash05, // lastBlockHash
           blockTimestamp05,
           transferAmount01, // amount
       );
@@ -425,7 +408,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash03,
           transferAmount01,
           blockTimestamp03,
           other.address
@@ -443,7 +425,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash04,
           transferAmount01,
           blockTimestamp04,
           other.address
@@ -457,7 +438,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash05,
           transferAmount01,
           blockTimestamp05,
           other.address
@@ -484,7 +464,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash05,
           transferAmount01,
           blockTimestamp05,
           other.address
@@ -501,7 +480,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           arbToken.address,
           ethToken.address, // token
-          lastBlockHash05,
           transferAmount01,
           blockTimestamp05,
           other.address
@@ -579,7 +557,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const transferAmount01 = 300;
       const expectedFee = Math.floor(transferAmount01 * 100 / 100000 + 20 + helixFee);
       // 3.1.1 lock
-      const lastBlockHash = (await ethers.provider.getBlock("latest")).hash;
       const lockTransaction = await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -609,7 +586,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           zeroAddress, // sourceToken
           zeroAddress, // targetToken
           other.address, // receiver
-          lastBlockHash, // lastBlockHash
           blockTimestamp,
           transferAmount01, // amount
       );
@@ -619,7 +595,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           zeroAddress,
           zeroAddress, // token
-          lastBlockHash,
           transferAmount01,
           blockTimestamp,
           other.address
@@ -672,7 +647,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
         other.address, // receiver
         { value: transferAmount01 + expectedFee }
       )).to.be.revertedWith("snapshot expired");
-      const lastBlockHash02 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -692,7 +666,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           zeroAddress, // sourceToken
           zeroAddress, // targetToken
           other.address, // receiver
-          lastBlockHash02, // lastBlockHash
           blockTimestamp02,
           transferAmount01, // amount
       );
@@ -705,7 +678,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           zeroAddress,
           zeroAddress, // token
-          lastBlockHash,
           transferAmount01,
           blockTimestamp,
           other.address
@@ -722,7 +694,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           nativeTokenAddress,
           nativeTokenAddress, // token
-          lastBlockHash02,
           transferAmount01,
           blockTimestamp02,
           other.address
@@ -750,7 +721,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           nativeTokenAddress,
           nativeTokenAddress, // token
-          lastBlockHash02,
           transferAmount01,
           blockTimestamp02,
           other.address
@@ -783,7 +753,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
       // check refund continous
       // 3 refund, 4 relayed, 5 refund
       // locks
-      const lastBlockHash03 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -803,11 +772,9 @@ describe("arb<>eth lnv2 bridge tests", () => {
           nativeTokenAddress, // sourceToken
           nativeTokenAddress, // targetToken
           other.address, // receiver
-          lastBlockHash03, // lastBlockHash
           blockTimestamp03,
           transferAmount01, // amount
       );
-      const lastBlockHash04 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -827,11 +794,9 @@ describe("arb<>eth lnv2 bridge tests", () => {
           nativeTokenAddress, // sourceToken
           nativeTokenAddress, // targetToken
           other.address, // receiver
-          lastBlockHash04, // lastBlockHash
           blockTimestamp04,
           transferAmount01, // amount
       );
-      const lastBlockHash05 = (await ethers.provider.getBlock("latest")).hash;
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
           relayer.address,
@@ -851,7 +816,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           nativeTokenAddress, // sourceToken
           nativeTokenAddress, // targetToken
           other.address, // receiver
-          lastBlockHash05, // lastBlockHash
           blockTimestamp05,
           transferAmount01, // amount
       );
@@ -867,7 +831,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           nativeTokenAddress,
           nativeTokenAddress, // token
-          lastBlockHash03,
           transferAmount01,
           blockTimestamp03,
           other.address
@@ -885,7 +848,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           nativeTokenAddress,
           nativeTokenAddress, // token
-          lastBlockHash04,
           transferAmount01,
           blockTimestamp04,
           other.address
@@ -901,7 +863,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           nativeTokenAddress,
           nativeTokenAddress, // token
-          lastBlockHash05,
           transferAmount01,
           blockTimestamp05,
           other.address
@@ -927,7 +888,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           nativeTokenAddress,
           nativeTokenAddress, // token
-          lastBlockHash05,
           transferAmount01,
           blockTimestamp05,
           other.address
@@ -945,7 +905,6 @@ describe("arb<>eth lnv2 bridge tests", () => {
           relayer.address, // provider
           nativeTokenAddress,
           nativeTokenAddress, // token
-          lastBlockHash05,
           transferAmount01,
           blockTimestamp05,
           other.address

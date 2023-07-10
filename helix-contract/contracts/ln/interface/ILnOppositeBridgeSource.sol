@@ -8,7 +8,6 @@ interface ILnOppositeBridgeSource {
         address provider;
         address sourceToken;
         address targetToken;
-        bytes32 lastBlockHash;
         uint112 amount;
         uint64 timestamp;
         address receiver;

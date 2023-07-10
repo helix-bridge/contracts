@@ -72,10 +72,9 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint112 amountWithFeeAndPenalty;
         bool hasSlashed;
     }
-    // key: transferId = hash(providerKey, proviousTransferId, lastBlockhash, nonce, timestamp, targetToken, receiver, targetAmount)
+    // key: transferId = hash(providerKey, proviousTransferId, nonce, timestamp, targetToken, receiver, targetAmount)
     // * `providerKey` is the unique identification of the token and lnProvider
     // * `proviousTransferId` is used to ensure the continuous of the transfer
-    // * `lastBlockhash` is used as a random value to prevent predict of the future transferId
     // * `nonce` is a consecutive number for generate unique transferId
     // * `timestamp` is the block.timestmap to judge timeout on target chain(here we support source and target chain has the same world clock)
     // * `targetToken`, `receiver` and `targetAmount` are used on target chain to transfer target token.
@@ -86,7 +85,6 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         bytes32 transferId,
         address provider,
         address sourceToken,
-        bytes32 lastBlockHash,
         uint112 amount,
         uint112 fee,
         address receiver);
@@ -108,11 +106,6 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
     function _updatePenaltyLnCollateral(address _token, uint112 _penaltyLnCollateral) internal {
         require(tokenInfos[_token].isRegistered, "token not registered");
         tokenInfos[_token].penaltyLnCollateral = _penaltyLnCollateral;
-    }
-
-
-    function _lastBlockHash() internal view returns(bytes32) {
-        return blockhash(block.number - 1);
     }
 
     // lnProvider can register or update its configure by using this function
@@ -208,14 +201,12 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         
         uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
         require(targetAmount < MAX_TRANSFER_AMOUNT, "LnOppositeBridgeSource:overflow amount");
-        bytes32 lastBlockHash = _lastBlockHash();
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
             snapshot.provider,
             snapshot.sourceToken,
             tokenInfo.targetToken,
             receiver,
-            lastBlockHash,
             uint64(block.timestamp),
             uint112(targetAmount)));
         require(lockInfos[transferId].amountWithFeeAndPenalty == 0, "LnOppositeBridgeSource:transferId exist");
@@ -254,7 +245,6 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             transferId,
             snapshot.provider,
             snapshot.sourceToken,
-            lastBlockHash,
             amount,
             uint112(providerFee),
             receiver);

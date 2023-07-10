@@ -71,7 +71,6 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
             params.sourceToken,
             params.targetToken,
             params.receiver,
-            params.lastBlockHash,
             params.timestamp,
             params.amount));
         require(expectedTransferId == transferId, "check expected transferId failed");

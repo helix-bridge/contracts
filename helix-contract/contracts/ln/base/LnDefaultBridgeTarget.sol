@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "../interface/ILnPositiveBridgeTarget.sol";
 import "./LnBridgeHelper.sol";
 
-contract LnPositiveBridgeTarget is LnBridgeHelper {
+contract LnDefaultBridgeTarget is LnBridgeHelper {
     uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
 
     struct ProviderInfo {
@@ -44,13 +43,13 @@ contract LnPositiveBridgeTarget is LnBridgeHelper {
     }
 
     function transferAndReleaseMargin(
-        ILnPositiveBridgeTarget.TransferParameter memory params,
+        TransferParameter memory params,
         bytes32 expectedTransferId
     ) external payable {
         require(params.provider == msg.sender, "invalid provider");
-        require(params.lastTransferId == bytes32(0) || fillTransfers[params.lastTransferId].timestamp > 0, "last transfer not filled");
+        require(params.previousTransferId == bytes32(0) || fillTransfers[params.previousTransferId].timestamp > 0, "last transfer not filled");
         bytes32 transferId = keccak256(abi.encodePacked(
-           params.lastTransferId,
+           params.previousTransferId,
            params.provider,
            params.sourceToken,
            params.targetToken,
@@ -99,15 +98,15 @@ contract LnPositiveBridgeTarget is LnBridgeHelper {
     }
 
     function _slash(
-        ILnPositiveBridgeTarget.TransferParameter memory params,
+        TransferParameter memory params,
         address slasher,
         uint112 fee,
         uint112 penalty
     ) internal {
-        require(params.lastTransferId == bytes32(0) || fillTransfers[params.lastTransferId].timestamp > 0, "last transfer not filled");
+        require(params.previousTransferId == bytes32(0) || fillTransfers[params.previousTransferId].timestamp > 0, "last transfer not filled");
 
         bytes32 transferId = keccak256(abi.encodePacked(
-            params.lastTransferId,
+            params.previousTransferId,
             params.provider,
             params.sourceToken,
             params.targetToken,

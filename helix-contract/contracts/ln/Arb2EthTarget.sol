@@ -79,7 +79,7 @@ contract Arb2EthTarget is Initializable, LnAccessController, LnOppositeBridgeTar
     }
 
     function slashAndRemoteRefund(
-        ILnOppositeBridgeSource.TransferParameter calldata params,
+        TransferParameter calldata params,
         bytes32 expectedTransferId,
         uint256 maxSubmissionCost,
         uint256 maxGas,

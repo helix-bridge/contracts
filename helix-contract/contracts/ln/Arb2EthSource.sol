@@ -13,7 +13,7 @@ contract Arb2EthSource is Initializable, LnAccessController, LnOppositeBridgeSou
     receive() external payable {}
 
     modifier onlyRemoteBridge() {
-        require(msg.sender == remoteBridgeAlias, "Arb2EthSource:invalid remote caller");
+        require(msg.sender == remoteBridgeAlias, "invalid remote caller");
         _;
     }
 

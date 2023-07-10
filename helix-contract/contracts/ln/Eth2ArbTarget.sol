@@ -4,9 +4,9 @@ pragma solidity ^0.8.10;
 import "@arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol";
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
-import "./base/LnPositiveBridgeTarget.sol";
+import "./base/LnDefaultBridgeTarget.sol";
 
-contract Eth2ArbTarget is Initializable, LnAccessController, LnPositiveBridgeTarget {
+contract Eth2ArbTarget is Initializable, LnAccessController, LnDefaultBridgeTarget {
     address public remoteBridge;
     address public remoteBridgeAlias;
 
@@ -31,7 +31,7 @@ contract Eth2ArbTarget is Initializable, LnAccessController, LnPositiveBridgeTar
     }
 
     function slash(
-        ILnPositiveBridgeTarget.TransferParameter memory params,
+        TransferParameter memory params,
         address slasher,
         uint112 fee,
         uint112 penalty

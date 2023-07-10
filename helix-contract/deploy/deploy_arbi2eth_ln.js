@@ -294,11 +294,11 @@ async function main() {
     const arbitrumWallet = wallets[0];
     const ethereumWallet = wallets[1];
 
-    /*
+    
     const deployed = await deploy(arbitrumWallet, ethereumWallet);
     console.log(deployed);
     return;
-    */
+    
     
     
     const arbitrumLnBridgeAddress = "0x04C82202985b5c9c582Daa97C2199EB1f129d8e4";
@@ -401,9 +401,9 @@ main()
   });
     
 /*
-arbitrumLnBridgeAddressLogic =   0x4f8cA11463eBa14af6c821B8539e1Ab3c66F5552
-arbitrumLnBridgeAddressProxy =  0x04C82202985b5c9c582Daa97C2199EB1f129d8e4
-ethereumLnBridgeAddressLogic =   0x2f8EC2E769A6D393c60e05aAD3adf4a93C51aaF4
-ethereumLnBridgeAddressProxy =  0xdA2cDf09D82278C2b2ed0DEAc3bdad12c169405c
+arbitrumLnBridgeAddressLogic =  0x48A331c274D3c7dC86Da7DCf672D7f32ECc57eFA
+arbitrumLnBridgeAddressProxy = 0x7C41bCAEE051524f3b873F360baE6a06E4870799
+ethereumLnBridgeAddressLogic =  0x1df65457d6F09fcd1F96FC7BEa4960b25D842b99
+ethereumLnBridgeAddressProxy = 0xB83fb8CF1F509Ddd3214c001017D15cb462fA929
 */
 

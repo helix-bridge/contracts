@@ -3,14 +3,14 @@ pragma solidity ^0.8.10;
 
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "./LnBridgeHelper.sol";
-import "../interface/ILnPositiveBridgeTarget.sol";
+import "../interface/ILnDefaultBridgeTarget.sol";
 
 /// @title LnPositiveBridgeSource
 /// @notice LnPositiveBridgeSource is a contract to help user transfer token to liquidity node and generate proof,
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
 ///         Otherwise if timeout the slasher can paid for relayer and slash the transfer, then request refund from lnProvider's margin.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnPositiveBridgeSource is LnBridgeHelper {
+contract LnDefaultBridgeSource is LnBridgeHelper {
     uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
@@ -208,13 +208,13 @@ contract LnPositiveBridgeSource is LnBridgeHelper {
     }
 
     function _slashAndRemoteRelease(
-        ILnPositiveBridgeTarget.TransferParameter memory params,
+        TransferParameter memory params,
         bytes32 expectedTransferId
     ) internal view returns(bytes memory message) {
         require(block.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP, "invalid timestamp");
 
         bytes32 transferId = keccak256(abi.encodePacked(
-           params.lastTransferId,
+           params.previousTransferId,
            params.provider,
            params.sourceToken,
            params.targetToken,
@@ -250,13 +250,13 @@ contract LnPositiveBridgeSource is LnBridgeHelper {
     }
 
     function _encodeSlashCall(
-        ILnPositiveBridgeTarget.TransferParameter memory params,
+        TransferParameter memory params,
         address slasher,
         uint112 fee,
         uint112 penalty
     ) internal pure returns(bytes memory message) {
         return abi.encodeWithSelector(
-           ILnPositiveBridgeTarget.slash.selector,
+           ILnDefaultBridgeTarget.slash.selector,
            params,
            slasher,
            fee,
@@ -272,7 +272,7 @@ contract LnPositiveBridgeSource is LnBridgeHelper {
         uint112 amount
     ) internal pure returns(bytes memory message) {
         return abi.encodeWithSelector(
-            ILnPositiveBridgeTarget.withdraw.selector,
+            ILnDefaultBridgeTarget.withdraw.selector,
             lastTransferId,
             withdrawNonce,
             provider,

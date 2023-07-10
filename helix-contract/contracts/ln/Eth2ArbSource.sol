@@ -4,9 +4,9 @@ pragma solidity ^0.8.10;
 import "@arbitrum/nitro-contracts/src/bridge/IInbox.sol";
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnAccessController.sol";
-import "./base/LnPositiveBridgeSource.sol";
+import "./base/LnDefaultBridgeSource.sol";
 
-contract Eth2ArbSource is Initializable, LnAccessController, LnPositiveBridgeSource {
+contract Eth2ArbSource is Initializable, LnAccessController, LnDefaultBridgeSource {
     IInbox public inbox;
     address public remoteBridge;
 
@@ -48,7 +48,7 @@ contract Eth2ArbSource is Initializable, LnAccessController, LnPositiveBridgeSou
 
     function submissionSlashFee(
         uint256 baseFee,
-        ILnPositiveBridgeTarget.TransferParameter memory params,
+        TransferParameter memory params,
         address slasher,
         uint112 fee,
         uint112 penalty,
@@ -105,7 +105,7 @@ contract Eth2ArbSource is Initializable, LnAccessController, LnPositiveBridgeSou
 
     // this function can retry
     function slashAndRemoteRelease(
-        ILnPositiveBridgeTarget.TransferParameter calldata params,
+        TransferParameter calldata params,
         bytes32 expectedTransferId,
         uint256 maxSubmissionCost,
         uint256 maxGas,

@@ -1,20 +1,11 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity >=0.8.10;
+import "../base/LnBridgeHelper.sol";
 
-interface ILnPositiveBridgeTarget {
-    struct TransferParameter {
-        bytes32 lastTransferId;
-        address provider;
-        address sourceToken;
-        address targetToken;
-        uint112 amount;
-        uint64 timestamp;
-        address receiver;
-    }
-
+interface ILnDefaultBridgeTarget {
     function slash(
-        TransferParameter memory params,
+        LnBridgeHelper.TransferParameter memory params,
         address slasher,
         uint112 fee,
         uint112 penalty

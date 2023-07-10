@@ -7,7 +7,7 @@ import "./LnBridgeHelper.sol";
 /// @title LnBridgeSource
 /// @notice LnBridgeSource is a contract to help user transfer token to liquidity node and generate proof,
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
-///         Otherwise if timeout the slasher can paid for relayer and slash the transfer, then request refund from lnProvider's margin.
+///         Otherwise if timeout the slasher can paid for relayer and slash the transfer, then request slash from lnProvider's margin.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
 contract LnOppositeBridgeSource is LnBridgeHelper {
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
@@ -18,7 +18,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
     // if sourceToken == address(0), then it's native token
     // if targetToken == address(0), then remote is native token
     // * `protocolFee` is the protocol fee charged by system
-    // * `penaltyLnCollateral` is penalty from lnProvider when the transfer refund, if we adjust this value, it'll not affect the old transfers.
+    // * `penaltyLnCollateral` is penalty from lnProvider when the transfer slashed, if we adjust this value, it'll not affect the old transfers.
     struct TokenInfo {
         address targetToken;
         uint112 protocolFee;
@@ -62,13 +62,12 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
     struct LockInfo {
         // amount + providerFee + penaltyLnCollateral
         // the Indexer should be care about this value, it will frozen lnProvider's margin when the transfer not finished.
-        // and when the slasher refund success, this amount of token will be transfer from lnProvider's margin to slasher.
+        // and when the slasher slash success, this amount of token will be transfer from lnProvider's margin to slasher.
         uint112 amountWithFeeAndPenalty;
         bool hasSlashed;
     }
-    // key: transferId = hash(proviousTransferId, nonce, timestamp, targetToken, receiver, targetAmount)
+    // key: transferId = hash(proviousTransferId, timestamp, targetToken, receiver, targetAmount)
     // * `proviousTransferId` is used to ensure the continuous of the transfer
-    // * `nonce` is a consecutive number for generate unique transferId
     // * `timestamp` is the block.timestmap to judge timeout on target chain(here we support source and target chain has the same world clock)
     // * `targetToken`, `receiver` and `targetAmount` are used on target chain to transfer target token.
     mapping(bytes32 => LockInfo) public lockInfos;
@@ -87,7 +86,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
     event LnProviderUpdated(address provider, address token, uint112 margin, uint112 baseFee, uint8 liquidityfeeRate);
 
     function _setFeeReceiver(address _feeReceiver) internal {
-        require(_feeReceiver != address(this), "LnOppositeBridgeSource:invalid system fee receiver");
+        require(_feeReceiver != address(this), "invalid system fee receiver");
         feeReceiver = _feeReceiver;
     }
 
@@ -175,7 +174,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint112 amount,
         address receiver
     ) external payable {
-        require(amount > 0, "LnOppositeBridgeSource:invalid amount");
+        require(amount > 0, "invalid amount");
 
         bytes32 providerKey = getProviderKey(snapshot.provider, snapshot.sourceToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
@@ -193,7 +192,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         require(snapshot.depositedMargin <= providerInfo.config.margin, "margin updated");
         
         uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
-        require(targetAmount < MAX_TRANSFER_AMOUNT, "LnOppositeBridgeSource:overflow amount");
+        require(targetAmount < MAX_TRANSFER_AMOUNT, "overflow amount");
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
             snapshot.provider,
@@ -202,14 +201,14 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             receiver,
             uint64(block.timestamp),
             uint112(targetAmount)));
-        require(lockInfos[transferId].amountWithFeeAndPenalty == 0, "LnOppositeBridgeSource:transferId exist");
+        require(lockInfos[transferId].amountWithFeeAndPenalty == 0, "transferId exist");
         lockInfos[transferId] = LockInfo(amount + tokenInfo.penaltyLnCollateral + uint112(providerFee), false);
 
         // update the state to prevent other transfers using the same snapshot
         lnProviders[providerKey].lastTransferId = transferId;
 
         if (snapshot.sourceToken == address(0)) {
-            require(amount + snapshot.totalFee == msg.value, "LnOppositeBridgeSource:amount unmatched");
+            require(amount + snapshot.totalFee == msg.value, "amount unmatched");
             payable(snapshot.provider).transfer(amount + providerFee);
             if (tokenInfo.protocolFee > 0) {
                 payable(feeReceiver).transfer(tokenInfo.protocolFee);
@@ -243,10 +242,10 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             receiver);
     }
 
-    // this refund is called by remote message
+    // this slash is called by remote message
     // the token should be sent to the slasher who slash and finish the transfer on target chain.
-    // latestSlashTransferId is the latest slashed transfer trusted from the target chain, and the current refund transfer cannot be executed before the latestSlash transfer.
-    // after refund, the margin of lnProvider need to be updated
+    // latestSlashTransferId is the latest slashed transfer trusted from the target chain, and the current slash transfer cannot be executed before the latestSlash transfer.
+    // after slash, the margin of lnProvider need to be updated
     function _slash(
         bytes32 latestSlashTransferId,
         bytes32 transferId,
@@ -260,7 +259,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         require(lastLockInfo.hasSlashed || latestSlashTransferId == INIT_SLASH_TRANSFER_ID, "latest slash transfer invalid");
         LockInfo memory lockInfo = lockInfos[transferId];
 
-        // ensure transfer exist and not refund yet
+        // ensure transfer exist and not slashed yet
         require(!lockInfo.hasSlashed, "transfer has been slashed");
         require(lockInfo.amountWithFeeAndPenalty > 0, "lnBridgeSource:invalid transferId");
 
@@ -283,7 +282,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         emit Slash(transferId, provider, updatedMargin, slasher);
     }
 
-    // lastTransfer is the latest refund transfer, all transfer must be relayed or refunded
+    // lastTransfer is the latest slash transfer, all transfer must be relayed or slashed
     // if user use the snapshot before this transaction to send cross-chain transfer, it should be reverted because this `_withdrawMargin` will decrease margin.
     function _withdrawMargin(
         bytes32 latestSlashTransferId,

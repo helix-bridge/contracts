@@ -206,7 +206,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
       const slashInfo01 = await lnBridgeOnL1.slashInfos(transferId01);
       expect(slashInfo01.slasher).to.equal(zeroAddress);
 
-      // refund 02
+      // slash 02
       // lock
       // must be continuous
       console.log("check continuous");
@@ -242,7 +242,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           blockTimestamp02,
           transferAmount01, // amount
       );
-      // cannot refund before expired
+      // cannot slash before expired
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
         [
           transferId01, // lastTransferId
@@ -257,16 +257,16 @@ describe("arb<>eth lnv2 bridge tests", () => {
         0,
         0,
         200
-      )).to.be.revertedWith("refund time not expired");
+      )).to.be.revertedWith("slash time not expired");
       console.log("check expired slash finished");
       await hre.network.provider.request({
           method: "evm_increaseTime",
           //params: [await lnBridgeOnL1.MIN_REFUND_TIMESTAMP() + 1],
           params: [18001],
       });
-      // refund
-      // start refund
-      // 1. relayed transfer cannot refund, try to refund transfer01 failed
+      // slash
+      // start slash
+      // 1. relayed transfer cannot slash, try to slash transfer01 failed
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
         [
           initTransferId, // lastTransferId
@@ -281,7 +281,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         0,
         0,
         0
-      )).to.be.revertedWith("LnOppositeBridgeTarget:message exist");
+      )).to.be.revertedWith("fill exist");
       console.log("check exist message slash finished");
 
       // mock sender address
@@ -328,8 +328,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
       margin -= (transferAmount01 + relayerFee02 + penaltyLnCollateral);
       console.log("check normal slash finished");
 
-      // check refund continous
-      // 3 refund, 4 relayed, 5 refund
+      // check slash continous
+      // 3 slash, 4 relayed, 5 slash
       // locks
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
@@ -394,7 +394,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           blockTimestamp05,
           transferAmount01, // amount
       );
-      // refund 3
+      // slash 3
       await hre.network.provider.request({
           method: "evm_increaseTime",
           //params: [await lnBridgeOnL1.MIN_REFUND_TIMESTAMP() + 1],
@@ -431,7 +431,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         ],
         transferId04
       );
-      // refund 5 must after 3
+      // slash 5 must after 3
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
         [
           transferId04, // lastTransferId
@@ -457,7 +457,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           200
       );
 
-      // then refund 5
+      // then slash 5
       await lnBridgeOnL1.slashAndRemoteRefund(
         [
           transferId04, // lastTransferId
@@ -473,7 +473,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         0,
         200
       );
-      // cannot relay the refunded
+      // cannot relay the slashed 
       await expect(lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
         [
           transferId04, // lastTransferId
@@ -485,7 +485,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           other.address
         ],
         transferId05
-      )).to.revertedWith("LnOppositeBridgeTarget:message exist");
+      )).to.revertedWith("fill exist");
 
       console.log("ln bridge test finished");
   });
@@ -632,7 +632,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
       expect(slashInfo.slasher).to.equal(zeroAddress);
 
       console.log("start to check continuous");
-      // refund 02
+      // slash 02
       // lock
       // must be continuous
       await expect(lnBridgeOnL2.connect(other).transferAndLockMargin(
@@ -669,9 +669,9 @@ describe("arb<>eth lnv2 bridge tests", () => {
           blockTimestamp02,
           transferAmount01, // amount
       );
-      // refund
-      // start refund
-      // 1. relayed transfer cannot refund, try to refund transfer01 failed
+      // slash
+      // start slash
+      // 1. relayed transfer cannot slash, try to slash transfer01 failed
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
         [
           initTransferId, // lastTransferId
@@ -686,7 +686,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         0,
         0,
         200
-      )).to.be.revertedWith("LnOppositeBridgeTarget:message exist");
+      )).to.be.revertedWith("fill exist");
 
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
         [
@@ -702,7 +702,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         0,
         0,
         200
-      )).to.be.revertedWith("refund time not expired");
+      )).to.be.revertedWith("slash time not expired");
 
       // 3. wait for timeout
       await hre.network.provider.request({
@@ -750,8 +750,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
           liquidityFeeRate, // liquidity fee rate x/100,000
           { value: 0 }
       );
-      // check refund continous
-      // 3 refund, 4 relayed, 5 refund
+      // check slash continous
+      // 3 slash, 4 relayed, 5 slash
       // locks
       await lnBridgeOnL2.connect(other).transferAndLockMargin(
         [
@@ -824,7 +824,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           //params: [await lnBridgeOnL1.MIN_REFUND_TIMESTAMP() + 1],
           params: [18001],
       });
-      // refund 3 failed on remote
+      // slash 3 failed on remote
       await lnBridgeOnL1.slashAndRemoteRefund(
         [
           transferId02, // lastTransferId
@@ -855,8 +855,8 @@ describe("arb<>eth lnv2 bridge tests", () => {
         transferId04,
         { value: transferAmount01 }
       );
-      // refund 5
-      // refund 5 must after 3
+      // slash 5
+      // slash 5 must after 3
       await expect(lnBridgeOnL1.slashAndRemoteRefund(
         [
           transferId04, // lastTransferId
@@ -881,7 +881,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
           0,
           200
       );
-      // then refund 5
+      // then slash 5
       lnBridgeOnL1.slashAndRemoteRefund(
         [
           transferId04, // lastTransferId
@@ -898,7 +898,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         200,
         { value: transferAmount01 }
       )
-      // cannot relay the refunded
+      // cannot relay the slashed
       await expect(lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
         [
           transferId04, // lastTransferId
@@ -911,7 +911,7 @@ describe("arb<>eth lnv2 bridge tests", () => {
         ],
         transferId05,
         { value: transferAmount01 }
-      )).to.revertedWith("LnOppositeBridgeTarget:message exist");
+      )).to.revertedWith("fill exist");
 
       console.log("ln bridge test native finished");
   });

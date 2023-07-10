@@ -11,5 +11,18 @@
         "LnBridgeLogic": "0x463D1730a8527CA58d48EF70C7460B9920346567",
         "LnBridgeProxy": "0x89AF830781A2C1d3580Db930bea11094F55AfEae",
         "Ring": "0xFBAD806Bdf9cEC2943be281FB355Da05068DE925"
+    },
+    "arbitrum2ethereumLnV2-goerli": {
+        "LnBridgeProxyAdmin": "0x3F3eDBda6124462a09E071c5D90e072E0d5d4ed4",
+        "LnBridgeLogic": "0x2f8EC2E769A6D393c60e05aAD3adf4a93C51aaF4",
+        "LnBridgeProxy": "0xdA2cDf09D82278C2b2ed0DEAc3bdad12c169405c",
+        "Ring": "0x1836BAFa3016Dd5Ce543D0F7199cB858ec69F41E",
+        "Inbox": "0x6BEbC4925716945D46F0Ec336D5C2564F419682C"
+    },
+    "arbitrum2ethereumLnV2-arbitrum-goerli": {
+        "LnBridgeProxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",
+        "LnBridgeLogic": "0x4f8cA11463eBa14af6c821B8539e1Ab3c66F5552",
+        "LnBridgeProxy": "0x04C82202985b5c9c582Daa97C2199EB1f129d8e4",
+        "Ring": "0xFBAD806Bdf9cEC2943be281FB355Da05068DE925"
     }
 }

@@ -1,4 +1,4 @@
 path=flatten/lnv2
 mkdir -p $path
-yarn flat contracts/ln/LnArbitrumBridgeOnL1.sol --output $path/LnArbitrumBridgeOnL1.sol
-yarn flat contracts/ln/LnArbitrumBridgeOnL2.sol --output $path/LnArbitrumBridgeOnL2.sol
+yarn flat contracts/ln/Arb2EthTarget.sol --output $path/Arb2EthTarget.sol
+yarn flat contracts/ln/Arb2EthSource.sol --output $path/Arb2EthSource.sol

@@ -81,7 +81,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint112 fee,
         address receiver);
     event LiquidityWithdrawn(address provider, address token, uint112 amount);
-    event Slash(bytes32 transferId, address provider, uint112 margin, address slasher);
+    event Slash(bytes32 transferId, address provider, address token, uint112 margin, address slasher);
     // relayer
     event LnProviderUpdated(address provider, address token, uint112 margin, uint112 baseFee, uint8 liquidityfeeRate);
 
@@ -279,7 +279,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             _safeTransfer(sourceToken, slasher, slashAmount);
         }
 
-        emit Slash(transferId, provider, updatedMargin, slasher);
+        emit Slash(transferId, provider, sourceToken, updatedMargin, slasher);
     }
 
     // lastTransfer is the latest slash transfer, all transfer must be relayed or slashed

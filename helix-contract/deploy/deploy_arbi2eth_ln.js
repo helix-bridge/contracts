@@ -301,8 +301,8 @@ async function main() {
     
     
     
-    const arbitrumLnBridgeAddress = "0x04C82202985b5c9c582Daa97C2199EB1f129d8e4";
-    const ethereumLnBridgeAddress = "0xdA2cDf09D82278C2b2ed0DEAc3bdad12c169405c";
+    const arbitrumLnBridgeAddress = "0x7B8413FA1c1033844ac813A2E6475E15FB0fb3BA";
+    const ethereumLnBridgeAddress = "0x3B1A953bFa72Af4ae3494b08e453BFF30a06A550";
 
     // update margin and fee
     /*
@@ -401,9 +401,9 @@ main()
   });
     
 /*
-arbitrumLnBridgeAddressLogic =  0x48A331c274D3c7dC86Da7DCf672D7f32ECc57eFA
-arbitrumLnBridgeAddressProxy = 0x7C41bCAEE051524f3b873F360baE6a06E4870799
-ethereumLnBridgeAddressLogic =  0x1df65457d6F09fcd1F96FC7BEa4960b25D842b99
-ethereumLnBridgeAddressProxy = 0xB83fb8CF1F509Ddd3214c001017D15cb462fA929
+arbitrumLnBridgeAddressLogic =  0xBFA90e358a9B2218ceb900afD9ac78691C92ABa6
+arbitrumLnBridgeAddressProxy = 0x7B8413FA1c1033844ac813A2E6475E15FB0fb3BA
+ethereumLnBridgeAddressLogic =  0x0BA214a9Ab958C1A19D913f2Ac00119d27f196bB
+ethereumLnBridgeAddressProxy = 0x3B1A953bFa72Af4ae3494b08e453BFF30a06A550
 */
 

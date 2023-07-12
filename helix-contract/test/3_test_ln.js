@@ -915,4 +915,285 @@ describe("arb<>eth lnv2 bridge tests", () => {
 
       console.log("ln bridge test native finished");
   });
+
+  it("test_lnv2_different_decimals", async function () {
+      // deploy inboundLane
+      const inboxContract = await ethers.getContractFactory("MockArbitrumInbox");
+      const inbox = await inboxContract.deploy();
+      await inbox.deployed();
+      console.log("deploy mock inbox success");
+      //******* deploy inboundLane/outboundLane finished ********
+
+      const [owner, relayer, other] = await ethers.getSigners();
+      const dao = owner.address;
+      const feeReceiver = "0x1000000000000000000000000000000000000001";
+      const helixFee = ethers.utils.parseEther("100.0");
+      const initTokenBalance = ethers.utils.parseEther("10000000.0");
+      const penaltyLnCollateral = ethers.utils.parseEther("10000");
+      var margin = ethers.utils.parseEther("200000");
+      const baseFee = ethers.utils.parseEther("200");
+      const liquidityFeeRate = 100;
+      const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
+      const initSlashTransferId = "0x0000000000000000000000000000000000000000000000000000000000000001";
+      const zeroAddress = "0x0000000000000000000000000000000000000000";
+      //******* deploy lp bridge at ethereum *******
+      const lnBridgeContractOnL2 = await ethers.getContractFactory("Arb2EthSource");
+      const lnBridgeOnL2 = await lnBridgeContractOnL2.deploy();
+      await lnBridgeOnL2.deployed();
+      await lnBridgeOnL2.initialize(dao);
+      console.log("ln bridge on L2 address", lnBridgeOnL2.address);
+      await lnBridgeOnL2.updateFeeReceiver(feeReceiver);
+
+      const lnBridgeContractOnL1 = await ethers.getContractFactory("Arb2EthTarget");
+      const lnBridgeOnL1 = await lnBridgeContractOnL1.deploy();
+      await lnBridgeOnL1.deployed();
+      await lnBridgeOnL1.initialize(dao, inbox.address);
+      console.log("ln bridge on L1 address", lnBridgeOnL1.address);
+      // init owner
+      //******* deploy ln bridge at end ***************
+      //
+      await lnBridgeOnL2.setRemoteBridge(lnBridgeOnL1.address);
+      await lnBridgeOnL1.setRemoteBridge(lnBridgeOnL2.address);
+
+      const tokenNameOnEthereum = "Darwinia Ring On Ethereum";
+      const tokenSymbolOnEthereum = "RING.e";
+      const ethContract = await ethers.getContractFactory("Erc20");
+      const ethToken = await ethContract.deploy(tokenNameOnEthereum, tokenSymbolOnEthereum, 6);
+      await ethToken.deployed();
+
+      const tokenNameOnArbitrum = "Darwinia Ring On Arbitrum";
+      const tokenSymbolOnArbitrum = "RING.a";
+      const arbContract = await ethers.getContractFactory("Erc20");
+      const arbToken = await ethContract.deploy(tokenNameOnArbitrum, tokenSymbolOnArbitrum, 18);
+      await arbToken.deployed();
+      console.log("contract deploy finished");
+
+      // 1. register token
+      await lnBridgeOnL2.grantRole(lnBridgeOnL2.OPERATOR_ROLE(), owner.address);
+      await lnBridgeOnL2.registerToken(
+          arbToken.address,
+          ethToken.address,
+          helixFee,
+          penaltyLnCollateral,
+          18,
+          6
+      );
+      console.log("register token finished");
+
+      await ethToken.mint(feeReceiver, initTokenBalance);
+      await arbToken.mint(feeReceiver, initTokenBalance);
+      // 2. register lnbridger
+      // 2.1 mint some tokens on source chain and target chain for relayer
+      await ethToken.mint(relayer.address, initTokenBalance);
+      await arbToken.mint(relayer.address, initTokenBalance);
+      await ethToken.mint(other.address, initTokenBalance);
+      await arbToken.mint(other.address, initTokenBalance);
+      await ethToken.mint(owner.address, initTokenBalance);
+
+      await arbToken.connect(relayer).approve(lnBridgeOnL2.address, initTokenBalance);
+      await lnBridgeOnL2.connect(relayer).updateProviderFeeAndMargin(
+          arbToken.address, // tokenIndex
+          margin, // margin
+          baseFee, // basefee
+          liquidityFeeRate // liquidity fee rate x/100,000
+      );
+      console.log("register provider finished");
+
+      // 3. transfer and lock margin
+      // 3.1 normal
+      const transferAmount01 = ethers.utils.parseEther("500");
+      const targetAmount01 = transferAmount01.div(1e12);
+      const expectedFee = transferAmount01.mul(liquidityFeeRate).div(100000).add(baseFee.add(helixFee));
+      // 3.1.1 lock
+      await arbToken.connect(other).approve(lnBridgeOnL2.address, initTokenBalance);
+      const lockTransaction = await lnBridgeOnL2.connect(other).transferAndLockMargin(
+        [
+            relayer.address,
+            arbToken.address,
+            initTransferId,
+            margin,
+            expectedFee
+        ],
+        transferAmount01, // amount
+        other.address // receiver
+      );
+      const blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
+      let lockReceipt = await lockTransaction.wait();
+      let lockGasUsed = lockReceipt.cumulativeGasUsed;
+      console.log("transferAndLockMargin gas used", lockGasUsed);
+      const transferId01 = getTransferId(
+          initTransferId, // lastTransferId
+          relayer.address, // provider
+          arbToken.address, // sourceToken
+          ethToken.address, // targetToken
+          other.address, // receiver
+          blockTimestamp,
+          targetAmount01, // amount
+      );
+      // 3.1.2 relay
+      await ethToken.connect(relayer).approve(lnBridgeOnL1.address, initTokenBalance);
+      const relayTransaction = await lnBridgeOnL1.connect(relayer).transferAndReleaseMargin(
+        [
+          initTransferId, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          targetAmount01,
+          blockTimestamp,
+          other.address
+        ],
+        transferId01
+      );
+      let relayReceipt = await relayTransaction.wait();
+      let relayGasUsed = relayReceipt.cumulativeGasUsed;
+      console.log("relay gas used", relayGasUsed);
+
+      // relay finished, check the id and balance
+      // check balance
+      // arbtoken: relayer -> lnbridge (margin)
+      //           other -> relayer (transferAmount01 + baseFee + liquidityFeeRate * amount)
+      //           other -> feeReceive (helixFee)
+      // ethtoken: relayer -> other (transferAmount01)
+      const relayerFee01 = baseFee.add(transferAmount01.mul(liquidityFeeRate).div(100000));
+      const relayerArbToken01 = initTokenBalance.sub(margin).add(transferAmount01).add(relayerFee01);
+      const lnBridgeArbToken01 = margin;
+      const otherArbToken01 = initTokenBalance.sub(transferAmount01).sub(relayerFee01).sub(helixFee);
+      const feeReceiverArbToken01 = initTokenBalance.add(helixFee);
+      const relayerEthToken01 = initTokenBalance.sub(targetAmount01);
+      const otherEthToken01 = initTokenBalance.add(targetAmount01);
+      expect(await arbToken.balanceOf(relayer.address)).to.equal(relayerArbToken01);
+      expect(await arbToken.balanceOf(lnBridgeOnL2.address)).to.equal(lnBridgeArbToken01);
+      expect(await arbToken.balanceOf(other.address)).to.equal(otherArbToken01);
+      expect(await arbToken.balanceOf(feeReceiver)).to.equal(feeReceiverArbToken01);
+      expect(await ethToken.balanceOf(relayer.address)).to.equal(relayerEthToken01);
+      expect(await ethToken.balanceOf(other.address)).to.equal(otherEthToken01);
+      // check transferId
+      // source chain
+      const lockInfo01 = await lnBridgeOnL2.lockInfos(transferId01);
+      expect(lockInfo01.amountWithFeeAndPenalty).to.equal(transferAmount01.add(relayerFee01).add(penaltyLnCollateral));
+      // target chain
+      const transferInfo01 = await lnBridgeOnL1.fillTransfers(transferId01);
+      expect(transferInfo01).to.equal(initSlashTransferId);
+      const slashInfo01 = await lnBridgeOnL1.slashInfos(transferId01);
+      expect(slashInfo01.slasher).to.equal(zeroAddress);
+
+      // slash 02
+      console.log("check continuous");
+      await expect(lnBridgeOnL2.connect(other).transferAndLockMargin(
+        [
+          relayer.address,
+          arbToken.address,
+          initTransferId,
+          margin,
+          expectedFee
+        ],
+        transferAmount01, // amount
+        other.address // receiver
+      )).to.be.revertedWith("snapshot expired");
+      await lnBridgeOnL2.connect(other).transferAndLockMargin(
+        [
+          relayer.address,
+          arbToken.address,
+          transferId01,
+          margin,
+          expectedFee
+        ],
+        transferAmount01, // amount
+        other.address // receiver
+      );
+      const blockTimestamp02 = (await ethers.provider.getBlock("latest")).timestamp;
+      const transferId02 = getTransferId(
+          transferId01, // lastTransferId
+          relayer.address, // provider
+          arbToken.address, // sourceToken
+          ethToken.address, // targetToken
+          other.address, // receiver
+          blockTimestamp02,
+          targetAmount01, // amount
+      );
+      // cannot slash before expired
+      await expect(lnBridgeOnL1.slashAndRemoteRefund(
+        [
+          transferId01, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          targetAmount01,
+          blockTimestamp02,
+          other.address
+        ],
+        transferId01,
+        0,
+        0,
+        200
+      )).to.be.revertedWith("slash time not expired");
+      console.log("check expired slash finished");
+      await hre.network.provider.request({
+          method: "evm_increaseTime",
+          //params: [await lnBridgeOnL1.MIN_REFUND_TIMESTAMP() + 1],
+          params: [18001],
+      });
+      // slash
+      // start slash
+      // 1. relayed transfer cannot slash, try to slash transfer01 failed
+      await expect(lnBridgeOnL1.slashAndRemoteRefund(
+        [
+          initTransferId, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          targetAmount01,
+          blockTimestamp,
+          other.address
+        ],
+        transferId01,
+        0,
+        0,
+        0
+      )).to.be.revertedWith("fill exist");
+      console.log("check exist message slash finished");
+
+      // mock sender address
+      await lnBridgeOnL2.setRemoteBridgeAlias(inbox.address);
+      // request success
+      await ethToken.approve(lnBridgeOnL1.address, 1000000000);
+      await lnBridgeOnL1.slashAndRemoteRefund(
+        [
+          transferId01, // lastTransferId
+          relayer.address, // provider
+          arbToken.address,
+          ethToken.address, // token
+          targetAmount01,
+          blockTimestamp02,
+          other.address
+        ],
+        transferId02,
+        0,
+        0,
+        200
+      );
+      // check balance
+      // arbtoken: other -> relayer (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01)
+      //           lnBridgeOnL2 -> owner (transferAmount01 + baseFee + liquidityFeeRate * transferAmount01 + penaltyLnCollateral)
+      //           other -> feeReceive (helixFee)
+      // ethtoken: owner -> other (transferAmount01)
+      const relayerFee02 = baseFee.add(transferAmount01.mul(liquidityFeeRate).div(100000));
+      const relayerArbToken02 = relayerArbToken01.add(transferAmount01).add(relayerFee02);
+      const lnBridgeArbToken02 = lnBridgeArbToken01.sub(transferAmount01).sub(relayerFee02).sub(penaltyLnCollateral);
+      const otherArbToken02 = otherArbToken01.sub(transferAmount01).sub(relayerFee02).sub(helixFee);
+      const feeReceiverArbToken02 = feeReceiverArbToken01.add(helixFee);
+      const ownerArbToken02 = transferAmount01.add(relayerFee02).add(penaltyLnCollateral);
+      const relayerEthToken02 = relayerEthToken01;
+      const otherEthToken02 = otherEthToken01.add(targetAmount01);
+      const ownerEthToken02 = initTokenBalance.sub(targetAmount01);
+      expect(await arbToken.balanceOf(relayer.address)).to.equal(relayerArbToken02);
+      expect(await arbToken.balanceOf(lnBridgeOnL2.address)).to.equal(lnBridgeArbToken02);
+      expect(await arbToken.balanceOf(other.address)).to.equal(otherArbToken02);
+      expect(await arbToken.balanceOf(feeReceiver)).to.equal(feeReceiverArbToken02);
+      expect(await arbToken.balanceOf(owner.address)).to.equal(ownerArbToken02);
+      expect(await ethToken.balanceOf(relayer.address)).to.equal(relayerEthToken02);
+      expect(await ethToken.balanceOf(other.address)).to.equal(otherEthToken02);
+      expect(await ethToken.balanceOf(owner.address)).to.equal(ownerEthToken02);
+      console.log("check normal slash finished");
+  });
 });

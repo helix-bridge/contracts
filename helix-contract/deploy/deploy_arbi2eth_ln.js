@@ -21,6 +21,26 @@ const daoOnEthereum = "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4";
 
 const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
+async function getLnBridgeTargetInitData(wallet, dao, inbox) {
+    const bridgeContract = await ethers.getContractFactory("Arb2EthTarget", wallet);
+    const initdata = await ProxyDeployer.getInitializerData(
+        bridgeContract.interface,
+        [dao, inbox],
+        "initialize",
+    );
+    console.log("LnBridgeInitData init data:", initdata);
+}
+
+async function getLnBridgeSourceInitData(wallet, dao) {
+    const bridgeContract = await ethers.getContractFactory("Arb2EthSource", wallet);
+    const initdata = await ProxyDeployer.getInitializerData(
+        bridgeContract.interface,
+        [dao],
+        "initialize",
+    );
+    console.log("LnBridgeInitData init data:", initdata);
+}
+
 async function transferAndLockMargin(
     wallet,
     bridgeAddress, 
@@ -294,11 +314,15 @@ async function main() {
     const arbitrumWallet = wallets[0];
     const ethereumWallet = wallets[1];
 
-    
+    //await getLnBridgeTargetInitData(arbitrumWallet, "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4", "0x4Dbd4fc535Ac27206064B68FfCf827b0A60BAB3f");
+    await getLnBridgeSourceInitData(arbitrumWallet, "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4");
+    return;
+
+    /*
     const deployed = await deploy(arbitrumWallet, ethereumWallet);
     console.log(deployed);
     return;
-    
+    */
     
     
     const arbitrumLnBridgeAddress = "0x7B8413FA1c1033844ac813A2E6475E15FB0fb3BA";
@@ -384,7 +408,7 @@ async function main() {
     await requestWithdrawMargin(
         ethereumWallet,
         ethereumLnBridgeAddress,
-        "0xD1207442C3AC4BABC7500E06C2C08E3E5A46A452D92A7936A9B90ECE22C55E5E", //lastTransferId
+        "0xDD5703D47E4494FFC87660F3CBF2AFBA7A137755A91C81DC7ED120BB18E33A83", //lastTransferId
         ringArbitrumAddress,
         ethers.utils.parseEther("3"), // amount
     );

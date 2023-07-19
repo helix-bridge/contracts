@@ -15,7 +15,8 @@ interface ILnDefaultBridgeTarget {
         bytes32 lastTransferId,
         uint64 withdrawNonce,
         address provider,
-        address token,
+        address sourceToken,
+        address targetToken,
         uint112 amount
     ) external;
 }

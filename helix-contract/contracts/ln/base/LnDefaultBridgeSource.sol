@@ -212,6 +212,10 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         bytes32 expectedTransferId
     ) internal view returns(bytes memory message) {
         require(block.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP, "invalid timestamp");
+        TokenInfo memory tokenInfo = tokenInfos[params.sourceToken];
+        require(tokenInfo.isRegistered, "token not registered");
+        uint256 targetAmount = uint256(params.amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
+        require(targetAmount < MAX_TRANSFER_AMOUNT, "lnBridgeSource:overflow amount");
 
         bytes32 transferId = keccak256(abi.encodePacked(
            params.previousTransferId,
@@ -220,7 +224,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
            params.targetToken,
            params.receiver,
            params.timestamp,
-           params.amount));
+           uint112(targetAmount)));
         require(expectedTransferId == transferId, "expected transfer id not match");
         LockInfo memory lockInfo = lockInfos[transferId];
         require(lockInfo.isLocked && params.timestamp > 0, "lock info not match");
@@ -237,6 +241,9 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         address sourceToken,
         uint112 amount
     ) internal returns(bytes memory message) {
+        TokenInfo memory tokenInfo = tokenInfos[sourceToken];
+        require(tokenInfo.isRegistered, "token not registered");
+
         bytes32 providerKey = getProviderKey(msg.sender, sourceToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
         lnProviders[providerKey].withdrawNonce += 1;
@@ -245,6 +252,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
             providerInfo.withdrawNonce,
             msg.sender,
             sourceToken,
+            tokenInfo.targetToken,
             amount
         );
     }
@@ -269,6 +277,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         uint64 withdrawNonce,
         address provider,
         address sourceToken,
+        address targetToken,
         uint112 amount
     ) internal pure returns(bytes memory message) {
         return abi.encodeWithSelector(
@@ -277,6 +286,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
             withdrawNonce,
             provider,
             sourceToken,
+            targetToken,
             amount
         );
     }

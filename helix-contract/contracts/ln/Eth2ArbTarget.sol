@@ -48,9 +48,10 @@ contract Eth2ArbTarget is Initializable, LnAccessController, LnDefaultBridgeTarg
         uint64 withdrawNonce,
         address provider,
         address sourceToken,
+        address targetToken,
         uint112 amount
     ) external onlyRemoteBridge whenNotPaused {
-        _withdraw(lastTransferId, withdrawNonce, provider, sourceToken, amount);
+        _withdraw(lastTransferId, withdrawNonce, provider, sourceToken, targetToken, amount);
     }
 }
 

@@ -5,6 +5,7 @@ import "./LnBridgeHelper.sol";
 
 contract LnDefaultBridgeTarget is LnBridgeHelper {
     uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
+    uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
 
     struct ProviderInfo {
         uint256 margin;
@@ -28,20 +29,24 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
 
     event TransferFilled(address provider, bytes32 transferId);
     event Slash(bytes32 transferId, address provider, address token, uint256 margin, address slasher);
-    event LiquidityWithdrawn(address provider, address token, uint112 amount);
+    event MarginUpdated(address provider, address token, uint112 amount);
 
     function depositProviderMargin(
+        address sourceToken,
         address targetToken,
         uint256 margin
     ) external payable {
         require(margin > 0, "invalid margin");
-        bytes32 providerKey = getProviderKey(msg.sender, targetToken);
-        lnProviderInfos[providerKey].margin += margin;
+        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, targetToken);
+        uint256 updatedMargin = lnProviderInfos[providerKey].margin + margin;
+        require(updatedMargin < MAX_TRANSFER_AMOUNT, "margin too large");
+        lnProviderInfos[providerKey].margin = updatedMargin;
         if (targetToken == address(0)) {
             require(msg.value == margin, "invalid margin value");
         } else {
             _safeTransferFrom(targetToken, msg.sender, address(this), margin);
         }
+        emit MarginUpdated(msg.sender, sourceToken, uint112(updatedMargin));
     }
 
     function transferAndReleaseMargin(
@@ -85,7 +90,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         // ensure all transfer has finished
         require(lastTransferId == bytes32(0) || fillTransfers[lastTransferId].timestamp > 0, "last transfer not filled");
 
-        bytes32 providerKey = getProviderKey(provider, targetToken);
+        bytes32 providerKey = getDefaultProviderKey(provider, sourceToken, targetToken);
         ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
         // all the early withdraw info ignored
         require(providerInfo.withdrawNonce < withdrawNonce, "withdraw nonce expired");
@@ -99,7 +104,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         } else {
             _safeTransferFrom(targetToken, address(this), provider, amount);
         }
-        emit LiquidityWithdrawn(provider, sourceToken, amount);
+        emit MarginUpdated(provider, sourceToken, amount);
     }
 
     function _slash(
@@ -121,7 +126,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.slasher == address(0), "transfer has been slashed");
         // transfer is not filled
-        bytes32 providerKey = getProviderKey(params.provider, params.targetToken);
+        bytes32 providerKey = getDefaultProviderKey(params.provider, params.sourceToken, params.targetToken);
         ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
         uint256 updatedMargin = providerInfo.margin;
         if (fillTransfer.timestamp == 0) {

@@ -44,10 +44,18 @@ contract LnBridgeHelper {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
     }
 
-    function getProviderKey(address provider, address token) pure public returns(bytes32) {
+    function getProviderKey(address provider, address sourceToken) pure public returns(bytes32) {
         return keccak256(abi.encodePacked(
             provider,
-            token
+            sourceToken
+        ));
+    }
+
+    function getDefaultProviderKey(address provider, address sourceToken, address targetToken) pure public returns(bytes32) {
+        return keccak256(abi.encodePacked(
+            provider,
+            sourceToken,
+            targetToken
         ));
     }
 }

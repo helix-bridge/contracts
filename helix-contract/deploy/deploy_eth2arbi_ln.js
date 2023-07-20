@@ -45,7 +45,8 @@ async function transferAndLockMargin(
     wallet,
     bridgeAddress, 
     provider,
-    tokenAddress,
+    sourceTokenAddress,
+    targetTokenAddress,
     amount,
     receiver,
     withdrawNonce,
@@ -53,15 +54,15 @@ async function transferAndLockMargin(
     const bridge = await ethers.getContractAt("LnDefaultBridgeSource", bridgeAddress, wallet);
     const expectedFee = await bridge.totalFee(
         provider,
-        tokenAddress,
+        sourceTokenAddress,
         amount);
     console.log("expect fee is", expectedFee);
-    const providerInfo = await bridge.lnProviders(await bridge.getProviderKey(provider, tokenAddress));
+    const providerInfo = await bridge.lnProviders(await bridge.getDefaultProviderKey(provider, sourceTokenAddress, targetTokenAddress));
     //const tx = await bridge.callStatic.transferAndLockMargin(
     const tx = await bridge.transferAndLockMargin(
         [
             provider,
-            tokenAddress,
+            sourceTokenAddress,
             providerInfo.lastTransferId,
             expectedFee,
             withdrawNonce,
@@ -293,6 +294,7 @@ async function deploy(arbitrumWallet, ethereumWallet) {
     );
     await ringOnArbitrum.approve(arbitrumLnBridge.address, ethers.utils.parseEther("10000000"));
     await arbitrumLnBridge.depositProviderMargin(
+        ringEthereumAddress,
         ringArbitrumAddress,
         ethers.utils.parseEther("1000"),
     );
@@ -318,8 +320,8 @@ async function main() {
     return;
     */
     
-    const ethereumLnBridgeAddress = "0x1Ff5D8Ab92D617F1e341664938f2381B42e741F8";
-    const arbitrumLnBridgeAddress = "0xD3D83F3Eb3b6cE80d8d5A684e737080C2664Ec65";
+    const ethereumLnBridgeAddress = "0xA36f5fb7F5fA29B2B861e8E6838eBcd7FC98374D";
+    const arbitrumLnBridgeAddress = "0x7Ea130e4B12A3C7926B84eBd22043E1E13bCc3cD";
 
     // update margin and fee
     /*
@@ -334,34 +336,32 @@ async function main() {
     */
 
     const ringOnArbitrum = await ethers.getContractAt("Erc20", ringArbitrumAddress, arbitrumWallet);
-    //await ringOnArbitrum.approve(arbitrumLnBridgeAddress, ethers.utils.parseEther("10000000"));
+    await ringOnArbitrum.approve(arbitrumLnBridgeAddress, ethers.utils.parseEther("10000000"));
     const ringOnEthereum = await ethers.getContractAt("Erc20", ringEthereumAddress, ethereumWallet);
-    //await ringOnEthereum.approve(ethereumLnBridgeAddress, ethers.utils.parseEther("10000000"));
+    await ringOnEthereum.approve(ethereumLnBridgeAddress, ethers.utils.parseEther("10000000"));
 
     const amount1 = ethers.utils.parseEther("20");
     
     // lock
-    /*
     await transferAndLockMargin(
         ethereumWallet,
         ethereumLnBridgeAddress,
         ethereumWallet.address,
         ringEthereumAddress,
+        ringArbitrumAddress,
         amount1,
         ethereumWallet.address,
         0,
     );
     console.log("transfer and lock margin 1 successed");
     return;
-    */
 
     // relay
     // query: lastTransferId on arbitrum
-    const lastTransferId = "0xE577B65C3DB8F2B536816F3282ADB0EA22EA293BFCC3B86698A59DF51A77F57E";
-    const timestamp = 1689688188;
-    const expectedTransferId = "0x22B45B572D3191B56020786ED4444E5697E2263F5C09962489BDD3300BDB3B65";
+    const lastTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    const timestamp = 1689829512;
+    const expectedTransferId = "0x53224758940B0FF6690CEE168CFB6B832CED9355D4E73A93BF00CBA29D88721E";
 
-    /*
     await relay(
         arbitrumWallet,
         arbitrumLnBridgeAddress,
@@ -376,7 +376,7 @@ async function main() {
     )
     console.log("relay 1 successed");
     return;
-    */
+    
     
     // slasher
     await slash(
@@ -416,9 +416,9 @@ main()
   });
     
 /*
-ethereumLnBridgeAddressLogic = 0xa05f9e8A5fe34C3A37a4cBD2700EFb06Bb0Eea04
-ethereumLnBridgeAddressProxy = 0x1Ff5D8Ab92D617F1e341664938f2381B42e741F8
-arbitrumLnBridgeAddressLogic = 0x91f14687bc135938e165B3672D8D74D59Dd21DE1
-arbitrumLnBridgeAddressProxy = 0xD3D83F3Eb3b6cE80d8d5A684e737080C2664Ec65
+ethereumLnBridgeAddressLogic = 0xe750E4229209411c6bbe57fd002204Fb97080d23
+ethereumLnBridgeAddressProxy = 0xA36f5fb7F5fA29B2B861e8E6838eBcd7FC98374D
+arbitrumLnBridgeAddressLogic = 0x63D0BCA458dceB85fbbFE03Bdf7ef8F103355a0f
+arbitrumLnBridgeAddressProxy = 0x7Ea130e4B12A3C7926B84eBd22043E1E13bCc3cD
 */
 

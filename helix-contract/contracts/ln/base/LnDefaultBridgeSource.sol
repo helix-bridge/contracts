@@ -75,9 +75,6 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         uint112 amount,
         uint112 fee,
         address receiver);
-    event LiquidityWithdrawn(address provider, address sourceToken, uint112 amount);
-    event Refund(bytes32 transferId, uint64 providerKey, address provider, uint112 margin, address slasher);
-    // relayer
     event LnProviderUpdated(address provider, address sourceToken, uint112 baseFee, uint8 liquidityfeeRate);
 
     function _setFeeReceiver(address _feeReceiver) internal {
@@ -110,7 +107,9 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         uint112 baseFee,
         uint8 liquidityFeeRate
     ) external {
-        bytes32 providerKey = getProviderKey(msg.sender, sourceToken);
+        TokenInfo memory tokenInfo = tokenInfos[sourceToken];
+        require(tokenInfo.isRegistered, "token not registered");
+        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, tokenInfo.targetToken);
         LnProviderFee memory providerFee = LnProviderFee(baseFee, liquidityFeeRate);
 
         // we only update the field fee of the provider info
@@ -128,7 +127,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     // totalFee = providerFee + protocolFee
     function totalFee(address provider, address sourceToken, uint112 amount) external view returns(uint256) {
         TokenInfo memory tokenInfo = tokenInfos[sourceToken];
-        bytes32 providerKey = getProviderKey(provider, sourceToken);
+        bytes32 providerKey = getDefaultProviderKey(provider, sourceToken, tokenInfo.targetToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
         uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
         return providerFee + tokenInfo.protocolFee;
@@ -145,14 +144,15 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         address receiver
     ) external payable {
         require(amount > 0, "lnBridgeSource:invalid amount");
-        bytes32 providerKey = getProviderKey(snapshot.provider, snapshot.sourceToken);
-
-        LnProviderInfo memory providerInfo = lnProviders[providerKey];
-        uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
 
         TokenInfo memory tokenInfo = tokenInfos[snapshot.sourceToken];
         require(tokenInfo.isRegistered, "token not registered");
         
+        bytes32 providerKey = getDefaultProviderKey(snapshot.provider, snapshot.sourceToken, tokenInfo.targetToken);
+
+        LnProviderInfo memory providerInfo = lnProviders[providerKey];
+        uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
+
         // the chain state not match snapshot
         require(providerInfo.lastTransferId == snapshot.transferId, "snapshot expired:transfer");
         require(snapshot.withdrawNonce == providerInfo.withdrawNonce, "snapshot expired:withdraw");
@@ -244,7 +244,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         TokenInfo memory tokenInfo = tokenInfos[sourceToken];
         require(tokenInfo.isRegistered, "token not registered");
 
-        bytes32 providerKey = getProviderKey(msg.sender, sourceToken);
+        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, tokenInfo.targetToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
         lnProviders[providerKey].withdrawNonce += 1;
         message = _encodeWithdrawCall(

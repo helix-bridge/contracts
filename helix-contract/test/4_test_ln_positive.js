@@ -124,6 +124,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
           liquidityFeeRate
       );
       await eth2arbTarget.connect(relayer).depositProviderMargin(
+          ethToken.address,
           arbToken.address,
           initMargin
       );

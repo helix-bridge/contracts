@@ -227,7 +227,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
            uint112(targetAmount)));
         require(expectedTransferId == transferId, "expected transfer id not match");
         LockInfo memory lockInfo = lockInfos[transferId];
-        require(lockInfo.isLocked && params.timestamp > 0, "lock info not match");
+        require(lockInfo.isLocked, "lock info not match");
 
         message = _encodeSlashCall(
             params,
@@ -246,7 +246,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
 
         bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, tokenInfo.targetToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
-        lnProviders[providerKey].withdrawNonce += 1;
+        lnProviders[providerKey].withdrawNonce = providerInfo.withdrawNonce + 1;
         message = _encodeWithdrawCall(
             providerInfo.lastTransferId,
             providerInfo.withdrawNonce,

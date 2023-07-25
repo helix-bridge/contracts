@@ -102,7 +102,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         if (targetToken == address(0)) {
             payable(provider).transfer(amount);
         } else {
-            _safeTransferFrom(targetToken, address(this), provider, amount);
+            _safeTransfer(targetToken, provider, amount);
         }
         emit MarginUpdated(provider, sourceToken, amount);
     }
@@ -125,10 +125,10 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
             params.amount));
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.slasher == address(0), "transfer has been slashed");
-        // transfer is not filled
         bytes32 providerKey = getDefaultProviderKey(params.provider, params.sourceToken, params.targetToken);
         ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
         uint256 updatedMargin = providerInfo.margin;
+        // transfer is not filled
         if (fillTransfer.timestamp == 0) {
             require(params.timestamp < block.timestamp - MIN_SLASH_TIMESTAMP, "time not expired");
             fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), slasher);

@@ -5,20 +5,21 @@ import "./LnBridgeHelper.sol";
 
 contract LnDefaultBridgeTarget is LnBridgeHelper {
     uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
-    uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
 
     struct ProviderInfo {
         uint256 margin;
+        // use penalty to store the penalty that provider relayed when timeout
+        uint256 penalty;
         uint64 withdrawNonce;
     }
 
     // providerKey => margin
-    // providerKey = hash(provider, sourceToken)
+    // providerKey = hash(provider, sourceToken, targetToken)
     mapping(bytes32=>ProviderInfo) lnProviderInfos;
 
+    // if timestamp > 0, the Transfer has been relayed or slashed
     // if slasher == address(0), this FillTransfer is relayed by lnProvider
     // otherwise, this FillTransfer is slashed by slasher
-    // if there is no slash transfer before, then it's latestSlashTransferId is assigned by INIT_SLASH_TRANSFER_ID, a special flag
     struct FillTransfer {
         uint64 timestamp;
         address slasher;
@@ -39,7 +40,6 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         require(margin > 0, "invalid margin");
         bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, targetToken);
         uint256 updatedMargin = lnProviderInfos[providerKey].margin + margin;
-        require(updatedMargin < MAX_TRANSFER_AMOUNT, "margin too large");
         lnProviderInfos[providerKey].margin = updatedMargin;
         if (targetToken == address(0)) {
             require(msg.value == margin, "invalid margin value");
@@ -50,7 +50,8 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
     }
 
     function transferAndReleaseMargin(
-        TransferParameter memory params,
+        TransferParameter calldata params,
+        uint112 penalty,
         bytes32 expectedTransferId
     ) external payable {
         require(params.provider == msg.sender, "invalid provider");
@@ -62,16 +63,24 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
            params.targetToken,
            params.receiver,
            params.timestamp,
-           params.amount));
+           params.amount,
+           penalty
+        ));
         require(expectedTransferId == transferId, "check expected transferId failed");
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         // Make sure this transfer was never filled before 
         require(fillTransfer.timestamp == 0, "transfer has been filled");
 
         fillTransfers[transferId].timestamp = uint64(block.timestamp);
+        if (block.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP) {
+            bytes32 providerKey = getDefaultProviderKey(msg.sender, params.sourceToken, params.targetToken);
+            ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
+            lnProviderInfos[providerKey].margin = providerInfo.margin - penalty;
+            lnProviderInfos[providerKey].penalty = providerInfo.penalty + penalty;
+        }
 
         if (params.targetToken == address(0)) {
-            require(msg.value >= params.amount, "lnBridgeTarget:invalid amount");
+            require(msg.value == params.amount, "lnBridgeTarget:invalid amount");
             payable(params.receiver).transfer(params.amount);
         } else {
             _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));
@@ -97,7 +106,8 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
 
         // transfer token
         require(providerInfo.margin >= amount, "margin not enough");
-        lnProviderInfos[providerKey] = ProviderInfo(providerInfo.margin - amount, withdrawNonce);
+        lnProviderInfos[providerKey].margin = providerInfo.margin - amount;
+        lnProviderInfos[providerKey].withdrawNonce = withdrawNonce;
 
         if (targetToken == address(0)) {
             payable(provider).transfer(amount);
@@ -122,7 +132,9 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
             params.targetToken,
             params.receiver,
             params.timestamp,
-            params.amount));
+            params.amount,
+            penalty
+        ));
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.slasher == address(0), "transfer has been slashed");
         bytes32 providerKey = getDefaultProviderKey(params.provider, params.sourceToken, params.targetToken);
@@ -150,17 +162,10 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
             }
         } else {
             require(fillTransfer.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP, "time not expired");
-            // If the transfer fills timeout and no slasher sends the slash message, the margin of this transfer will be locked forever.
-            // We utilize this requirement to release the margin.
-            // One scenario is when the margin is insufficient due to the execution of slashes after this particular slash transfer.
-            // In this case, the slasher cannot cover the gas fee as a penalty.
-            // We can acknowledge this situation as it is the slasher's responsibility and the execution should have occurred earlier.
-            require(fillTransfer.timestamp > block.timestamp - 2 * MIN_SLASH_TIMESTAMP, "slash a too early transfer");
             fillTransfers[transferId].slasher = slasher;
             // transfer penalty to slasher
-            require(providerInfo.margin >= penalty, "margin not enough");
-            updatedMargin = providerInfo.margin - penalty;
-            lnProviderInfos[providerKey].margin = updatedMargin;
+            require(providerInfo.penalty >= penalty, "penalty not enough");
+            lnProviderInfos[providerKey].penalty = providerInfo.penalty - penalty;
             if (params.targetToken == address(0)) {
                 payable(slasher).transfer(penalty);
             } else {

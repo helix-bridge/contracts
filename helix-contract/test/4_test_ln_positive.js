@@ -21,6 +21,7 @@ function getTransferId(
     receiver, // receiver
     timestamp,
     amount, // amount
+    penalty,
 ) {
     const encoded = ethers.utils.solidityPack([
         "bytes32",
@@ -30,7 +31,8 @@ function getTransferId(
         "address",
         "uint64",
         "uint112",
-    ], [lastTransferId, provider, sourceToken, targetToken, receiver, timestamp, amount]);
+        "uint112",
+    ], [lastTransferId, provider, sourceToken, targetToken, receiver, timestamp, amount, penalty]);
     return ethUtil.keccak256(encoded);
 }
 
@@ -139,6 +141,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
               user.address, // receiver
               blockTimestamp,
               transferAmount, // amount
+              penalty,
           );
 
           // check transferId exist on source chain
@@ -190,6 +193,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
                   blockTimestamp,
                   user.address
               ],
+              penalty,
               transferId
           );
 
@@ -225,6 +229,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
                   user.address
               ],
               expectedTransferId,
+              penalty,
               0,
               0,
               200

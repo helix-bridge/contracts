@@ -83,7 +83,6 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         address sourceToken,
         uint112 amount,
         uint112 fee,
-        uint112 penalty,
         address receiver);
     event LnProviderUpdated(address provider, address sourceToken, uint112 baseFee, uint8 liquidityfeeRate);
 
@@ -172,8 +171,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         require(snapshot.withdrawNonce == providerInfo.withdrawNonce, "snapshot expired:withdraw");
         require(snapshot.totalFee >= providerFee + tokenInfo.protocolFee && providerFee > 0, "fee is invalid");
         
-        uint256 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(amount));
-        uint256 targetPenalty = _sourceAmountToTargetAmount(tokenInfo, uint256(tokenInfo.penaltyLnCollateral));
+        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(amount));
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
             snapshot.provider,
@@ -181,8 +179,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
             tokenInfo.targetToken,
             receiver,
             uint64(block.timestamp),
-            uint112(targetAmount),
-            uint112(targetPenalty)
+            targetAmount
         ));
         require(!lockInfos[transferId].isLocked, "transferId exist");
         // if the transfer refund, then the fee and penalty should be given to slasher, but the protocol fee is ignored
@@ -222,31 +219,28 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
             transferId,
             snapshot.provider,
             snapshot.sourceToken,
-            uint112(targetAmount),
+            targetAmount,
             uint112(providerFee),
-            uint112(targetPenalty),
             receiver);
     }
 
     function _sourceAmountToTargetAmount(
         TokenInfo memory tokenInfo,
         uint256 amount
-    ) internal pure returns(uint256) {
+    ) internal pure returns(uint112) {
         uint256 targetAmount = amount * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
         require(targetAmount < MAX_TRANSFER_AMOUNT, "overflow amount");
-        return targetAmount;
+        return uint112(targetAmount);
     }
 
     function _slashAndRemoteRelease(
         TransferParameter memory params,
-        uint112 penalty,
         bytes32 expectedTransferId
     ) internal view returns(bytes memory message) {
         require(block.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP, "invalid timestamp");
         TokenInfo memory tokenInfo = tokenInfos[params.sourceToken];
         require(tokenInfo.isRegistered, "token not registered");
-        uint256 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(params.amount));
-        uint256 targetPenalty = _sourceAmountToTargetAmount(tokenInfo, penalty);
+        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(params.amount));
 
         bytes32 transferId = keccak256(abi.encodePacked(
            params.previousTransferId,
@@ -255,19 +249,19 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
            params.targetToken,
            params.receiver,
            params.timestamp,
-           uint112(targetAmount),
-           uint112(targetPenalty)
+           targetAmount
         ));
         require(expectedTransferId == transferId, "expected transfer id not match");
         LockInfo memory lockInfo = lockInfos[transferId];
         require(lockInfo.isLocked, "lock info not match");
-        uint256 targetFee = _sourceAmountToTargetAmount(tokenInfo, lockInfo.fee);
+        uint112 targetFee = _sourceAmountToTargetAmount(tokenInfo, lockInfo.fee);
+        uint112 targetPenalty = _sourceAmountToTargetAmount(tokenInfo, lockInfo.penalty);
 
         message = _encodeSlashCall(
             params,
             msg.sender,
-            uint112(targetFee),
-            uint112(targetPenalty)
+            targetFee,
+            targetPenalty
         );
     }
 
@@ -281,14 +275,14 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, tokenInfo.targetToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
         lnProviders[providerKey].withdrawNonce = providerInfo.withdrawNonce + 1;
-        uint256 targetAmount = _sourceAmountToTargetAmount(tokenInfo, amount);
+        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, amount);
         message = _encodeWithdrawCall(
             providerInfo.lastTransferId,
             providerInfo.withdrawNonce,
             msg.sender,
             sourceToken,
             tokenInfo.targetToken,
-            uint112(targetAmount)
+            targetAmount
         );
     }
 

@@ -21,7 +21,6 @@ function getTransferId(
     receiver, // receiver
     timestamp,
     amount, // amount
-    penalty,
 ) {
     const encoded = ethers.utils.solidityPack([
         "bytes32",
@@ -31,8 +30,7 @@ function getTransferId(
         "address",
         "uint64",
         "uint112",
-        "uint112",
-    ], [lastTransferId, provider, sourceToken, targetToken, receiver, timestamp, amount, penalty]);
+    ], [lastTransferId, provider, sourceToken, targetToken, receiver, timestamp, amount]);
     return ethUtil.keccak256(encoded);
 }
 
@@ -51,6 +49,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       const liquidityFeeRate = 1;
       const initTokenBalance = 1000000;
       const initMargin = 10000;
+      const initSlashReserveFund = 1000;
       const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
       const transferAmount = 30;
 
@@ -64,7 +63,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       const tokenNameOnArbitrum = "Darwinia Ring On Arbitrum";
       const tokenSymbolOnArbitrum = "RING.a";
       const arbContract = await ethers.getContractFactory("Erc20");
-      const arbToken = await ethContract.deploy(tokenNameOnArbitrum, tokenSymbolOnArbitrum, 18);
+      const arbToken = await ethContract.deploy(tokenNameOnArbitrum, tokenSymbolOnArbitrum, 9);
       await arbToken.deployed();
       console.log("contract deploy erc20 finished");
 
@@ -130,6 +129,11 @@ describe("eth->arb lnv2 positive bridge tests", () => {
           arbToken.address,
           initMargin
       );
+      await eth2arbTarget.connect(relayer).depositSlashFundReserve(
+          ethToken.address,
+          arbToken.address,
+          initSlashReserveFund
+      );
 
       async function getCurrentTransferId(lastTransferId) {
           const blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
@@ -141,7 +145,6 @@ describe("eth->arb lnv2 positive bridge tests", () => {
               user.address, // receiver
               blockTimestamp,
               transferAmount, // amount
-              penalty,
           );
 
           // check transferId exist on source chain
@@ -193,7 +196,6 @@ describe("eth->arb lnv2 positive bridge tests", () => {
                   blockTimestamp,
                   user.address
               ],
-              penalty,
               transferId
           );
 
@@ -229,7 +231,6 @@ describe("eth->arb lnv2 positive bridge tests", () => {
                   user.address
               ],
               expectedTransferId,
-              penalty,
               0,
               0,
               200
@@ -241,7 +242,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
           if (timestampBefore > 0) {
               expect(fillInfo.timestamp).to.equal(timestampBefore);
               expect(balanceOfUserAfter - balanceOfUser).to.equal(0);
-              expect(balanceOfSlasherAfter - balanceOfSlasher).to.equal(penalty);
+              expect(balanceOfSlasherAfter - balanceOfSlasher).to.equal(penalty/5);
           } else {
               const totalFee = Number(await eth2arbSource.totalFee(
                   relayer.address,
@@ -280,7 +281,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       const userEthBalance = initTokenBalance - transferAmount - totalFee;
       const relayerEthBalance = initTokenBalance + transferAmount + totalFee - protocolFee;
       const userArbBalance = initTokenBalance + transferAmount;
-      const relayerArbBalance = initTokenBalance - transferAmount - initMargin;
+      const relayerArbBalance = initTokenBalance - transferAmount - initMargin - initSlashReserveFund;
       expect(await ethToken.balanceOf(user.address)).to.equal(userEthBalance);
       expect(await ethToken.balanceOf(relayer.address)).to.equal(relayerEthBalance);
       expect(await arbToken.balanceOf(user.address)).to.equal(userArbBalance);
@@ -291,7 +292,10 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       await expect(transfer(initTransferId, 0)).to.be.revertedWith("snapshot expired:transfer");
       await expect(transfer(transferId01, 1)).to.be.revertedWith("snapshot expired:withdraw");
 
-      await transfer(transferId01, 0)
+      const lockTransaction1 = await transfer(transferId01, 0)
+      lockReceipt = await lockTransaction1.wait();
+      lockGasUsed = lockReceipt.cumulativeGasUsed;
+      console.log("transferAndLockMargin 01 gas used", lockGasUsed);
       const blockTimestamp02 = (await ethers.provider.getBlock("latest")).timestamp;
       const transferId02 = await getCurrentTransferId(transferId01);
       await transfer(transferId02, 0)

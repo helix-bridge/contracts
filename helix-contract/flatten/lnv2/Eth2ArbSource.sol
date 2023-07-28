@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 7/18/2023
+ * 7/28/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -106,36 +106,6 @@ interface IAccessControl {
      * - the caller must be `account`.
      */
     function renounceRole(bytes32 role, address account) external;
-}
-
-// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
-
-
-/**
- * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
- */
-interface IAccessControlEnumerable is IAccessControl {
-    /**
-     * @dev Returns one of the accounts that have `role`. `index` must be a
-     * value between 0 and {getRoleMemberCount}, non-inclusive.
-     *
-     * Role bearers are not sorted in any particular way, and their ordering may
-     * change at any point.
-     *
-     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
-     * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-     * for more information.
-     */
-    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
-
-    /**
-     * @dev Returns the number of accounts that have `role`. Can be used
-     * together with {getRoleMember} to enumerate all bearers of a role.
-     */
-    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
@@ -537,6 +507,36 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
             emit RoleRevoked(role, account, _msgSender());
         }
     }
+}
+
+// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
+
+
+/**
+ * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
+ */
+interface IAccessControlEnumerable is IAccessControl {
+    /**
+     * @dev Returns one of the accounts that have `role`. `index` must be a
+     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     *
+     * Role bearers are not sorted in any particular way, and their ordering may
+     * change at any point.
+     *
+     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
+     * you perform all queries on the same block. See the following
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * for more information.
+     */
+    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
+
+    /**
+     * @dev Returns the number of accounts that have `role`. Can be used
+     * together with {getRoleMember} to enumerate all bearers of a role.
+     */
+    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
@@ -1238,10 +1238,18 @@ contract LnBridgeHelper {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
     }
 
-    function getProviderKey(address provider, address token) pure public returns(bytes32) {
+    function getProviderKey(address provider, address sourceToken) pure public returns(bytes32) {
         return keccak256(abi.encodePacked(
             provider,
-            token
+            sourceToken
+        ));
+    }
+
+    function getDefaultProviderKey(address provider, address sourceToken, address targetToken) pure public returns(bytes32) {
+        return keccak256(abi.encodePacked(
+            provider,
+            sourceToken,
+            targetToken
         ));
     }
 }
@@ -1276,18 +1284,23 @@ interface ILnDefaultBridgeTarget {
 /// @title LnPositiveBridgeSource
 /// @notice LnPositiveBridgeSource is a contract to help user transfer token to liquidity node and generate proof,
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
-///         Otherwise if timeout the slasher can paid for relayer and slash the transfer, then request refund from lnProvider's margin.
+///         Otherwise if timeout the slasher can send a slash request message to target chain, then force transfer from lnProvider's margin to the user.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
 contract LnDefaultBridgeSource is LnBridgeHelper {
+    // the time(seconds) for liquidity provider to delivery message
+    // if timeout, slasher can work.
     uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
+    // liquidity fee base rate
+    // liquidityFee = liquidityFeeRate / LIQUIDITY_FEE_RATE_BASE * sendAmount
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
+    // max transfer amount one time
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     // the registered token info
     // sourceToken and targetToken is the pair of erc20 token addresses
     // if sourceToken == address(0), then it's native token
     // if targetToken == address(0), then remote is native token
     // * `protocolFee` is the protocol fee charged by system
-    // * `penaltyLnCollateral` is penalty from lnProvider when the transfer refund, if we adjust this value, it'll not affect the old transfers.
+    // * `penaltyLnCollateral` is penalty from lnProvider when the transfer slashed, if we adjust this value, it'll not affect the old transfers.
     struct TokenInfo {
         address targetToken;
         uint112 protocolFee;
@@ -1297,6 +1310,9 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         bool isRegistered;
     }
 
+    // provider fee is paid to liquidity node's account
+    // the fee is charged by the same token that user transfered
+    // providerFee = baseFee + liquidityFeeRate/LIQUIDITY_FEE_RATE_BASE * sendAmount
     struct LnProviderFee {
         uint112 baseFee;
         uint8 liquidityFeeRate;
@@ -1310,9 +1326,9 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     }
     // the Snapshot is the state of the token bridge when user prepare to transfer across chains.
     // If the snapshot updated when the across chain transfer confirmed, it will
-    // 1. if lastTransferId updated, revert
-    // 2. if margin decrease or totalFee increase, revert
-    // 3. if margin increase or totalFee decrease, success
+    // 1. if lastTransferId or withdrawNonce updated, revert
+    // 2. if totalFee increase, revert
+    // 3. if totalFee decrease, success
     struct Snapshot {
         address provider;
         address sourceToken;
@@ -1321,6 +1337,8 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         uint64 withdrawNonce;
     }
 
+    // lock info
+    // the fee and penalty is the state of the transfer confirmed
     struct LockInfo {
         uint112 fee;
         uint112 penalty;
@@ -1331,7 +1349,6 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     // providerKey => provider info
     mapping(bytes32=>LnProviderInfo) public lnProviders;
     // transferId => lock info
-    // hash(provider, token, amount, lastId, recipient, timestamp) => timestamp
     mapping(bytes32=>LockInfo) public lockInfos;
 
     address public protocolFeeReceiver;
@@ -1343,16 +1360,16 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         uint112 amount,
         uint112 fee,
         address receiver);
-    event LiquidityWithdrawn(address provider, address sourceToken, uint112 amount);
-    event Refund(bytes32 transferId, uint64 providerKey, address provider, uint112 margin, address slasher);
-    // relayer
     event LnProviderUpdated(address provider, address sourceToken, uint112 baseFee, uint8 liquidityfeeRate);
 
+    // protocolFeeReceiver is the protocol fee reciever, we don't use the contract itself as the receiver
     function _setFeeReceiver(address _feeReceiver) internal {
-        require(_feeReceiver != address(this), "lnBridgeSource:invalid system fee receiver");
+        require(_feeReceiver != address(this), "invalid system fee receiver");
         protocolFeeReceiver = _feeReceiver;
     }
 
+    // register or update token info, it can be only called by contract owner
+    // source token can only map a unique target token on target chain
     function _setTokenInfo(
         address _sourceToken,
         address _targetToken,
@@ -1371,14 +1388,17 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         );
     }
 
-    // lnProvider can set provider fee on source chain
-    // and it must register on target chain to deposit margin
+    // lnProvider register
+    // 1. set fee on source chain
+    // 2. deposit margin on target chain
     function setProviderFee(
         address sourceToken,
         uint112 baseFee,
         uint8 liquidityFeeRate
     ) external {
-        bytes32 providerKey = getProviderKey(msg.sender, sourceToken);
+        TokenInfo memory tokenInfo = tokenInfos[sourceToken];
+        require(tokenInfo.isRegistered, "token not registered");
+        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, tokenInfo.targetToken);
         LnProviderFee memory providerFee = LnProviderFee(baseFee, liquidityFeeRate);
 
         // we only update the field fee of the provider info
@@ -1396,7 +1416,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     // totalFee = providerFee + protocolFee
     function totalFee(address provider, address sourceToken, uint112 amount) external view returns(uint256) {
         TokenInfo memory tokenInfo = tokenInfos[sourceToken];
-        bytes32 providerKey = getProviderKey(provider, sourceToken);
+        bytes32 providerKey = getDefaultProviderKey(provider, sourceToken, tokenInfo.targetToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
         uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
         return providerFee + tokenInfo.protocolFee;
@@ -1405,29 +1425,29 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     // This function transfers tokens from the user to LnProvider and generates a proof on the source chain.
     // The snapshot represents the state of the LN bridge for this LnProvider, obtained by the off-chain indexer.
     // If the chain state is updated and does not match the snapshot state, the transaction will be reverted.
-    // 1. the state(lastTransferId, fee, margin) must match snapshot
+    // 1. the state(lastTransferId, fee, withdrawNonce) must match snapshot
     // 2. transferId not exist
     function transferAndLockMargin(
         Snapshot calldata snapshot,
         uint112 amount,
         address receiver
     ) external payable {
-        require(amount > 0, "lnBridgeSource:invalid amount");
-        bytes32 providerKey = getProviderKey(snapshot.provider, snapshot.sourceToken);
-
-        LnProviderInfo memory providerInfo = lnProviders[providerKey];
-        uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
+        require(amount > 0, "invalid amount");
 
         TokenInfo memory tokenInfo = tokenInfos[snapshot.sourceToken];
         require(tokenInfo.isRegistered, "token not registered");
         
+        bytes32 providerKey = getDefaultProviderKey(snapshot.provider, snapshot.sourceToken, tokenInfo.targetToken);
+
+        LnProviderInfo memory providerInfo = lnProviders[providerKey];
+        uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
+
         // the chain state not match snapshot
         require(providerInfo.lastTransferId == snapshot.transferId, "snapshot expired:transfer");
         require(snapshot.withdrawNonce == providerInfo.withdrawNonce, "snapshot expired:withdraw");
         require(snapshot.totalFee >= providerFee + tokenInfo.protocolFee && providerFee > 0, "fee is invalid");
         
-        uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
-        require(targetAmount < MAX_TRANSFER_AMOUNT, "lnBridgeSource:overflow amount");
+        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(amount));
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
             snapshot.provider,
@@ -1435,8 +1455,9 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
             tokenInfo.targetToken,
             receiver,
             uint64(block.timestamp),
-            uint112(targetAmount)));
-        require(!lockInfos[transferId].isLocked, "lnBridgeSource:transferId exist");
+            targetAmount
+        ));
+        require(!lockInfos[transferId].isLocked, "transferId exist");
         // if the transfer refund, then the fee and penalty should be given to slasher, but the protocol fee is ignored
         // and we use the penalty value configure at the moment transfer confirmed
         lockInfos[transferId] = LockInfo(snapshot.totalFee, tokenInfo.penaltyLnCollateral, true);
@@ -1445,10 +1466,14 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         lnProviders[providerKey].lastTransferId = transferId;
 
         if (snapshot.sourceToken == address(0)) {
-            require(amount + snapshot.totalFee == msg.value, "lnBridgeSource:amount unmatched");
+            require(amount + snapshot.totalFee == msg.value, "amount unmatched");
             payable(snapshot.provider).transfer(amount + providerFee);
             if (tokenInfo.protocolFee > 0) {
                 payable(protocolFeeReceiver).transfer(tokenInfo.protocolFee);
+            }
+            uint256 refund = snapshot.totalFee - tokenInfo.protocolFee - providerFee;
+            if ( refund > 0 ) {
+                payable(msg.sender).transfer(refund);
             }
         } else {
             _safeTransferFrom(
@@ -1470,9 +1495,18 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
             transferId,
             snapshot.provider,
             snapshot.sourceToken,
-            amount,
+            targetAmount,
             uint112(providerFee),
             receiver);
+    }
+
+    function _sourceAmountToTargetAmount(
+        TokenInfo memory tokenInfo,
+        uint256 amount
+    ) internal pure returns(uint112) {
+        uint256 targetAmount = amount * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
+        require(targetAmount < MAX_TRANSFER_AMOUNT, "overflow amount");
+        return uint112(targetAmount);
     }
 
     function _slashAndRemoteRelease(
@@ -1480,6 +1514,9 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         bytes32 expectedTransferId
     ) internal view returns(bytes memory message) {
         require(block.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP, "invalid timestamp");
+        TokenInfo memory tokenInfo = tokenInfos[params.sourceToken];
+        require(tokenInfo.isRegistered, "token not registered");
+        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(params.amount));
 
         bytes32 transferId = keccak256(abi.encodePacked(
            params.previousTransferId,
@@ -1488,16 +1525,19 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
            params.targetToken,
            params.receiver,
            params.timestamp,
-           params.amount));
+           targetAmount
+        ));
         require(expectedTransferId == transferId, "expected transfer id not match");
         LockInfo memory lockInfo = lockInfos[transferId];
-        require(lockInfo.isLocked && params.timestamp > 0, "lock info not match");
+        require(lockInfo.isLocked, "lock info not match");
+        uint112 targetFee = _sourceAmountToTargetAmount(tokenInfo, lockInfo.fee);
+        uint112 targetPenalty = _sourceAmountToTargetAmount(tokenInfo, lockInfo.penalty);
 
         message = _encodeSlashCall(
             params,
             msg.sender,
-            lockInfo.fee,
-            lockInfo.penalty
+            targetFee,
+            targetPenalty
         );
     }
 
@@ -1508,16 +1548,17 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         TokenInfo memory tokenInfo = tokenInfos[sourceToken];
         require(tokenInfo.isRegistered, "token not registered");
 
-        bytes32 providerKey = getProviderKey(msg.sender, sourceToken);
+        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, tokenInfo.targetToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
-        lnProviders[providerKey].withdrawNonce += 1;
+        lnProviders[providerKey].withdrawNonce = providerInfo.withdrawNonce + 1;
+        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, amount);
         message = _encodeWithdrawCall(
             providerInfo.lastTransferId,
             providerInfo.withdrawNonce,
             msg.sender,
             sourceToken,
             tokenInfo.targetToken,
-            amount
+            targetAmount
         );
     }
 
@@ -1556,364 +1597,21 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     }
 }
 
-// File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
+// File @arbitrum/nitro-contracts/src/bridge/IDelayedMessageProvider.sol@v1.0.1
+// Copyright 2021-2022, Offchain Labs, Inc.
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+// License-Identifier: BUSL-1.1
 
+// solhint-disable-next-line compiler-version
+pragma solidity >=0.6.9 <0.9.0;
 
-/**
- * @dev Collection of functions related to the address type
- */
-library Address {
-    /**
-     * @dev Returns true if `account` is a contract.
-     *
-     * [IMPORTANT]
-     * ====
-     * It is unsafe to assume that an address for which this function returns
-     * false is an externally-owned account (EOA) and not a contract.
-     *
-     * Among others, `isContract` will return false for the following
-     * types of addresses:
-     *
-     *  - an externally-owned account
-     *  - a contract in construction
-     *  - an address where a contract will be created
-     *  - an address where a contract lived, but was destroyed
-     * ====
-     *
-     * [IMPORTANT]
-     * ====
-     * You shouldn't rely on `isContract` to protect against flash loan attacks!
-     *
-     * Preventing calls from contracts is highly discouraged. It breaks composability, breaks support for smart wallets
-     * like Gnosis Safe, and does not provide security since it can be circumvented by calling from a contract
-     * constructor.
-     * ====
-     */
-    function isContract(address account) internal view returns (bool) {
-        // This method relies on extcodesize/address.code.length, which returns 0
-        // for contracts in construction, since the code is only stored at the end
-        // of the constructor execution.
+interface IDelayedMessageProvider {
+    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
+    event InboxMessageDelivered(uint256 indexed messageNum, bytes data);
 
-        return account.code.length > 0;
-    }
-
-    /**
-     * @dev Replacement for Solidity's `transfer`: sends `amount` wei to
-     * `recipient`, forwarding all available gas and reverting on errors.
-     *
-     * https://eips.ethereum.org/EIPS/eip-1884[EIP1884] increases the gas cost
-     * of certain opcodes, possibly making contracts go over the 2300 gas limit
-     * imposed by `transfer`, making them unable to receive funds via
-     * `transfer`. {sendValue} removes this limitation.
-     *
-     * https://diligence.consensys.net/posts/2019/09/stop-using-soliditys-transfer-now/[Learn more].
-     *
-     * IMPORTANT: because control is transferred to `recipient`, care must be
-     * taken to not create reentrancy vulnerabilities. Consider using
-     * {ReentrancyGuard} or the
-     * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
-     */
-    function sendValue(address payable recipient, uint256 amount) internal {
-        require(address(this).balance >= amount, "Address: insufficient balance");
-
-        (bool success, ) = recipient.call{value: amount}("");
-        require(success, "Address: unable to send value, recipient may have reverted");
-    }
-
-    /**
-     * @dev Performs a Solidity function call using a low level `call`. A
-     * plain `call` is an unsafe replacement for a function call: use this
-     * function instead.
-     *
-     * If `target` reverts with a revert reason, it is bubbled up by this
-     * function (like regular Solidity function calls).
-     *
-     * Returns the raw returned data. To convert to the expected return value,
-     * use https://solidity.readthedocs.io/en/latest/units-and-global-variables.html?highlight=abi.decode#abi-encoding-and-decoding-functions[`abi.decode`].
-     *
-     * Requirements:
-     *
-     * - `target` must be a contract.
-     * - calling `target` with `data` must not revert.
-     *
-     * _Available since v3.1._
-     */
-    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
-        return functionCall(target, data, "Address: low-level call failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`], but with
-     * `errorMessage` as a fallback revert reason when `target` reverts.
-     *
-     * _Available since v3.1._
-     */
-    function functionCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
-        return functionCallWithValue(target, data, 0, errorMessage);
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
-     * but also transferring `value` wei to `target`.
-     *
-     * Requirements:
-     *
-     * - the calling contract must have an ETH balance of at least `value`.
-     * - the called Solidity function must be `payable`.
-     *
-     * _Available since v3.1._
-     */
-    function functionCallWithValue(
-        address target,
-        bytes memory data,
-        uint256 value
-    ) internal returns (bytes memory) {
-        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCallWithValue-address-bytes-uint256-}[`functionCallWithValue`], but
-     * with `errorMessage` as a fallback revert reason when `target` reverts.
-     *
-     * _Available since v3.1._
-     */
-    function functionCallWithValue(
-        address target,
-        bytes memory data,
-        uint256 value,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
-        require(address(this).balance >= value, "Address: insufficient balance for call");
-        require(isContract(target), "Address: call to non-contract");
-
-        (bool success, bytes memory returndata) = target.call{value: value}(data);
-        return verifyCallResult(success, returndata, errorMessage);
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
-     * but performing a static call.
-     *
-     * _Available since v3.3._
-     */
-    function functionStaticCall(address target, bytes memory data) internal view returns (bytes memory) {
-        return functionStaticCall(target, data, "Address: low-level static call failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-string-}[`functionCall`],
-     * but performing a static call.
-     *
-     * _Available since v3.3._
-     */
-    function functionStaticCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal view returns (bytes memory) {
-        require(isContract(target), "Address: static call to non-contract");
-
-        (bool success, bytes memory returndata) = target.staticcall(data);
-        return verifyCallResult(success, returndata, errorMessage);
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
-     * but performing a delegate call.
-     *
-     * _Available since v3.4._
-     */
-    function functionDelegateCall(address target, bytes memory data) internal returns (bytes memory) {
-        return functionDelegateCall(target, data, "Address: low-level delegate call failed");
-    }
-
-    /**
-     * @dev Same as {xref-Address-functionCall-address-bytes-string-}[`functionCall`],
-     * but performing a delegate call.
-     *
-     * _Available since v3.4._
-     */
-    function functionDelegateCall(
-        address target,
-        bytes memory data,
-        string memory errorMessage
-    ) internal returns (bytes memory) {
-        require(isContract(target), "Address: delegate call to non-contract");
-
-        (bool success, bytes memory returndata) = target.delegatecall(data);
-        return verifyCallResult(success, returndata, errorMessage);
-    }
-
-    /**
-     * @dev Tool to verifies that a low level call was successful, and revert if it wasn't, either by bubbling the
-     * revert reason using the provided one.
-     *
-     * _Available since v4.3._
-     */
-    function verifyCallResult(
-        bool success,
-        bytes memory returndata,
-        string memory errorMessage
-    ) internal pure returns (bytes memory) {
-        if (success) {
-            return returndata;
-        } else {
-            // Look for revert reason and bubble it up if present
-            if (returndata.length > 0) {
-                // The easiest way to bubble the revert reason is using memory via assembly
-                /// @solidity memory-safe-assembly
-                assembly {
-                    let returndata_size := mload(returndata)
-                    revert(add(32, returndata), returndata_size)
-                }
-            } else {
-                revert(errorMessage);
-            }
-        }
-    }
-}
-
-// File @zeppelin-solidity/contracts/proxy/utils/Initializable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (proxy/utils/Initializable.sol)
-
-
-/**
- * @dev This is a base contract to aid in writing upgradeable contracts, or any kind of contract that will be deployed
- * behind a proxy. Since proxied contracts do not make use of a constructor, it's common to move constructor logic to an
- * external initializer function, usually called `initialize`. It then becomes necessary to protect this initializer
- * function so it can only be called once. The {initializer} modifier provided by this contract will have this effect.
- *
- * The initialization functions use a version number. Once a version number is used, it is consumed and cannot be
- * reused. This mechanism prevents re-execution of each "step" but allows the creation of new initialization steps in
- * case an upgrade adds a module that needs to be initialized.
- *
- * For example:
- *
- * [.hljs-theme-light.nopadding]
- * ```
- * contract MyToken is ERC20Upgradeable {
- *     function initialize() initializer public {
- *         __ERC20_init("MyToken", "MTK");
- *     }
- * }
- * contract MyTokenV2 is MyToken, ERC20PermitUpgradeable {
- *     function initializeV2() reinitializer(2) public {
- *         __ERC20Permit_init("MyToken");
- *     }
- * }
- * ```
- *
- * TIP: To avoid leaving the proxy in an uninitialized state, the initializer function should be called as early as
- * possible by providing the encoded function call as the `_data` argument to {ERC1967Proxy-constructor}.
- *
- * CAUTION: When used with inheritance, manual care must be taken to not invoke a parent initializer twice, or to ensure
- * that all initializers are idempotent. This is not verified automatically as constructors are by Solidity.
- *
- * [CAUTION]
- * ====
- * Avoid leaving a contract uninitialized.
- *
- * An uninitialized contract can be taken over by an attacker. This applies to both a proxy and its implementation
- * contract, which may impact the proxy. To prevent the implementation contract from being used, you should invoke
- * the {_disableInitializers} function in the constructor to automatically lock it when it is deployed:
- *
- * [.hljs-theme-light.nopadding]
- * ```
- * /// @custom:oz-upgrades-unsafe-allow constructor
- * constructor() {
- *     _disableInitializers();
- * }
- * ```
- * ====
- */
-abstract contract Initializable {
-    /**
-     * @dev Indicates that the contract has been initialized.
-     * @custom:oz-retyped-from bool
-     */
-    uint8 private _initialized;
-
-    /**
-     * @dev Indicates that the contract is in the process of being initialized.
-     */
-    bool private _initializing;
-
-    /**
-     * @dev Triggered when the contract has been initialized or reinitialized.
-     */
-    event Initialized(uint8 version);
-
-    /**
-     * @dev A modifier that defines a protected initializer function that can be invoked at most once. In its scope,
-     * `onlyInitializing` functions can be used to initialize parent contracts. Equivalent to `reinitializer(1)`.
-     */
-    modifier initializer() {
-        bool isTopLevelCall = !_initializing;
-        require(
-            (isTopLevelCall && _initialized < 1) || (!Address.isContract(address(this)) && _initialized == 1),
-            "Initializable: contract is already initialized"
-        );
-        _initialized = 1;
-        if (isTopLevelCall) {
-            _initializing = true;
-        }
-        _;
-        if (isTopLevelCall) {
-            _initializing = false;
-            emit Initialized(1);
-        }
-    }
-
-    /**
-     * @dev A modifier that defines a protected reinitializer function that can be invoked at most once, and only if the
-     * contract hasn't been initialized to a greater version before. In its scope, `onlyInitializing` functions can be
-     * used to initialize parent contracts.
-     *
-     * `initializer` is equivalent to `reinitializer(1)`, so a reinitializer may be used after the original
-     * initialization step. This is essential to configure modules that are added through upgrades and that require
-     * initialization.
-     *
-     * Note that versions can jump in increments greater than 1; this implies that if multiple reinitializers coexist in
-     * a contract, executing them in the right order is up to the developer or operator.
-     */
-    modifier reinitializer(uint8 version) {
-        require(!_initializing && _initialized < version, "Initializable: contract is already initialized");
-        _initialized = version;
-        _initializing = true;
-        _;
-        _initializing = false;
-        emit Initialized(version);
-    }
-
-    /**
-     * @dev Modifier to protect an initialization function so that it can only be invoked by functions with the
-     * {initializer} and {reinitializer} modifiers, directly or indirectly.
-     */
-    modifier onlyInitializing() {
-        require(_initializing, "Initializable: contract is not initializing");
-        _;
-    }
-
-    /**
-     * @dev Locks the contract, preventing any future reinitialization. This cannot be part of an initializer call.
-     * Calling this in the constructor of a contract will prevent that contract from being initialized or reinitialized
-     * to any version. It is recommended to use this to lock implementation contracts that are designed to be called
-     * through proxies.
-     */
-    function _disableInitializers() internal virtual {
-        require(!_initializing, "Initializable: contract is initializing");
-        if (_initialized < type(uint8).max) {
-            _initialized = type(uint8).max;
-            emit Initialized(type(uint8).max);
-        }
-    }
+    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
+    /// same as InboxMessageDelivered but the batch data is available in tx.input
+    event InboxMessageDeliveredFromOrigin(uint256 indexed messageNum);
 }
 
 // File @arbitrum/nitro-contracts/src/bridge/IOwnable.sol@v1.0.1
@@ -2041,23 +1739,6 @@ interface IBridge {
     // ---------- initializer ----------
 
     function initialize(IOwnable rollup_) external;
-}
-
-// File @arbitrum/nitro-contracts/src/bridge/IDelayedMessageProvider.sol@v1.0.1
-// Copyright 2021-2022, Offchain Labs, Inc.
-// For license information, see https://github.com/nitro/blob/master/LICENSE
-// License-Identifier: BUSL-1.1
-
-// solhint-disable-next-line compiler-version
-pragma solidity >=0.6.9 <0.9.0;
-
-interface IDelayedMessageProvider {
-    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
-    event InboxMessageDelivered(uint256 indexed messageNum, bytes data);
-
-    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
-    /// same as InboxMessageDelivered but the batch data is available in tx.input
-    event InboxMessageDeliveredFromOrigin(uint256 indexed messageNum);
 }
 
 // File @arbitrum/nitro-contracts/src/libraries/IGasRefunder.sol@v1.0.1
@@ -2455,6 +2136,366 @@ interface IInbox is IDelayedMessageProvider {
     function postUpgradeInit(IBridge _bridge) external;
 
     function initialize(IBridge _bridge, ISequencerInbox _sequencerInbox) external;
+}
+
+// File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
+
+
+/**
+ * @dev Collection of functions related to the address type
+ */
+library Address {
+    /**
+     * @dev Returns true if `account` is a contract.
+     *
+     * [IMPORTANT]
+     * ====
+     * It is unsafe to assume that an address for which this function returns
+     * false is an externally-owned account (EOA) and not a contract.
+     *
+     * Among others, `isContract` will return false for the following
+     * types of addresses:
+     *
+     *  - an externally-owned account
+     *  - a contract in construction
+     *  - an address where a contract will be created
+     *  - an address where a contract lived, but was destroyed
+     * ====
+     *
+     * [IMPORTANT]
+     * ====
+     * You shouldn't rely on `isContract` to protect against flash loan attacks!
+     *
+     * Preventing calls from contracts is highly discouraged. It breaks composability, breaks support for smart wallets
+     * like Gnosis Safe, and does not provide security since it can be circumvented by calling from a contract
+     * constructor.
+     * ====
+     */
+    function isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize/address.code.length, which returns 0
+        // for contracts in construction, since the code is only stored at the end
+        // of the constructor execution.
+
+        return account.code.length > 0;
+    }
+
+    /**
+     * @dev Replacement for Solidity's `transfer`: sends `amount` wei to
+     * `recipient`, forwarding all available gas and reverting on errors.
+     *
+     * https://eips.ethereum.org/EIPS/eip-1884[EIP1884] increases the gas cost
+     * of certain opcodes, possibly making contracts go over the 2300 gas limit
+     * imposed by `transfer`, making them unable to receive funds via
+     * `transfer`. {sendValue} removes this limitation.
+     *
+     * https://diligence.consensys.net/posts/2019/09/stop-using-soliditys-transfer-now/[Learn more].
+     *
+     * IMPORTANT: because control is transferred to `recipient`, care must be
+     * taken to not create reentrancy vulnerabilities. Consider using
+     * {ReentrancyGuard} or the
+     * https://solidity.readthedocs.io/en/v0.5.11/security-considerations.html#use-the-checks-effects-interactions-pattern[checks-effects-interactions pattern].
+     */
+    function sendValue(address payable recipient, uint256 amount) internal {
+        require(address(this).balance >= amount, "Address: insufficient balance");
+
+        (bool success, ) = recipient.call{value: amount}("");
+        require(success, "Address: unable to send value, recipient may have reverted");
+    }
+
+    /**
+     * @dev Performs a Solidity function call using a low level `call`. A
+     * plain `call` is an unsafe replacement for a function call: use this
+     * function instead.
+     *
+     * If `target` reverts with a revert reason, it is bubbled up by this
+     * function (like regular Solidity function calls).
+     *
+     * Returns the raw returned data. To convert to the expected return value,
+     * use https://solidity.readthedocs.io/en/latest/units-and-global-variables.html?highlight=abi.decode#abi-encoding-and-decoding-functions[`abi.decode`].
+     *
+     * Requirements:
+     *
+     * - `target` must be a contract.
+     * - calling `target` with `data` must not revert.
+     *
+     * _Available since v3.1._
+     */
+    function functionCall(address target, bytes memory data) internal returns (bytes memory) {
+        return functionCall(target, data, "Address: low-level call failed");
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`], but with
+     * `errorMessage` as a fallback revert reason when `target` reverts.
+     *
+     * _Available since v3.1._
+     */
+    function functionCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, 0, errorMessage);
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
+     * but also transferring `value` wei to `target`.
+     *
+     * Requirements:
+     *
+     * - the calling contract must have an ETH balance of at least `value`.
+     * - the called Solidity function must be `payable`.
+     *
+     * _Available since v3.1._
+     */
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value
+    ) internal returns (bytes memory) {
+        return functionCallWithValue(target, data, value, "Address: low-level call with value failed");
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCallWithValue-address-bytes-uint256-}[`functionCallWithValue`], but
+     * with `errorMessage` as a fallback revert reason when `target` reverts.
+     *
+     * _Available since v3.1._
+     */
+    function functionCallWithValue(
+        address target,
+        bytes memory data,
+        uint256 value,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
+        require(address(this).balance >= value, "Address: insufficient balance for call");
+        require(isContract(target), "Address: call to non-contract");
+
+        (bool success, bytes memory returndata) = target.call{value: value}(data);
+        return verifyCallResult(success, returndata, errorMessage);
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
+     * but performing a static call.
+     *
+     * _Available since v3.3._
+     */
+    function functionStaticCall(address target, bytes memory data) internal view returns (bytes memory) {
+        return functionStaticCall(target, data, "Address: low-level static call failed");
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-string-}[`functionCall`],
+     * but performing a static call.
+     *
+     * _Available since v3.3._
+     */
+    function functionStaticCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal view returns (bytes memory) {
+        require(isContract(target), "Address: static call to non-contract");
+
+        (bool success, bytes memory returndata) = target.staticcall(data);
+        return verifyCallResult(success, returndata, errorMessage);
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-}[`functionCall`],
+     * but performing a delegate call.
+     *
+     * _Available since v3.4._
+     */
+    function functionDelegateCall(address target, bytes memory data) internal returns (bytes memory) {
+        return functionDelegateCall(target, data, "Address: low-level delegate call failed");
+    }
+
+    /**
+     * @dev Same as {xref-Address-functionCall-address-bytes-string-}[`functionCall`],
+     * but performing a delegate call.
+     *
+     * _Available since v3.4._
+     */
+    function functionDelegateCall(
+        address target,
+        bytes memory data,
+        string memory errorMessage
+    ) internal returns (bytes memory) {
+        require(isContract(target), "Address: delegate call to non-contract");
+
+        (bool success, bytes memory returndata) = target.delegatecall(data);
+        return verifyCallResult(success, returndata, errorMessage);
+    }
+
+    /**
+     * @dev Tool to verifies that a low level call was successful, and revert if it wasn't, either by bubbling the
+     * revert reason using the provided one.
+     *
+     * _Available since v4.3._
+     */
+    function verifyCallResult(
+        bool success,
+        bytes memory returndata,
+        string memory errorMessage
+    ) internal pure returns (bytes memory) {
+        if (success) {
+            return returndata;
+        } else {
+            // Look for revert reason and bubble it up if present
+            if (returndata.length > 0) {
+                // The easiest way to bubble the revert reason is using memory via assembly
+                /// @solidity memory-safe-assembly
+                assembly {
+                    let returndata_size := mload(returndata)
+                    revert(add(32, returndata), returndata_size)
+                }
+            } else {
+                revert(errorMessage);
+            }
+        }
+    }
+}
+
+// File @zeppelin-solidity/contracts/proxy/utils/Initializable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (proxy/utils/Initializable.sol)
+
+
+/**
+ * @dev This is a base contract to aid in writing upgradeable contracts, or any kind of contract that will be deployed
+ * behind a proxy. Since proxied contracts do not make use of a constructor, it's common to move constructor logic to an
+ * external initializer function, usually called `initialize`. It then becomes necessary to protect this initializer
+ * function so it can only be called once. The {initializer} modifier provided by this contract will have this effect.
+ *
+ * The initialization functions use a version number. Once a version number is used, it is consumed and cannot be
+ * reused. This mechanism prevents re-execution of each "step" but allows the creation of new initialization steps in
+ * case an upgrade adds a module that needs to be initialized.
+ *
+ * For example:
+ *
+ * [.hljs-theme-light.nopadding]
+ * ```
+ * contract MyToken is ERC20Upgradeable {
+ *     function initialize() initializer public {
+ *         __ERC20_init("MyToken", "MTK");
+ *     }
+ * }
+ * contract MyTokenV2 is MyToken, ERC20PermitUpgradeable {
+ *     function initializeV2() reinitializer(2) public {
+ *         __ERC20Permit_init("MyToken");
+ *     }
+ * }
+ * ```
+ *
+ * TIP: To avoid leaving the proxy in an uninitialized state, the initializer function should be called as early as
+ * possible by providing the encoded function call as the `_data` argument to {ERC1967Proxy-constructor}.
+ *
+ * CAUTION: When used with inheritance, manual care must be taken to not invoke a parent initializer twice, or to ensure
+ * that all initializers are idempotent. This is not verified automatically as constructors are by Solidity.
+ *
+ * [CAUTION]
+ * ====
+ * Avoid leaving a contract uninitialized.
+ *
+ * An uninitialized contract can be taken over by an attacker. This applies to both a proxy and its implementation
+ * contract, which may impact the proxy. To prevent the implementation contract from being used, you should invoke
+ * the {_disableInitializers} function in the constructor to automatically lock it when it is deployed:
+ *
+ * [.hljs-theme-light.nopadding]
+ * ```
+ * /// @custom:oz-upgrades-unsafe-allow constructor
+ * constructor() {
+ *     _disableInitializers();
+ * }
+ * ```
+ * ====
+ */
+abstract contract Initializable {
+    /**
+     * @dev Indicates that the contract has been initialized.
+     * @custom:oz-retyped-from bool
+     */
+    uint8 private _initialized;
+
+    /**
+     * @dev Indicates that the contract is in the process of being initialized.
+     */
+    bool private _initializing;
+
+    /**
+     * @dev Triggered when the contract has been initialized or reinitialized.
+     */
+    event Initialized(uint8 version);
+
+    /**
+     * @dev A modifier that defines a protected initializer function that can be invoked at most once. In its scope,
+     * `onlyInitializing` functions can be used to initialize parent contracts. Equivalent to `reinitializer(1)`.
+     */
+    modifier initializer() {
+        bool isTopLevelCall = !_initializing;
+        require(
+            (isTopLevelCall && _initialized < 1) || (!Address.isContract(address(this)) && _initialized == 1),
+            "Initializable: contract is already initialized"
+        );
+        _initialized = 1;
+        if (isTopLevelCall) {
+            _initializing = true;
+        }
+        _;
+        if (isTopLevelCall) {
+            _initializing = false;
+            emit Initialized(1);
+        }
+    }
+
+    /**
+     * @dev A modifier that defines a protected reinitializer function that can be invoked at most once, and only if the
+     * contract hasn't been initialized to a greater version before. In its scope, `onlyInitializing` functions can be
+     * used to initialize parent contracts.
+     *
+     * `initializer` is equivalent to `reinitializer(1)`, so a reinitializer may be used after the original
+     * initialization step. This is essential to configure modules that are added through upgrades and that require
+     * initialization.
+     *
+     * Note that versions can jump in increments greater than 1; this implies that if multiple reinitializers coexist in
+     * a contract, executing them in the right order is up to the developer or operator.
+     */
+    modifier reinitializer(uint8 version) {
+        require(!_initializing && _initialized < version, "Initializable: contract is already initialized");
+        _initialized = version;
+        _initializing = true;
+        _;
+        _initializing = false;
+        emit Initialized(version);
+    }
+
+    /**
+     * @dev Modifier to protect an initialization function so that it can only be invoked by functions with the
+     * {initializer} and {reinitializer} modifiers, directly or indirectly.
+     */
+    modifier onlyInitializing() {
+        require(_initializing, "Initializable: contract is not initializing");
+        _;
+    }
+
+    /**
+     * @dev Locks the contract, preventing any future reinitialization. This cannot be part of an initializer call.
+     * Calling this in the constructor of a contract will prevent that contract from being initialized or reinitialized
+     * to any version. It is recommended to use this to lock implementation contracts that are designed to be called
+     * through proxies.
+     */
+    function _disableInitializers() internal virtual {
+        require(!_initializing, "Initializable: contract is initializing");
+        if (_initialized < type(uint8).max) {
+            _initialized = type(uint8).max;
+            emit Initialized(type(uint8).max);
+        }
+    }
 }
 
 // File contracts/ln/Eth2ArbSource.sol

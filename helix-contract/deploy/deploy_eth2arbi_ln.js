@@ -86,7 +86,7 @@ async function relay(
     expectedTransferId,
 ) {
     const bridge = await ethers.getContractAt("LnDefaultBridgeTarget", bridgeAddress, wallet);
-    //const tx = await bridge.callStatic.relay(
+    //const tx = await bridge.callStatic.transferAndReleaseMargin(
     await bridge.transferAndReleaseMargin(
         [
             previousTransferId,
@@ -320,8 +320,8 @@ async function main() {
     return;
     */
     
-    const ethereumLnBridgeAddress = "0xA36f5fb7F5fA29B2B861e8E6838eBcd7FC98374D";
-    const arbitrumLnBridgeAddress = "0x7Ea130e4B12A3C7926B84eBd22043E1E13bCc3cD";
+    const ethereumLnBridgeAddress = "0xdF7418FbB779cb71CE5F3a24feb7f0c6AffbeA37";
+    const arbitrumLnBridgeAddress = "0x2b1c1D2E293BfAC6e42f748F01d9dfB37E38253d";
 
     // update margin and fee
     /*
@@ -336,13 +336,14 @@ async function main() {
     */
 
     const ringOnArbitrum = await ethers.getContractAt("Erc20", ringArbitrumAddress, arbitrumWallet);
-    await ringOnArbitrum.approve(arbitrumLnBridgeAddress, ethers.utils.parseEther("10000000"));
+    //await ringOnArbitrum.approve(arbitrumLnBridgeAddress, ethers.utils.parseEther("10000000"));
     const ringOnEthereum = await ethers.getContractAt("Erc20", ringEthereumAddress, ethereumWallet);
-    await ringOnEthereum.approve(ethereumLnBridgeAddress, ethers.utils.parseEther("10000000"));
+    //await ringOnEthereum.approve(ethereumLnBridgeAddress, ethers.utils.parseEther("10000000"));
 
-    const amount1 = ethers.utils.parseEther("20");
+    const amount1 = ethers.utils.parseEther("50");
     
     // lock
+    /*
     await transferAndLockMargin(
         ethereumWallet,
         ethereumLnBridgeAddress,
@@ -355,13 +356,15 @@ async function main() {
     );
     console.log("transfer and lock margin 1 successed");
     return;
+    */
 
     // relay
     // query: lastTransferId on arbitrum
-    const lastTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
-    const timestamp = 1689829512;
-    const expectedTransferId = "0x53224758940B0FF6690CEE168CFB6B832CED9355D4E73A93BF00CBA29D88721E";
+    const lastTransferId = "0x65E7FA84DA14E26DDF2D54F8FF310293177FC88F8CEA64475EE7A240E6741806";
+    const timestamp = 1690434768;
+    const expectedTransferId = "0xDD70BEDDA5D0FD1F0C44932821F6AAEBF94144D3A15283817517FFBC75E09A29";
 
+    /*
     await relay(
         arbitrumWallet,
         arbitrumLnBridgeAddress,
@@ -376,7 +379,7 @@ async function main() {
     )
     console.log("relay 1 successed");
     return;
-    
+    */
     
     // slasher
     await slash(
@@ -416,9 +419,9 @@ main()
   });
     
 /*
-ethereumLnBridgeAddressLogic = 0xe750E4229209411c6bbe57fd002204Fb97080d23
-ethereumLnBridgeAddressProxy = 0xA36f5fb7F5fA29B2B861e8E6838eBcd7FC98374D
-arbitrumLnBridgeAddressLogic = 0x63D0BCA458dceB85fbbFE03Bdf7ef8F103355a0f
-arbitrumLnBridgeAddressProxy = 0x7Ea130e4B12A3C7926B84eBd22043E1E13bCc3cD
+ethereumLnBridgeAddressLogic = 0x8635fcFD4B67ca55da4079f6b2C5E00843ADbd57
+ethereumLnBridgeAddressProxy = 0xdF7418FbB779cb71CE5F3a24feb7f0c6AffbeA37
+arbitrumLnBridgeAddressLogic = 0x9c5198a09703bec5163718D99F4eC33E1760399d
+arbitrumLnBridgeAddressProxy = 0x2b1c1D2E293BfAC6e42f748F01d9dfB37E38253d
 */
 

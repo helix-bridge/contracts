@@ -8,14 +8,15 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
 
     struct ProviderInfo {
         uint256 margin;
-        // use penalty to store the penalty that provider relayed when timeout
-        uint256 penalty;
+        // use this slash gas reserve to pay the slash fee if transfer filled but timeout
+        uint256 slashReserveFund;
+        uint64 lastExpireFillTime;
         uint64 withdrawNonce;
     }
 
     // providerKey => margin
     // providerKey = hash(provider, sourceToken, targetToken)
-    mapping(bytes32=>ProviderInfo) lnProviderInfos;
+    mapping(bytes32=>ProviderInfo) public lnProviderInfos;
 
     // if timestamp > 0, the Transfer has been relayed or slashed
     // if slasher == address(0), this FillTransfer is relayed by lnProvider
@@ -30,7 +31,8 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
 
     event TransferFilled(address provider, bytes32 transferId);
     event Slash(bytes32 transferId, address provider, address token, uint256 margin, address slasher);
-    event MarginUpdated(address provider, address token, uint112 amount);
+    event MarginUpdated(address provider, address token, uint256 amount);
+    event SlashReserveUpdated(address provider, address token, uint256 amount);
 
     function depositProviderMargin(
         address sourceToken,
@@ -46,12 +48,11 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         } else {
             _safeTransferFrom(targetToken, msg.sender, address(this), margin);
         }
-        emit MarginUpdated(msg.sender, sourceToken, uint112(updatedMargin));
+        emit MarginUpdated(msg.sender, sourceToken, updatedMargin);
     }
 
     function transferAndReleaseMargin(
         TransferParameter calldata params,
-        uint112 penalty,
         bytes32 expectedTransferId
     ) external payable {
         require(params.provider == msg.sender, "invalid provider");
@@ -63,8 +64,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
            params.targetToken,
            params.receiver,
            params.timestamp,
-           params.amount,
-           penalty
+           params.amount
         ));
         require(expectedTransferId == transferId, "check expected transferId failed");
         FillTransfer memory fillTransfer = fillTransfers[transferId];
@@ -72,11 +72,9 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         require(fillTransfer.timestamp == 0, "transfer has been filled");
 
         fillTransfers[transferId].timestamp = uint64(block.timestamp);
-        if (block.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP) {
+        if (block.timestamp - MIN_SLASH_TIMESTAMP > params.timestamp) {
             bytes32 providerKey = getDefaultProviderKey(msg.sender, params.sourceToken, params.targetToken);
-            ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
-            lnProviderInfos[providerKey].margin = providerInfo.margin - penalty;
-            lnProviderInfos[providerKey].penalty = providerInfo.penalty + penalty;
+            lnProviderInfos[providerKey].lastExpireFillTime = uint64(block.timestamp);
         }
 
         if (params.targetToken == address(0)) {
@@ -86,6 +84,44 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
             _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));
         }
         emit TransferFilled(params.provider, transferId);
+    }
+
+    function depositSlashFundReserve(
+        address sourceToken,
+        address targetToken,
+        uint256 amount
+    ) external payable {
+        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, targetToken);
+        ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
+        uint256 updatedAmount = providerInfo.slashReserveFund + amount;
+        lnProviderInfos[providerKey].slashReserveFund = updatedAmount;
+        if (targetToken == address(0)) {
+            require(msg.value == amount, "amount invalid");
+        } else {
+            _safeTransferFrom(targetToken, msg.sender, address(this), amount);
+        }
+        emit SlashReserveUpdated(msg.sender, sourceToken, updatedAmount);
+    }
+
+    // withdraw slash fund
+    // provider can't withdraw until the block.timestamp overtime lastExpireFillTime for a period of time 
+    function withdrawSlashFundReserve(
+        address sourceToken,
+        address targetToken,
+        uint256 amount
+    ) external {
+        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, targetToken);
+        ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
+        require(amount <= providerInfo.slashReserveFund, "reserve not enough");
+        require(block.timestamp - MIN_SLASH_TIMESTAMP >= providerInfo.lastExpireFillTime, "time not expired");
+        uint256 updatedAmount = providerInfo.slashReserveFund - amount;
+        lnProviderInfos[providerKey].slashReserveFund = updatedAmount;
+        if (targetToken == address(0)) {
+            payable(msg.sender).transfer(amount);
+        } else {
+            _safeTransfer(targetToken, msg.sender, amount);
+        }
+        emit SlashReserveUpdated(msg.sender, sourceToken, updatedAmount);
     }
 
     function _withdraw(
@@ -106,7 +142,8 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
 
         // transfer token
         require(providerInfo.margin >= amount, "margin not enough");
-        lnProviderInfos[providerKey].margin = providerInfo.margin - amount;
+        uint256 updatedMargin = providerInfo.margin - amount;
+        lnProviderInfos[providerKey].margin = updatedMargin;
         lnProviderInfos[providerKey].withdrawNonce = withdrawNonce;
 
         if (targetToken == address(0)) {
@@ -114,7 +151,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         } else {
             _safeTransfer(targetToken, provider, amount);
         }
-        emit MarginUpdated(provider, sourceToken, amount);
+        emit MarginUpdated(provider, sourceToken, updatedMargin);
     }
 
     function _slash(
@@ -132,8 +169,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
             params.targetToken,
             params.receiver,
             params.timestamp,
-            params.amount,
-            penalty
+            params.amount
         ));
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.slasher == address(0), "transfer has been slashed");
@@ -163,13 +199,14 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         } else {
             require(fillTransfer.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP, "time not expired");
             fillTransfers[transferId].slasher = slasher;
-            // transfer penalty to slasher
-            require(providerInfo.penalty >= penalty, "penalty not enough");
-            lnProviderInfos[providerKey].penalty = providerInfo.penalty - penalty;
+            uint112 slashRefund = penalty / 5;
+            // transfer slashRefund to slasher
+            require(providerInfo.slashReserveFund >= slashRefund, "slashReserveFund not enough");
+            lnProviderInfos[providerKey].slashReserveFund = providerInfo.slashReserveFund - slashRefund;
             if (params.targetToken == address(0)) {
-                payable(slasher).transfer(penalty);
+                payable(slasher).transfer(slashRefund);
             } else {
-                _safeTransfer(params.targetToken, slasher, penalty);
+                _safeTransfer(params.targetToken, slasher, slashRefund);
             }
         }
         emit Slash(transferId, params.provider, params.sourceToken, updatedMargin, slasher);

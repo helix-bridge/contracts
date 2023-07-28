@@ -40,7 +40,8 @@ contract Eth2ArbTarget is Initializable, LnAccessController, LnDefaultBridgeTarg
           params,
           slasher,
           fee,
-          penalty);
+          penalty
+        );
     }
 
     function withdrawMargin(

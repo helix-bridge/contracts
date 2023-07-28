@@ -109,14 +109,12 @@ contract Eth2ArbSource is Initializable, LnAccessController, LnDefaultBridgeSour
     function slashAndRemoteRelease(
         TransferParameter calldata params,
         bytes32 expectedTransferId,
-        uint112 penalty,
         uint256 maxSubmissionCost,
         uint256 maxGas,
         uint256 gasPriceBid
     ) payable external whenNotPaused {
         bytes memory slashCallMessage = _slashAndRemoteRelease(
            params,
-           penalty,
            expectedTransferId
         );
         _sendMessage(maxSubmissionCost, maxGas, gasPriceBid, slashCallMessage, msg.value);

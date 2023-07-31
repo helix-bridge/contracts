@@ -14,10 +14,35 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 7/28/2023
+ * 7/31/2023
  **/
 
 pragma solidity ^0.8.10;
+
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
 
 // File @zeppelin-solidity/contracts/access/IAccessControl.sol@v4.7.3
 // License-Identifier: MIT
@@ -108,58 +133,57 @@ interface IAccessControl {
     function renounceRole(bytes32 role, address account) external;
 }
 
-// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 
 
 /**
- * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
+ * @dev Interface of the ERC165 standard, as defined in the
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ *
+ * Implementers can declare support of contract interfaces, which can then be
+ * queried by others ({ERC165Checker}).
+ *
+ * For an implementation, see {ERC165}.
  */
-interface IAccessControlEnumerable is IAccessControl {
+interface IERC165 {
     /**
-     * @dev Returns one of the accounts that have `role`. `index` must be a
-     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     * @dev Returns true if this contract implements the interface defined by
+     * `interfaceId`. See the corresponding
+     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     * to learn more about how these ids are created.
      *
-     * Role bearers are not sorted in any particular way, and their ordering may
-     * change at any point.
-     *
-     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
-     * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-     * for more information.
+     * This function call must use less than 30 000 gas.
      */
-    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
-
-    /**
-     * @dev Returns the number of accounts that have `role`. Can be used
-     * together with {getRoleMember} to enumerate all bearers of a role.
-     */
-    function getRoleMemberCount(bytes32 role) external view returns (uint256);
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
 
 
 /**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
+ * @dev Implementation of the {IERC165} interface.
  *
- * This contract is only required for intermediate, library-like contracts.
+ * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
+ * for the additional interface id that will be supported. For example:
+ *
+ * ```solidity
+ * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+ *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
+ * }
+ * ```
+ *
+ * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
  */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
+abstract contract ERC165 is IERC165 {
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC165).interfaceId;
     }
 }
 
@@ -236,60 +260,6 @@ library Strings {
      */
     function toHexString(address addr) internal pure returns (string memory) {
         return toHexString(uint256(uint160(addr)), _ADDRESS_LENGTH);
-    }
-}
-
-// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
-
-
-/**
- * @dev Interface of the ERC165 standard, as defined in the
- * https://eips.ethereum.org/EIPS/eip-165[EIP].
- *
- * Implementers can declare support of contract interfaces, which can then be
- * queried by others ({ERC165Checker}).
- *
- * For an implementation, see {ERC165}.
- */
-interface IERC165 {
-    /**
-     * @dev Returns true if this contract implements the interface defined by
-     * `interfaceId`. See the corresponding
-     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
-     * to learn more about how these ids are created.
-     *
-     * This function call must use less than 30 000 gas.
-     */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
-
-// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
-
-
-/**
- * @dev Implementation of the {IERC165} interface.
- *
- * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
- * for the additional interface id that will be supported. For example:
- *
- * ```solidity
- * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
- *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
- * }
- * ```
- *
- * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
- */
-abstract contract ERC165 is IERC165 {
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IERC165).interfaceId;
     }
 }
 
@@ -537,6 +507,36 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
             emit RoleRevoked(role, account, _msgSender());
         }
     }
+}
+
+// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
+
+
+/**
+ * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
+ */
+interface IAccessControlEnumerable is IAccessControl {
+    /**
+     * @dev Returns one of the accounts that have `role`. `index` must be a
+     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     *
+     * Role bearers are not sorted in any particular way, and their ordering may
+     * change at any point.
+     *
+     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
+     * you perform all queries on the same block. See the following
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * for more information.
+     */
+    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
+
+    /**
+     * @dev Returns the number of accounts that have `role`. Can be used
+     * together with {getRoleMember} to enumerate all bearers of a role.
+     */
+    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
@@ -1285,7 +1285,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
 
     event TransferFilled(address provider, bytes32 transferId);
     event Slash(bytes32 transferId, address provider, address token, uint256 margin, address slasher);
-    event MarginUpdated(address provider, address token, uint256 amount);
+    event MarginUpdated(address provider, address token, uint256 amount, uint64 withdrawNonce);
     event SlashReserveUpdated(address provider, address token, uint256 amount);
 
     function depositProviderMargin(
@@ -1295,14 +1295,15 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
     ) external payable {
         require(margin > 0, "invalid margin");
         bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, targetToken);
-        uint256 updatedMargin = lnProviderInfos[providerKey].margin + margin;
+        ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
+        uint256 updatedMargin = providerInfo.margin + margin;
         lnProviderInfos[providerKey].margin = updatedMargin;
         if (targetToken == address(0)) {
             require(msg.value == margin, "invalid margin value");
         } else {
             _safeTransferFrom(targetToken, msg.sender, address(this), margin);
         }
-        emit MarginUpdated(msg.sender, sourceToken, updatedMargin);
+        emit MarginUpdated(msg.sender, sourceToken, updatedMargin, providerInfo.withdrawNonce);
     }
 
     function transferAndReleaseMargin(
@@ -1405,7 +1406,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         } else {
             _safeTransfer(targetToken, provider, amount);
         }
-        emit MarginUpdated(provider, sourceToken, updatedMargin);
+        emit MarginUpdated(provider, sourceToken, updatedMargin, withdrawNonce);
     }
 
     function _slash(
@@ -1901,7 +1902,7 @@ contract Eth2ArbTarget is Initializable, LnAccessController, LnDefaultBridgeTarg
         );
     }
 
-    function withdrawMargin(
+    function withdraw(
         bytes32 lastTransferId,
         uint64 withdrawNonce,
         address provider,

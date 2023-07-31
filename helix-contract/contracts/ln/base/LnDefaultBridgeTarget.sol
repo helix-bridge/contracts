@@ -31,7 +31,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
 
     event TransferFilled(address provider, bytes32 transferId);
     event Slash(bytes32 transferId, address provider, address token, uint256 margin, address slasher);
-    event MarginUpdated(address provider, address token, uint256 amount);
+    event MarginUpdated(address provider, address token, uint256 amount, uint64 withdrawNonce);
     event SlashReserveUpdated(address provider, address token, uint256 amount);
 
     function depositProviderMargin(
@@ -41,14 +41,15 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
     ) external payable {
         require(margin > 0, "invalid margin");
         bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, targetToken);
-        uint256 updatedMargin = lnProviderInfos[providerKey].margin + margin;
+        ProviderInfo memory providerInfo = lnProviderInfos[providerKey];
+        uint256 updatedMargin = providerInfo.margin + margin;
         lnProviderInfos[providerKey].margin = updatedMargin;
         if (targetToken == address(0)) {
             require(msg.value == margin, "invalid margin value");
         } else {
             _safeTransferFrom(targetToken, msg.sender, address(this), margin);
         }
-        emit MarginUpdated(msg.sender, sourceToken, updatedMargin);
+        emit MarginUpdated(msg.sender, sourceToken, updatedMargin, providerInfo.withdrawNonce);
     }
 
     function transferAndReleaseMargin(
@@ -151,7 +152,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         } else {
             _safeTransfer(targetToken, provider, amount);
         }
-        emit MarginUpdated(provider, sourceToken, updatedMargin);
+        emit MarginUpdated(provider, sourceToken, updatedMargin, withdrawNonce);
     }
 
     function _slash(

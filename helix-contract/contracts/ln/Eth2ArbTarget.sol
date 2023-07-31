@@ -44,7 +44,7 @@ contract Eth2ArbTarget is Initializable, LnAccessController, LnDefaultBridgeTarg
         );
     }
 
-    function withdrawMargin(
+    function withdraw(
         bytes32 lastTransferId,
         uint64 withdrawNonce,
         address provider,

@@ -1,0 +1,15 @@
+{
+    "ethereum2arbitrumLnV2-goerli": {
+        "LnBridgeProxyAdmin": "0x3F3eDBda6124462a09E071c5D90e072E0d5d4ed4",
+        "LnBridgeLogic": "0xB78eA02970801506eE5333E9659eAe95a1ee5f80",
+        "LnBridgeProxy": "0xcD86cf37a4Dc6f78B4899232E7dD1b5c8130EFDA",
+        "Ring": "0x1836BAFa3016Dd5Ce543D0F7199cB858ec69F41E",
+        "Inbox": "0x6BEbC4925716945D46F0Ec336D5C2564F419682C"
+    },
+    "ethereum2arbitrumLnV2-arbitrum-goerli": {
+        "LnBridgeProxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",
+        "LnBridgeLogic": "0xC91aff6adA5e743Ae89589126AE4521eB2ec47f2",
+        "LnBridgeProxy": "0x4112c9d474951246fBC2B4D868D247e714698aE1",
+        "Ring": "0xFBAD806Bdf9cEC2943be281FB355Da05068DE925"
+    }
+}

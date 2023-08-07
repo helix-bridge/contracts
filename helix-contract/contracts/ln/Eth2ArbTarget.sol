@@ -40,17 +40,19 @@ contract Eth2ArbTarget is Initializable, LnAccessController, LnDefaultBridgeTarg
           params,
           slasher,
           fee,
-          penalty);
+          penalty
+        );
     }
 
-    function withdrawMargin(
+    function withdraw(
         bytes32 lastTransferId,
         uint64 withdrawNonce,
         address provider,
         address sourceToken,
+        address targetToken,
         uint112 amount
     ) external onlyRemoteBridge whenNotPaused {
-        _withdraw(lastTransferId, withdrawNonce, provider, sourceToken, amount);
+        _withdraw(lastTransferId, withdrawNonce, provider, sourceToken, targetToken, amount);
     }
 }
 

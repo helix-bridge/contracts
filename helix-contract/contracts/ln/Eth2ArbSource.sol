@@ -70,6 +70,7 @@ contract Eth2ArbSource is Initializable, LnAccessController, LnDefaultBridgeSour
         uint64 withdrawNonce,
         address provider,
         address sourceToken,
+        address targetToken,
         uint112 amount,
         uint256 percentIncrease
     ) external view returns(uint256) {
@@ -78,6 +79,7 @@ contract Eth2ArbSource is Initializable, LnAccessController, LnDefaultBridgeSour
             withdrawNonce,
             provider,
             sourceToken,
+            targetToken,
             amount
         );
         uint256 fee = inbox.calculateRetryableSubmissionFee(withdrawCall.length, baseFee);

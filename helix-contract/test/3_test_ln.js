@@ -487,6 +487,34 @@ describe("arb<>eth lnv2 bridge tests", () => {
         transferId05
       )).to.revertedWith("fill exist");
 
+      // test paused
+      await lnBridgeOnL2.connect(relayer).providerPause(arbToken.address);
+      await expect(lnBridgeOnL2.connect(other).transferAndLockMargin(
+        [
+          relayer.address,
+          arbToken.address,
+          transferId05,
+          margin,
+          expectedFee
+        ],
+        transferAmount01, // amount
+        other.address, // receiver
+        { value: transferAmount01 + expectedFee }
+      )).to.be.revertedWith("provider paused");
+      await lnBridgeOnL2.connect(relayer).providerUnpause(arbToken.address);
+      await expect(lnBridgeOnL2.connect(other).transferAndLockMargin(
+        [
+          relayer.address,
+          arbToken.address,
+          transferId05,
+          margin,
+          expectedFee
+        ],
+        transferAmount01, // amount
+        other.address, // receiver
+        { value: transferAmount01 + expectedFee }
+      )).to.be.revertedWith("margin updated");
+
       console.log("ln bridge test finished");
   });
 

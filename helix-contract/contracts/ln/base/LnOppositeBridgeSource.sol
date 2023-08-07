@@ -38,6 +38,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
     }
     struct LnProviderInfo {
         LnProviderConfigure config;
+        bool pause;
         bytes32 lastTransferId;
     }
     
@@ -98,6 +99,16 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
     function _updatePenaltyLnCollateral(address _token, uint112 _penaltyLnCollateral) internal {
         require(tokenInfos[_token].isRegistered, "token not registered");
         tokenInfos[_token].penaltyLnCollateral = _penaltyLnCollateral;
+    }
+
+    function providerPause(address sourceToken) external {
+        bytes32 providerKey = getProviderKey(msg.sender, sourceToken);
+        lnProviders[providerKey].pause = true;
+    }
+
+    function providerUnpause(address sourceToken) external {
+        bytes32 providerKey = getProviderKey(msg.sender, sourceToken);
+        lnProviders[providerKey].pause = false;
     }
 
     // lnProvider can register or update its configure by using this function
@@ -178,6 +189,8 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
 
         bytes32 providerKey = getProviderKey(snapshot.provider, snapshot.sourceToken);
         LnProviderInfo memory providerInfo = lnProviders[providerKey];
+
+        require(!providerInfo.pause, "provider paused");
 
         TokenInfo memory tokenInfo = tokenInfos[snapshot.sourceToken];
 

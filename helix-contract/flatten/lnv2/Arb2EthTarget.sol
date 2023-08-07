@@ -14,137 +14,341 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 7/11/2023
+ * 7/12/2023
  **/
 
 pragma solidity ^0.8.10;
 
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// File contracts/ln/interface/ILnOppositeBridgeSource.sol
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+interface ILnOppositeBridgeSource {
+    function slash(
+        bytes32 lastRefundTransferId,
+        bytes32 transferId,
+        address provider,
+        address sourceToken,
+        address slasher
+    ) external;
+
+    function withdrawMargin(
+        bytes32 lastRefundTransferId,
+        bytes32 lastTransferId,
+        address provider,
+        address sourceToken,
+        uint112 amount
+    ) external;
+}
+
+// File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
 
 
 /**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
+ * @dev Interface of the ERC20 standard as defined in the EIP.
  */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
+interface IERC20 {
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+
+    /**
+     * @dev Returns the amount of tokens in existence.
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
+     * @dev Moves `amount` tokens from the caller's account to `to`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transfer(address to, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
+    function allowance(address owner, address spender) external view returns (uint256);
+
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Moves `amount` tokens from `from` to `to` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transferFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external returns (bool);
+}
+
+// File contracts/ln/base/LnBridgeHelper.sol
+// License-Identifier: MIT
+
+contract LnBridgeHelper {
+    bytes32 constant public INIT_SLASH_TRANSFER_ID = bytes32(uint256(1));
+
+    struct TransferParameter {
+        bytes32 previousTransferId;
+        address provider;
+        address sourceToken;
+        address targetToken;
+        uint112 amount;
+        uint64 timestamp;
+        address receiver;
     }
 
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
+    function _safeTransfer(
+        address token,
+        address receiver,
+        uint256 amount
+    ) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(
+            IERC20.transfer.selector,
+            receiver,
+            amount
+        ));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transfer token failed");
+    }
+
+    function _safeTransferFrom(
+        address token,
+        address sender,
+        address receiver,
+        uint256 amount
+    ) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(
+            IERC20.transferFrom.selector,
+            sender,
+            receiver,
+            amount
+        ));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
+    }
+
+    function getProviderKey(address provider, address token) pure public returns(bytes32) {
+        return keccak256(abi.encodePacked(
+            provider,
+            token
+        ));
     }
 }
 
-// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
+// File contracts/ln/base/LnOppositeBridgeTarget.sol
 // License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
 
 
-/**
- * @dev Contract module which allows children to implement an emergency stop
- * mechanism that can be triggered by an authorized account.
- *
- * This module is used through inheritance. It will make available the
- * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
- * simply including this module, only once the modifiers are put in place.
- */
-abstract contract Pausable is Context {
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
+contract LnOppositeBridgeTarget is LnBridgeHelper {
+    uint256 constant public MIN_REFUND_TIMESTAMP = 30 * 60;
 
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
+    // if slasher == address(0), this FillTransfer is relayed by lnProvider
+    // otherwise, this FillTransfer is slashed by slasher
+    // if there is no slash transfer before, then it's latestSlashTransferId is assigned by INIT_SLASH_TRANSFER_ID, a special flag
+    struct SlashInfo {
+        address provider;
+        address sourceToken;
+        address slasher;
     }
 
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        _requireNotPaused();
-        _;
+    // transferId => latest slash transfer Id
+    mapping(bytes32 => bytes32) public fillTransfers;
+    // transferId => Slash info
+    mapping(bytes32 => SlashInfo) public slashInfos;
+
+    event TransferFilled(bytes32 transferId, address slasher);
+
+    // if slasher is nonzero, then it's a slash fill transfer
+    function _checkPreviousAndFillTransfer(
+        bytes32 transferId,
+        bytes32 previousTransferId
+    ) internal {
+        // the first fill transfer, we fill the INIT_SLASH_TRANSFER_ID as the latest slash transferId
+        if (previousTransferId == bytes32(0)) {
+            fillTransfers[transferId] = INIT_SLASH_TRANSFER_ID;
+        } else {
+            // Find the previous slash fill, it is a slash fill if the slasher is not zero address.
+            bytes32 previousLatestSlashTransferId = fillTransfers[previousTransferId];
+            require(previousLatestSlashTransferId != bytes32(0), "previous fill not exist");
+
+            SlashInfo memory previousSlashInfo = slashInfos[previousTransferId];
+            // we use latestSlashTransferId to store the latest slash transferId
+            // if previous.slasher != 0, then previous is slashed
+            // if previous.slasher == 0, then previous is not slashed
+            bytes32 latestSlashTransferId = previousSlashInfo.slasher != address(0) ? previousTransferId : previousLatestSlashTransferId;
+
+            fillTransfers[transferId] = latestSlashTransferId;
+        }
     }
 
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        _requirePaused();
-        _;
+    // fill transfer
+    // 1. if transfer is not slashed or relayed, LnProvider relay message to fill the transfer, and the transfer finished on target chain
+    // 2. if transfer is timeout and not processed, slasher(any account) can fill the transfer and request slash
+    // if it's filled by slasher, we store the address of the slasher
+    // expectedTransferId used to ensure the parameter is the same as on source chain
+    // some cases
+    // 1) If transferId is not exist on source chain, it'll be rejected by source chain when shashed.
+    // 2) If transferId exist on source chain. We have the same hash process on source and target chain, so the previousTransferId is trusted.
+    //    2.1) If transferId is the first transfer Id of this provider, then previousTransferId is zero and the latestSlashTransferId is INIT_SLASH_TRANSFER_ID
+    //    2.2) If transferId is not the first transfer, then it's latestSlashTransferId has the next two scenarios
+    //         * the previousTransfer is a slash transfer, then latestSlashTransferId is previousTransferId
+    //         * the previousTransfer is a normal relayed transfer, then latestSlashTransferId is previousTransfer's latestSlashTransferId
+    //    I.   transferId is trusted => previousTransferId is trusted => previousTransfer.previousTransferId is trusted => ... => firstTransfer is trusted
+    //    II.  transferId is trusted => previousTransferId is trusted => latestSlashTransferId is trusted if previousTransfer is a slash transfer
+    //    III. Both I and II => latestSlashTransferId is trusted if previousTransfer is normal relayed tranfer
+    function _fillTransfer(
+        TransferParameter calldata params,
+        bytes32 expectedTransferId
+    ) internal {
+        bytes32 transferId = keccak256(abi.encodePacked(
+            params.previousTransferId,
+            params.provider,
+            params.sourceToken,
+            params.targetToken,
+            params.receiver,
+            params.timestamp,
+            params.amount));
+        require(expectedTransferId == transferId, "check expected transferId failed");
+        // Make sure this transfer was never filled before 
+        require(fillTransfers[transferId] == bytes32(0), "fill exist");
+
+        _checkPreviousAndFillTransfer(transferId, params.previousTransferId);
+
+        if (params.targetToken == address(0)) {
+            require(msg.value >= params.amount, "invalid amount");
+            payable(params.receiver).transfer(params.amount);
+        } else {
+            _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));
+        }
     }
 
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
+    function transferAndReleaseMargin(
+        TransferParameter calldata params,
+        bytes32 expectedTransferId
+    ) payable external {
+        // normal relay message, fill slasher as zero
+        require(params.provider == msg.sender, "invalid provider");
+        _fillTransfer(params, expectedTransferId);
+
+        emit TransferFilled(expectedTransferId, address(0));
     }
 
-    /**
-     * @dev Throws if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        require(!paused(), "Pausable: paused");
+    // The condition for slash is that the transfer has timed out
+    // Meanwhile we need to request a slash transaction to the source chain to withdraw the LnProvider's margin
+    // On the source chain, we need to verify all the transfers before has been relayed or slashed.
+    // So we needs to carry the the previous shash transferId to ensure that the slash is continuous.
+    function _slashAndRemoteRefund(
+        TransferParameter calldata params,
+        bytes32 expectedTransferId
+    ) internal returns(bytes memory message) {
+        require(block.timestamp > params.timestamp + MIN_REFUND_TIMESTAMP, "slash time not expired");
+        _fillTransfer(params, expectedTransferId);
+
+        // slasher = msg.sender
+        slashInfos[expectedTransferId] = SlashInfo(params.provider, params.sourceToken, msg.sender);
+
+        // Do not slash `transferId` in source chain unless `latestSlashTransferId` has been slashed
+        message = _encodeSlashCall(
+            fillTransfers[expectedTransferId],
+            expectedTransferId,
+            params.provider,
+            params.sourceToken,
+            msg.sender
+        );
+        emit TransferFilled(expectedTransferId, msg.sender);
     }
 
-    /**
-     * @dev Throws if the contract is not paused.
-     */
-    function _requirePaused() internal view virtual {
-        require(paused(), "Pausable: not paused");
+    // we use this to verify that the transfer has been slashed by user and it can resend the slash request
+    function _retrySlashAndRemoteRefund(bytes32 transferId) internal view returns(bytes memory message) {
+        bytes32 latestSlashTransferId = fillTransfers[transferId];
+        // transfer must be filled
+        require(latestSlashTransferId != bytes32(0), "invalid transfer id");
+        // transfer must be slashed
+        SlashInfo memory slashInfo = slashInfos[transferId];
+        require(slashInfo.slasher != address(0), "slasher not exist");
+        message = _encodeSlashCall(
+            latestSlashTransferId,
+            transferId,
+            slashInfo.provider,
+            slashInfo.sourceToken,
+            slashInfo.slasher
+        );
     }
 
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
+    function _encodeSlashCall(
+        bytes32 latestSlashTransferId,
+        bytes32 transferId,
+        address provider,
+        address sourceToken,
+        address slasher
+    ) internal pure returns(bytes memory) {
+        return abi.encodeWithSelector(
+            ILnOppositeBridgeSource.slash.selector,
+            latestSlashTransferId,
+            transferId,
+            provider,
+            sourceToken,
+            slasher
+        );
     }
 
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
+    function _requestWithdrawMargin(
+        bytes32 lastTransferId,
+        address sourceToken,
+        uint112 amount
+    ) internal view returns(bytes memory message) {
+        bytes32 latestSlashTransferId = fillTransfers[lastTransferId];
+        require(latestSlashTransferId != bytes32(0), "invalid last transfer");
+
+        return abi.encodeWithSelector(
+            ILnOppositeBridgeSource.withdrawMargin.selector,
+            latestSlashTransferId,
+            lastTransferId,
+            msg.sender,
+            sourceToken,
+            amount
+        );
     }
 }
 
@@ -265,6 +469,31 @@ interface IAccessControlEnumerable is IAccessControl {
      * together with {getRoleMember} to enumerate all bearers of a role.
      */
     function getRoleMemberCount(bytes32 role) external view returns (uint256);
+}
+
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
 }
 
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
@@ -1074,6 +1303,110 @@ abstract contract AccessControlEnumerable is IAccessControlEnumerable, AccessCon
     }
 }
 
+// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
+
+
+/**
+ * @dev Contract module which allows children to implement an emergency stop
+ * mechanism that can be triggered by an authorized account.
+ *
+ * This module is used through inheritance. It will make available the
+ * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
+ * the functions of your contract. Note that they will not be pausable by
+ * simply including this module, only once the modifiers are put in place.
+ */
+abstract contract Pausable is Context {
+    /**
+     * @dev Emitted when the pause is triggered by `account`.
+     */
+    event Paused(address account);
+
+    /**
+     * @dev Emitted when the pause is lifted by `account`.
+     */
+    event Unpaused(address account);
+
+    bool private _paused;
+
+    /**
+     * @dev Initializes the contract in unpaused state.
+     */
+    constructor() {
+        _paused = false;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is not paused.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    modifier whenNotPaused() {
+        _requireNotPaused();
+        _;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is paused.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    modifier whenPaused() {
+        _requirePaused();
+        _;
+    }
+
+    /**
+     * @dev Returns true if the contract is paused, and false otherwise.
+     */
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Throws if the contract is paused.
+     */
+    function _requireNotPaused() internal view virtual {
+        require(!paused(), "Pausable: paused");
+    }
+
+    /**
+     * @dev Throws if the contract is not paused.
+     */
+    function _requirePaused() internal view virtual {
+        require(paused(), "Pausable: not paused");
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function _pause() internal virtual whenNotPaused {
+        _paused = true;
+        emit Paused(_msgSender());
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function _unpause() internal virtual whenPaused {
+        _paused = false;
+        emit Unpaused(_msgSender());
+    }
+}
+
 // File contracts/ln/base/LnAccessController.sol
 // License-Identifier: MIT
 
@@ -1111,337 +1444,21 @@ contract LnAccessController is AccessControlEnumerable, Pausable {
     }
 }
 
-// File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
+// File @arbitrum/nitro-contracts/src/bridge/IDelayedMessageProvider.sol@v1.0.1
+// Copyright 2021-2022, Offchain Labs, Inc.
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+// License-Identifier: BUSL-1.1
 
+// solhint-disable-next-line compiler-version
+pragma solidity >=0.6.9 <0.9.0;
 
-/**
- * @dev Interface of the ERC20 standard as defined in the EIP.
- */
-interface IERC20 {
-    /**
-     * @dev Emitted when `value` tokens are moved from one account (`from`) to
-     * another (`to`).
-     *
-     * Note that `value` may be zero.
-     */
-    event Transfer(address indexed from, address indexed to, uint256 value);
+interface IDelayedMessageProvider {
+    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
+    event InboxMessageDelivered(uint256 indexed messageNum, bytes data);
 
-    /**
-     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
-     * a call to {approve}. `value` is the new allowance.
-     */
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-
-    /**
-     * @dev Returns the amount of tokens in existence.
-     */
-    function totalSupply() external view returns (uint256);
-
-    /**
-     * @dev Returns the amount of tokens owned by `account`.
-     */
-    function balanceOf(address account) external view returns (uint256);
-
-    /**
-     * @dev Moves `amount` tokens from the caller's account to `to`.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transfer(address to, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Returns the remaining number of tokens that `spender` will be
-     * allowed to spend on behalf of `owner` through {transferFrom}. This is
-     * zero by default.
-     *
-     * This value changes when {approve} or {transferFrom} are called.
-     */
-    function allowance(address owner, address spender) external view returns (uint256);
-
-    /**
-     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * IMPORTANT: Beware that changing an allowance with this method brings the risk
-     * that someone may use both the old and the new allowance by unfortunate
-     * transaction ordering. One possible solution to mitigate this race
-     * condition is to first reduce the spender's allowance to 0 and set the
-     * desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     *
-     * Emits an {Approval} event.
-     */
-    function approve(address spender, uint256 amount) external returns (bool);
-
-    /**
-     * @dev Moves `amount` tokens from `from` to `to` using the
-     * allowance mechanism. `amount` is then deducted from the caller's
-     * allowance.
-     *
-     * Returns a boolean value indicating whether the operation succeeded.
-     *
-     * Emits a {Transfer} event.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) external returns (bool);
-}
-
-// File contracts/ln/base/LnBridgeHelper.sol
-// License-Identifier: MIT
-
-contract LnBridgeHelper {
-    bytes32 constant public INIT_SLASH_TRANSFER_ID = bytes32(uint256(1));
-
-    struct TransferParameter {
-        bytes32 previousTransferId;
-        address provider;
-        address sourceToken;
-        address targetToken;
-        uint112 amount;
-        uint64 timestamp;
-        address receiver;
-    }
-
-    function _safeTransfer(
-        address token,
-        address receiver,
-        uint256 amount
-    ) internal {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(
-            IERC20.transfer.selector,
-            receiver,
-            amount
-        ));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transfer token failed");
-    }
-
-    function _safeTransferFrom(
-        address token,
-        address sender,
-        address receiver,
-        uint256 amount
-    ) internal {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(
-            IERC20.transferFrom.selector,
-            sender,
-            receiver,
-            amount
-        ));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
-    }
-
-    function getProviderKey(address provider, address token) pure public returns(bytes32) {
-        return keccak256(abi.encodePacked(
-            provider,
-            token
-        ));
-    }
-}
-
-// File contracts/ln/interface/ILnOppositeBridgeSource.sol
-// License-Identifier: MIT
-
-
-interface ILnOppositeBridgeSource {
-    function slash(
-        bytes32 lastRefundTransferId,
-        bytes32 transferId,
-        address provider,
-        address sourceToken,
-        address slasher
-    ) external;
-
-    function withdrawMargin(
-        bytes32 lastRefundTransferId,
-        bytes32 lastTransferId,
-        address provider,
-        address sourceToken,
-        uint112 amount
-    ) external;
-}
-
-// File contracts/ln/base/LnOppositeBridgeTarget.sol
-// License-Identifier: MIT
-
-
-contract LnOppositeBridgeTarget is LnBridgeHelper {
-    uint256 constant public MIN_REFUND_TIMESTAMP = 30 * 60;
-
-    // if slasher == address(0), this FillTransfer is relayed by lnProvider
-    // otherwise, this FillTransfer is slashed by slasher
-    // if there is no slash transfer before, then it's latestSlashTransferId is assigned by INIT_SLASH_TRANSFER_ID, a special flag
-    struct SlashInfo {
-        address provider;
-        address sourceToken;
-        address slasher;
-    }
-
-    // transferId => latest slash transfer Id
-    mapping(bytes32 => bytes32) public fillTransfers;
-    // transferId => Slash info
-    mapping(bytes32 => SlashInfo) public slashInfos;
-
-    event TransferFilled(bytes32 transferId, address slasher);
-
-    // if slasher is nonzero, then it's a slash fill transfer
-    function _checkPreviousAndFillTransfer(
-        bytes32 transferId,
-        bytes32 previousTransferId
-    ) internal {
-        // the first fill transfer, we fill the INIT_SLASH_TRANSFER_ID as the latest slash transferId
-        if (previousTransferId == bytes32(0)) {
-            fillTransfers[transferId] = INIT_SLASH_TRANSFER_ID;
-        } else {
-            // Find the previous slash fill, it is a slash fill if the slasher is not zero address.
-            bytes32 previousLatestSlashTransferId = fillTransfers[previousTransferId];
-            require(previousLatestSlashTransferId != bytes32(0), "previous fill not exist");
-
-            SlashInfo memory previousSlashInfo = slashInfos[previousTransferId];
-            // we use latestSlashTransferId to store the latest slash transferId
-            // if previous.slasher != 0, then previous is slashed
-            // if previous.slasher == 0, then previous is not slashed
-            bytes32 latestSlashTransferId = previousSlashInfo.slasher != address(0) ? previousTransferId : previousLatestSlashTransferId;
-
-            fillTransfers[transferId] = latestSlashTransferId;
-        }
-    }
-
-    // fill transfer
-    // 1. if transfer is not slashed or relayed, LnProvider relay message to fill the transfer, and the transfer finished on target chain
-    // 2. if transfer is timeout and not processed, slasher(any account) can fill the transfer and request slash
-    // if it's filled by slasher, we store the address of the slasher
-    // expectedTransferId used to ensure the parameter is the same as on source chain
-    // some cases
-    // 1) If transferId is not exist on source chain, it'll be rejected by source chain when shashed.
-    // 2) If transferId exist on source chain. We have the same hash process on source and target chain, so the previousTransferId is trusted.
-    //    2.1) If transferId is the first transfer Id of this provider, then previousTransferId is zero and the latestSlashTransferId is INIT_SLASH_TRANSFER_ID
-    //    2.2) If transferId is not the first transfer, then it's latestSlashTransferId has the next two scenarios
-    //         * the previousTransfer is a slash transfer, then latestSlashTransferId is previousTransferId
-    //         * the previousTransfer is a normal relayed transfer, then latestSlashTransferId is previousTransfer's latestSlashTransferId
-    //    I.   transferId is trusted => previousTransferId is trusted => previousTransfer.previousTransferId is trusted => ... => firstTransfer is trusted
-    //    II.  transferId is trusted => previousTransferId is trusted => latestSlashTransferId is trusted if previousTransfer is a slash transfer
-    //    III. Both I and II => latestSlashTransferId is trusted if previousTransfer is normal relayed tranfer
-    function _fillTransfer(
-        TransferParameter calldata params,
-        bytes32 expectedTransferId
-    ) internal {
-        bytes32 transferId = keccak256(abi.encodePacked(
-            params.previousTransferId,
-            params.provider,
-            params.sourceToken,
-            params.targetToken,
-            params.receiver,
-            params.timestamp,
-            params.amount));
-        require(expectedTransferId == transferId, "check expected transferId failed");
-        // Make sure this transfer was never filled before 
-        require(fillTransfers[transferId] == bytes32(0), "fill exist");
-
-        _checkPreviousAndFillTransfer(transferId, params.previousTransferId);
-
-        if (params.targetToken == address(0)) {
-            require(msg.value >= params.amount, "invalid amount");
-            payable(params.receiver).transfer(params.amount);
-        } else {
-            _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));
-        }
-    }
-
-    function transferAndReleaseMargin(
-        TransferParameter calldata params,
-        bytes32 expectedTransferId
-    ) payable external {
-        // normal relay message, fill slasher as zero
-        require(params.provider == msg.sender, "invalid provider");
-        _fillTransfer(params, expectedTransferId);
-
-        emit TransferFilled(expectedTransferId, address(0));
-    }
-
-    // The condition for slash is that the transfer has timed out
-    // Meanwhile we need to request a slash transaction to the source chain to withdraw the LnProvider's margin
-    // On the source chain, we need to verify all the transfers before has been relayed or slashed.
-    // So we needs to carry the the previous shash transferId to ensure that the slash is continuous.
-    function _slashAndRemoteRefund(
-        TransferParameter calldata params,
-        bytes32 expectedTransferId
-    ) internal returns(bytes memory message) {
-        require(block.timestamp > params.timestamp + MIN_REFUND_TIMESTAMP, "slash time not expired");
-        _fillTransfer(params, expectedTransferId);
-
-        // slasher = msg.sender
-        slashInfos[expectedTransferId] = SlashInfo(params.provider, params.sourceToken, msg.sender);
-
-        // Do not slash `transferId` in source chain unless `latestSlashTransferId` has been slashed
-        message = _encodeSlashCall(
-            fillTransfers[expectedTransferId],
-            expectedTransferId,
-            params.provider,
-            params.sourceToken,
-            msg.sender
-        );
-        emit TransferFilled(expectedTransferId, msg.sender);
-    }
-
-    // we use this to verify that the transfer has been slashed by user and it can resend the slash request
-    function _retrySlashAndRemoteRefund(bytes32 transferId) internal view returns(bytes memory message) {
-        bytes32 latestSlashTransferId = fillTransfers[transferId];
-        // transfer must be filled
-        require(latestSlashTransferId != bytes32(0), "invalid transfer id");
-        // transfer must be slashed
-        SlashInfo memory slashInfo = slashInfos[transferId];
-        require(slashInfo.slasher != address(0), "slasher not exist");
-        message = _encodeSlashCall(
-            latestSlashTransferId,
-            transferId,
-            slashInfo.provider,
-            slashInfo.sourceToken,
-            slashInfo.slasher
-        );
-    }
-
-    function _encodeSlashCall(
-        bytes32 latestSlashTransferId,
-        bytes32 transferId,
-        address provider,
-        address sourceToken,
-        address slasher
-    ) internal pure returns(bytes memory) {
-        return abi.encodeWithSelector(
-            ILnOppositeBridgeSource.slash.selector,
-            latestSlashTransferId,
-            transferId,
-            provider,
-            sourceToken,
-            slasher
-        );
-    }
-
-    function _requestWithdrawMargin(
-        bytes32 lastTransferId,
-        address sourceToken,
-        uint112 amount
-    ) internal view returns(bytes memory message) {
-        bytes32 latestSlashTransferId = fillTransfers[lastTransferId];
-        require(latestSlashTransferId != bytes32(0), "invalid last transfer");
-
-        return abi.encodeWithSelector(
-            ILnOppositeBridgeSource.withdrawMargin.selector,
-            latestSlashTransferId,
-            lastTransferId,
-            msg.sender,
-            sourceToken,
-            amount
-        );
-    }
+    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
+    /// same as InboxMessageDelivered but the batch data is available in tx.input
+    event InboxMessageDeliveredFromOrigin(uint256 indexed messageNum);
 }
 
 // File @arbitrum/nitro-contracts/src/bridge/IOwnable.sol@v1.0.1
@@ -1569,23 +1586,6 @@ interface IBridge {
     // ---------- initializer ----------
 
     function initialize(IOwnable rollup_) external;
-}
-
-// File @arbitrum/nitro-contracts/src/bridge/IDelayedMessageProvider.sol@v1.0.1
-// Copyright 2021-2022, Offchain Labs, Inc.
-// For license information, see https://github.com/nitro/blob/master/LICENSE
-// License-Identifier: BUSL-1.1
-
-// solhint-disable-next-line compiler-version
-pragma solidity >=0.6.9 <0.9.0;
-
-interface IDelayedMessageProvider {
-    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
-    event InboxMessageDelivered(uint256 indexed messageNum, bytes data);
-
-    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
-    /// same as InboxMessageDelivered but the batch data is available in tx.input
-    event InboxMessageDeliveredFromOrigin(uint256 indexed messageNum);
 }
 
 // File @arbitrum/nitro-contracts/src/libraries/IGasRefunder.sol@v1.0.1

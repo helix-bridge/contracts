@@ -362,10 +362,9 @@ async function main() {
     const ringOnEthereum = await ethers.getContractAt("Erc20", ringEthereumAddress, ethereumWallet);
     //await ringOnEthereum.approve(ethereumLnBridgeAddress, ethers.utils.parseEther("10000000"));
 
-    const amount1 = ethers.utils.parseEther("30");
+    const amount1 = ethers.utils.parseEther("60");
     
     // lock
-    /*
     await transferAndLockMargin(
         ethereumWallet,
         ethereumLnBridgeAddress,
@@ -374,11 +373,10 @@ async function main() {
         ringArbitrumAddress,
         amount1,
         ethereumWallet.address,
-        0,
+        5,
     );
     console.log("transfer and lock margin 1 successed");
     return;
-    */
 
     // relay
     // query: lastTransferId on arbitrum
@@ -445,7 +443,7 @@ main()
   });
     
 /*
-ethereumLnBridgeAddressLogic = 0xB78eA02970801506eE5333E9659eAe95a1ee5f80
+ethereumLnBridgeAddressLogic = 0x26F3925F0cbcf79bF8Ca9041347327b82c55916b
 ethereumLnBridgeAddressProxy = 0xcD86cf37a4Dc6f78B4899232E7dD1b5c8130EFDA
 arbitrumLnBridgeAddressLogic = 0xC91aff6adA5e743Ae89589126AE4521eB2ec47f2
 arbitrumLnBridgeAddressProxy = 0x4112c9d474951246fBC2B4D868D247e714698aE1

@@ -278,7 +278,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, amount);
         message = _encodeWithdrawCall(
             providerInfo.lastTransferId,
-            providerInfo.withdrawNonce,
+            providerInfo.withdrawNonce + 1,
             msg.sender,
             sourceToken,
             tokenInfo.targetToken,

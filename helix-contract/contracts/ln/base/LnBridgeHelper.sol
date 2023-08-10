@@ -44,6 +44,14 @@ contract LnBridgeHelper {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
     }
 
+    function _safeTransferNative(
+        address receiver,
+        uint256 amount
+    ) internal {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        require(success, "lnBridgeHelper:transfer native token failed");
+    }
+
     function getProviderKey(address provider, address sourceToken) pure public returns(bytes32) {
         return keccak256(abi.encodePacked(
             provider,

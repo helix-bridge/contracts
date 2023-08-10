@@ -222,13 +222,13 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
 
         if (snapshot.sourceToken == address(0)) {
             require(amount + snapshot.totalFee == msg.value, "amount unmatched");
-            payable(snapshot.provider).transfer(amount + providerFee);
+            _safeTransferNative(snapshot.provider, amount + providerFee);
             if (tokenInfo.protocolFee > 0) {
-                payable(feeReceiver).transfer(tokenInfo.protocolFee);
+                _safeTransferNative(feeReceiver, tokenInfo.protocolFee);
             }
             uint256 refund = snapshot.totalFee - tokenInfo.protocolFee - providerFee;
             if ( refund > 0 ) {
-                payable(msg.sender).transfer(refund);
+                _safeTransferNative(msg.sender, refund);
             }
         } else {
             _safeTransferFrom(
@@ -287,7 +287,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         lnProviders[providerKey].config.margin = updatedMargin;
 
         if (sourceToken == address(0)) {
-            payable(slasher).transfer(slashAmount);
+            _safeTransferNative(slasher, slashAmount);
         } else {
             _safeTransfer(sourceToken, slasher, slashAmount);
         }
@@ -320,7 +320,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint112 updatedMargin = lnProvider.config.margin - amount;
         lnProviders[providerKey].config.margin = updatedMargin;
         if (sourceToken == address(0)) {
-            payable(provider).transfer(amount);
+            _safeTransferNative(provider, amount);
         } else {
             _safeTransfer(sourceToken, provider, amount);
         }

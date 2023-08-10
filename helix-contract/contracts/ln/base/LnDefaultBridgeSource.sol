@@ -191,13 +191,13 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
 
         if (snapshot.sourceToken == address(0)) {
             require(amount + snapshot.totalFee == msg.value, "amount unmatched");
-            payable(snapshot.provider).transfer(amount + providerFee);
+            _safeTransferNative(snapshot.provider, amount + providerFee);
             if (tokenInfo.protocolFee > 0) {
-                payable(protocolFeeReceiver).transfer(tokenInfo.protocolFee);
+                _safeTransferNative(protocolFeeReceiver, tokenInfo.protocolFee);
             }
             uint256 refund = snapshot.totalFee - tokenInfo.protocolFee - providerFee;
             if ( refund > 0 ) {
-                payable(msg.sender).transfer(refund);
+                _safeTransferNative(msg.sender, refund);
             }
         } else {
             _safeTransferFrom(

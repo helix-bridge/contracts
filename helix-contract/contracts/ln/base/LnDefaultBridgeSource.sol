@@ -83,6 +83,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         address sourceToken,
         uint112 amount,
         uint112 fee,
+        uint64 timestamp,
         address receiver);
     event LnProviderUpdated(address provider, address sourceToken, uint112 baseFee, uint8 liquidityfeeRate);
 
@@ -172,13 +173,14 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         require(snapshot.totalFee >= providerFee + tokenInfo.protocolFee && providerFee > 0, "fee is invalid");
         
         uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(amount));
+        uint64 timestamp = uint64(block.timestamp);
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
             snapshot.provider,
             snapshot.sourceToken,
             tokenInfo.targetToken,
             receiver,
-            uint64(block.timestamp),
+            timestamp,
             targetAmount
         ));
         require(!lockInfos[transferId].isLocked, "transferId exist");
@@ -221,6 +223,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
             snapshot.sourceToken,
             targetAmount,
             uint112(providerFee),
+            timestamp,
             receiver);
     }
 

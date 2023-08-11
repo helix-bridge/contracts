@@ -1,7 +1,6 @@
 const ethUtil = require('ethereumjs-util');
 const abi = require('ethereumjs-abi');
 const secp256k1 = require('secp256k1');
-const { Provider } = require("zksync-web3");
 
 var ProxyDeployer = require("./proxy.js");
 
@@ -11,18 +10,19 @@ const privateKey = process.env.PRIKEY
 const ethereumUrl = "https://rpc.ankr.com/eth_goerli";
 const zkSyncUrl = "https://zksync2-testnet.zksync.dev";
 const ethereumProxyAdmin = "0x3F3eDBda6124462a09E071c5D90e072E0d5d4ed4";
-const zkSyncProxyAdmin = "0x96892F3EaD26515592Da38432cFABad991BBd69d";
+const zkSyncProxyAdmin = "0x66d86a686e50c98bac236105efafb99ee7605dc5";
 const mailboxEthereumAddress = "0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319";
-const daoOnZkSync = "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4";
 const daoOnEthereum = "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4";
+const daoOnZkSync = "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4";
+
 const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
-const zkSyncLnBridgeAddress = "0xe0be4a2b4B0846fB088F720D3D0DFE725b9c91ee";
+const zkSyncLnBridgeAddress = "0x9422E7883d1F9Dd2E0f5926D585115542D6C71dA";
 
 const tokenInfos = {
     RING: {
-        sourceAddress: "0x1836BAFa3016Dd5Ce543D0F7199cB858ec69F41E",
-        targetAddress: "0x61C31A1fA4a8D765e63D4285f368aA2f4d912DbB",
+        sourceAddress: "0x61C31A1fA4a8D765e63D4285f368aA2f4d912DbB",
+        targetAddress: "0x1836BAFa3016Dd5Ce543D0F7199cB858ec69F41E",
         protocolFee: ethers.utils.parseEther("1.5"),
         penalty: ethers.utils.parseEther("20"),
         providerFee: ethers.utils.parseEther("2.5"),
@@ -33,8 +33,8 @@ const tokenInfos = {
         slashFund: ethers.utils.parseEther("10"),
     },
     USDC: {
-        sourceAddress: "0xd35CCeEAD182dcee0F148EbaC9447DA2c4D449c4",
-        targetAddress: "0x0faF6df7054946141266420b43783387A78d82A9",
+        sourceAddress: "0x0faF6df7054946141266420b43783387A78d82A9",
+        targetAddress: "0xd35CCeEAD182dcee0F148EbaC9447DA2c4D449c4",
         protocolFee: 1500000,
         penalty: 10000000,
         providerFee: 2500000,
@@ -59,7 +59,7 @@ const tokenInfos = {
 };
 
 async function getLnBridgeTargetInitData(wallet, dao, inbox) {
-    const bridgeContract = await ethers.getContractFactory("Eth2ZkSyncTarget", wallet);
+    const bridgeContract = await ethers.getContractFactory("ZkSync2EthTarget", wallet);
     const initdata = await ProxyDeployer.getInitializerData(
         bridgeContract.interface,
         [dao, inbox],
@@ -69,7 +69,7 @@ async function getLnBridgeTargetInitData(wallet, dao, inbox) {
 }
 
 async function getLnBridgeSourceInitData(wallet, dao) {
-    const bridgeContract = await ethers.getContractFactory("Eth2ZkSyncSource", wallet);
+    const bridgeContract = await ethers.getContractFactory("ZkSync2EthSource", wallet);
     const initdata = await ProxyDeployer.getInitializerData(
         bridgeContract.interface,
         [dao],
@@ -82,31 +82,30 @@ async function transferAndLockMargin(
     wallet,
     bridgeAddress, 
     provider,
-    sourceTokenAddress,
-    targetTokenAddress,
+    tokenAddress,
     amount,
-    receiver,
-    withdrawNonce,
-) {
-    const bridge = await ethers.getContractAt("LnDefaultBridgeSource", bridgeAddress, wallet);
+    receiver) {
+    const bridge = await ethers.getContractAt("LnOppositeBridgeSource", bridgeAddress, wallet);
     const expectedFee = await bridge.totalFee(
         provider,
-        sourceTokenAddress,
+        tokenAddress,
         amount);
     console.log("expect fee is", expectedFee);
-    const providerInfo = await bridge.lnProviders(await bridge.getDefaultProviderKey(provider, sourceTokenAddress, targetTokenAddress));
+    const providerInfo = await bridge.lnProviders(await bridge.getProviderKey(provider, tokenAddress));
+    const expectedMargin = providerInfo.config.margin;
+    console.log("expect margin is", expectedMargin);
     let value = expectedFee.add(amount);
-    if (sourceTokenAddress !== "0x0000000000000000000000000000000000000000") {
+    if (tokenAddress !== "0x0000000000000000000000000000000000000000") {
         value = 0;
     }
     //const tx = await bridge.callStatic.transferAndLockMargin(
     const tx = await bridge.transferAndLockMargin(
         [
             provider,
-            sourceTokenAddress,
+            tokenAddress,
             providerInfo.lastTransferId,
+            expectedMargin,
             expectedFee,
-            withdrawNonce,
         ],
         amount,
         wallet.address,
@@ -127,9 +126,9 @@ async function relay(
     amount,
     expectedTransferId,
 ) {
-    const bridge = await ethers.getContractAt("LnDefaultBridgeTarget", bridgeAddress, wallet);
-    //const tx = await bridge.callStatic.transferAndReleaseMargin(
-    const tx = await bridge.transferAndReleaseMargin(
+    const bridge = await ethers.getContractAt("LnOppositeBridgeTarget", bridgeAddress, wallet);
+    //const tx = await bridge.callStatic.relay(
+    await bridge.transferAndReleaseMargin(
         [
             previousTransferId,
             provider,
@@ -141,7 +140,7 @@ async function relay(
         ],
         expectedTransferId,
     );
-    console.log(tx);
+    //console.log(tx);
 }
 
 async function slash(
@@ -156,14 +155,23 @@ async function slash(
     amount,
     expectedTransferId,
 ) {
-    const bridge = await ethers.getContractAt("Eth2ZkSyncSource", bridgeAddress, wallet);
-    const cost = await bridge.l2Fee(
-        10000000000,
-        1000000,
-        800,
+    const bridge = await ethers.getContractAt("Arb2EthTarget", bridgeAddress, wallet);
+    const maxSubmissionCost = await bridge.submissionRefundFee(
+        30000000000,
+        previousTransferId,
+        previousTransferId,
+        provider,
+        sourceToken,
+        wallet.address,
+        10,
     );
-    //const tx = await bridge.callStatic.slashAndRemoteRelease(
-    await bridge.slashAndRemoteRelease(
+    const maxGas = 1000000;
+    const gasPriceBid = 20000000000;
+    const cost = maxSubmissionCost.add("0x470de4df820000");
+    //return;
+
+    //const tx = await bridge.callStatic.slashAndRemoteRefund(
+    await bridge.slashAndRemoteRefund(
         [
             previousTransferId,
             provider,
@@ -174,8 +182,9 @@ async function slash(
             receiver,
         ],
         expectedTransferId,
-        1000000,
-        800,
+        maxSubmissionCost,
+        maxGas,
+        gasPriceBid,
         {value: cost },
     );
     //console.log(tx);
@@ -184,22 +193,31 @@ async function slash(
 async function requestWithdrawMargin(
     wallet,
     bridgeAddress,
+    lastTransferId,
     sourceToken,
     amount,
 ) {
-    const bridge = await ethers.getContractAt("Eth2ZkSyncSource", bridgeAddress, wallet);
-    const cost = await bridge.l2Fee(
-        100000000000,
-        1000000,
-        800,
+    const bridge = await ethers.getContractAt("Arb2EthTarget", bridgeAddress, wallet);
+    const maxSubmissionCost = await bridge.submissionWithdrawFee(
+        30000000000,
+        lastTransferId,
+        sourceToken,
+        amount,
+        10,
     );
+    const maxGas = 1000000;
+    const gasPriceBid = 20000000000;
+    const cost = maxSubmissionCost.add("0x470de4df820000");
+    //return;
 
     //const tx = await bridge.callStatic.requestWithdrawMargin(
     await bridge.requestWithdrawMargin(
+        lastTransferId,
         sourceToken,
         amount,
-        1000000,
-        800,
+        maxSubmissionCost,
+        maxGas,
+        gasPriceBid,
         {value: cost },
     );
     //console.log(tx);
@@ -214,7 +232,7 @@ function wallet() {
 }
 
 async function getLnBridgeOnL1InitData(wallet, dao, inbox) {
-    const bridgeContract = await ethers.getContractFactory("Eth2ZkSyncTarget", wallet);
+    const bridgeContract = await ethers.getContractFactory("ZkSync2EthTarget", wallet);
     const initdata = await ProxyDeployer.getInitializerData(
         bridgeContract.interface,
         [dao, inbox],
@@ -224,7 +242,7 @@ async function getLnBridgeOnL1InitData(wallet, dao, inbox) {
 }
 
 async function getLnBridgeOnL2InitData(wallet, dao) {
-    const bridgeContract = await ethers.getContractFactory("Eth2ZkSyncSource", wallet);
+    const bridgeContract = await ethers.getContractFactory("ZkSync2EthSource", wallet);
     const initdata = await ProxyDeployer.getInitializerData(
         bridgeContract.interface,
         [dao],
@@ -233,33 +251,49 @@ async function getLnBridgeOnL2InitData(wallet, dao) {
     console.log("ln bridge on l2 init data:", initdata);
 }
 
-async function deployLnSource(wallet, dao, mailbox, proxyAdminAddress) {
-    const bridgeContract = await ethers.getContractFactory("Eth2ZkSyncSource", wallet);
+async function deployLnZkSyncBridgeOnL2(wallet, dao, proxyAdminAddress) {
+    const bridgeContract = await ethers.getContractFactory("ZkSync2EthSource", wallet);
     const lnBridgeLogic = await bridgeContract.deploy();
     await lnBridgeLogic.deployed();
-    console.log("finish to deploy ln source bridge logic, address: ", lnBridgeLogic.address);
+    console.log("finish to deploy ln bridge logic on L2, address: ", lnBridgeLogic.address);
 
     const lnBridgeProxy = await ProxyDeployer.deployProxyContract(
         proxyAdminAddress,
         bridgeContract,
         lnBridgeLogic.address,
-        [dao, mailbox],
+        [dao],
         wallet);
-    console.log("finish to deploy ln bridge proxy on ethereum, address:", lnBridgeProxy.address);
+    console.log("finish to deploy ln bridge proxy on L2, address:", lnBridgeProxy.address);
+    return lnBridgeProxy.address;
+}
+
+async function deployLnZkSyncBridgeOnL1(wallet, dao, inbox, proxyAdminAddress) {
+    const bridgeContract = await ethers.getContractFactory("ZkSync2EthTarget", wallet);
+    const lnBridgeLogic = await bridgeContract.deploy();
+    await lnBridgeLogic.deployed();
+    console.log("finish to deploy ln bridge logic on L1, address: ", lnBridgeLogic.address);
+
+    const lnBridgeProxy = await ProxyDeployer.deployProxyContract(
+        proxyAdminAddress,
+        bridgeContract,
+        lnBridgeLogic.address,
+        [dao, inbox],
+        wallet);
+    console.log("finish to deploy ln bridge proxy on L1, address:", lnBridgeProxy.address);
     return lnBridgeProxy.address;
 }
 
 async function deploy(zkSyncWallet, ethereumWallet) {
-    const ethereumLnBridgeAddress = await deployLnSource(
+    const ethereumLnBridgeAddress = await deployLnZkSyncBridgeOnL1(
         ethereumWallet,
         daoOnEthereum,
         mailboxEthereumAddress,
         ethereumProxyAdmin
     );
 
-    const zkSyncLnBridge = await ethers.getContractAt("Eth2ZkSyncTarget", zkSyncLnBridgeAddress, zkSyncWallet);
-    const ethereumLnBridge = await ethers.getContractAt("Eth2ZkSyncSource", ethereumLnBridgeAddress, ethereumWallet);
-    await ethereumLnBridge.updateFeeReceiver(daoOnEthereum);
+    const zkSyncLnBridge = await ethers.getContractAt("ZkSync2EthSource", zkSyncLnBridgeAddress, zkSyncWallet);
+    const ethereumLnBridge = await ethers.getContractAt("ZkSync2EthTarget", ethereumLnBridgeAddress, ethereumWallet);
+    await zkSyncLnBridge.updateFeeReceiver(daoOnZkSync);
     await zkSyncLnBridge.setRemoteBridge(ethereumLnBridgeAddress);
     await ethereumLnBridge.setRemoteBridge(zkSyncLnBridgeAddress);
 
@@ -271,9 +305,10 @@ async function deploy(zkSyncWallet, ethereumWallet) {
 
 async function registerToken(token, sourceLnBridgeAddress, wallet) {
     const tokenInfo = tokenInfos[token];
-    const ethereumLnBridge = await ethers.getContractAt("Eth2ZkSyncSource", sourceLnBridgeAddress, wallet);
+    const zkSyncLnBridge = await ethers.getContractAt("ZkSync2EthSource", sourceLnBridgeAddress, wallet);
+
     // register token
-    await ethereumLnBridge.setTokenInfo(
+    await zkSyncLnBridge.registerToken(
         tokenInfo.sourceAddress,
         tokenInfo.targetAddress,
         tokenInfo.protocolFee,
@@ -282,39 +317,28 @@ async function registerToken(token, sourceLnBridgeAddress, wallet) {
         tokenInfo.targetDecimals,
     );
     console.log("register token finished", token);
+
+    
 }
 
 async function registerProvider(token, sourceLnBridgeAddress, targetLnBridgeAddress, sourceWallet, targetWallet) {
-    const tokenInfo = tokenInfos[token];
-    const sourceLnBridge = await ethers.getContractAt("Eth2ZkSyncSource", sourceLnBridgeAddress, sourceWallet);
-    const targetLnBridge = await ethers.getContractAt("Eth2ZkSyncTarget", targetLnBridgeAddress, targetWallet);
     // register provider
-    await sourceLnBridge.setProviderFee(
+    const tokenInfo = tokenInfos[token];
+    const sourceLnBridge = await ethers.getContractAt("ZkSync2EthSource", sourceLnBridgeAddress, sourceWallet);
+    let value = tokenInfo.margin;
+    if (tokenInfo.sourceAddress !== "0x0000000000000000000000000000000000000000") {
+        const sourceToken = await ethers.getContractAt("Erc20", tokenInfo.sourceAddress, sourceWallet);
+        const targetToken = await ethers.getContractAt("Erc20", tokenInfo.targetAddress, targetWallet);
+        await sourceToken.approve(sourceLnBridgeAddress, ethers.utils.parseEther("10000000"));
+        await targetToken.approve(targetLnBridgeAddress, ethers.utils.parseEther("10000000"));
+        value = 0;
+    }
+    await sourceLnBridge.updateProviderFeeAndMargin(
         tokenInfo.sourceAddress,
+        tokenInfo.margin,
         tokenInfo.providerFee,
         tokenInfo.providerLiquidityRate,
-    );
-    console.log("set provider fee finished");
-    let marginValue = tokenInfo.margin;
-    let slashValue = tokenInfo.slashFund;
-    if (tokenInfo.targetAddress !== "0x0000000000000000000000000000000000000000") {
-        const targetToken = await ethers.getContractAt("Erc20", tokenInfo.targetAddress, targetWallet);
-        await targetToken.approve(targetLnBridge.address, ethers.utils.parseEther("10000000"));
-        marginValue = 0;
-        slashValue = 0;
-    }
-    await targetLnBridge.depositProviderMargin(
-        tokenInfo.sourceAddress,
-        tokenInfo.targetAddress,
-        tokenInfo.margin,
-        {value: marginValue },
-    );
-    console.log("deposit margin finished");
-    await targetLnBridge.depositSlashFundReserve(
-        tokenInfo.sourceAddress,
-        tokenInfo.targetAddress,
-        tokenInfo.slashFund,
-        {value: slashValue },
+        { value: value },
     );
     console.log("register provider finished", token);
 }
@@ -323,39 +347,40 @@ async function lockToken(
     token,
     bridgeAddress,
     amount,
-    withdrawNonce,
-    needApprove,
     sourceWallet,
     targetWallet,
 ) {
     const tokenInfo = tokenInfos[token];
-
-    if (needApprove && tokenInfo.sourceAddress !== "0x0000000000000000000000000000000000000000") {
-        const sourceToken = await ethers.getContractAt("Erc20", tokenInfo.sourceAddress, sourceWallet);
-        await sourceToken.approve(bridgeAddress, ethers.utils.parseEther("10000000"));
-    }
-
     // lock
     await transferAndLockMargin(
         sourceWallet,
         bridgeAddress,
         sourceWallet.address,
         tokenInfo.sourceAddress,
-        tokenInfo.targetAddress,
         amount,
         sourceWallet.address,
-        withdrawNonce,
     );
     console.log("transfer and lock margin 1 successed");
 }
 
+async function updateProviderInfo(
+    zkSyncLnBridgeAddress,
+    zkSyncWallet,
+    margin,
+    baseFee,
+    liquidityFeeRate,
+) {
+    const zkSyncLnBridge = await ethers.getContractAt("ZkSync2EthSource", zkSyncLnBridgeAddress, zkSyncWallet);
+    await zkSyncLnBridge.updateProviderFeeAndMargin(
+        ringZkSyncAddress,
+        margin,
+        baseFee,
+        liquidityFeeRate,
+    );
+}
+
 // 2. deploy mapping token factory
 async function main() {
-    /*
-    const l2Provider = new Provider("https://testnet.era.zksync.dev");
-    const zkSyncAddress = await l2Provider.getMainContractAddress();
-    */
-
     const wallets = wallet();
     const zkSyncWallet = wallets[0];
     const ethereumWallet = wallets[1];
@@ -364,47 +389,45 @@ async function main() {
     //await getLnBridgeSourceInitData(zkSyncWallet, "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4");
     //return;
 
-    // only deploy ethereum contract
     /*
     const deployed = await deploy(zkSyncWallet, ethereumWallet);
     console.log(deployed);
     return;
     */
     
-    const ethereumLnBridgeAddress = "0xc05ca63DAB6b48bcd82320d29Ad44BD6A3C21160";
+    const ethereumLnBridgeAddress = "0x6E7b0Af10aB840a47c47AeC97107487D2a17Eb2F";
 
     /*
-    await registerToken('ETH', ethereumLnBridgeAddress, ethereumWallet);
-    await registerProvider('ETH', ethereumLnBridgeAddress, zkSyncLnBridgeAddress, ethereumWallet, zkSyncWallet);
+    await registerToken('ETH', zkSyncLnBridgeAddress, zkSyncWallet);
+    await registerProvider('ETH', zkSyncLnBridgeAddress, ethereumLnBridgeAddress, zkSyncWallet, ethereumWallet);
     return;
     */
 
     const amount = ethers.utils.parseEther("0.001");
-    //const amount = 12000000;
+    //const amount = 20000000;
     await lockToken(
         'ETH',
-        ethereumLnBridgeAddress,
+        zkSyncLnBridgeAddress,
         amount,
-        0, // withdrawNonce
-        true, // needApprove
-        ethereumWallet,
         zkSyncWallet,
+        ethereumWallet,
     );
     return;
+    
 
     // relay
     // query: lastTransferId on zkSync
-    const lastTransferId = "0x349F327DD96E2FC5940EC3D1A75EEBC32FBAAB98C099CFCD0BBFB06A94CC0CE3";
-    const timestamp = 1691561400;
-    const expectedTransferId = "0x648B13FF4E4F75B5683DDD08D23F275DFCC4893945458AE9516AC014110EB14E";
+    const lastTransferId = "0x356AB27AE7C69D5BDB71C97B96EF45362E71EADE1A5EFE1ADF5706FC0DFC8625";
+    const timestamp = 1688961375;
+    const expectedTransferId = "0xD1207442C3AC4BABC7500E06C2C08E3E5A46A452D92A7936A9B90ECE22C55E5E";
 
     /*
     await relay(
-        zkSyncWallet,
-        zkSyncLnBridgeAddress,
-        zkSyncWallet.address,
-        ringEthereumAddress,
+        ethereumWallet,
+        ethereumLnBridgeAddress,
+        ethereumWallet.address,
         ringZkSyncAddress,
+        ringEthereumAddress,
         lastTransferId,
         timestamp,
         zkSyncWallet.address,
@@ -415,14 +438,15 @@ async function main() {
     return;
     */
     
+    
     // slasher
-    /*
+   /*
     await slash(
         ethereumWallet,
         ethereumLnBridgeAddress,
         ethereumWallet.address,
-        ringEthereumAddress,
         ringZkSyncAddress,
+        ringEthereumAddress,
         lastTransferId,
         timestamp,
         zkSyncWallet.address,
@@ -434,14 +458,14 @@ async function main() {
     */
     
     // withdraw
-    /*
+    
     await requestWithdrawMargin(
         ethereumWallet,
         ethereumLnBridgeAddress,
-        ringEthereumAddress,
-        ethers.utils.parseEther("3.2"), // amount
+        "0xDD5703D47E4494FFC87660F3CBF2AFBA7A137755A91C81DC7ED120BB18E33A83", //lastTransferId
+        ringZkSyncAddress,
+        ethers.utils.parseEther("3"), // amount
     );
-    */
     
     console.log("withdraw successed");
     
@@ -454,4 +478,10 @@ main()
     process.exit(1);
   });
     
+/*
+zkSyncLnBridgeAddressLogic =  0xBFA90e358a9B2218ceb900afD9ac78691C92ABa6
+zkSyncLnBridgeAddressProxy = 0x7B8413FA1c1033844ac813A2E6475E15FB0fb3BA
+ethereumLnBridgeAddressLogic =  0x0BA214a9Ab958C1A19D913f2Ac00119d27f196bB
+ethereumLnBridgeAddressProxy = 0x3B1A953bFa72Af4ae3494b08e453BFF30a06A550
+*/
 

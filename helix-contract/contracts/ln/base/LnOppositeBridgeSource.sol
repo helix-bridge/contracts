@@ -130,7 +130,8 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             // the margin can be only increased here
             margin + providerInfo.config.margin,
             baseFee,
-            liquidityFeeRate);
+            liquidityFeeRate
+        );
 
         lnProviders[providerKey].config = config;
 

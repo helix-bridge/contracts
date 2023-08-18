@@ -22,7 +22,7 @@
     },
     "arbitrum2ethereumLnV2-arbitrum-goerli": {
         "LnBridgeProxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",
-        "LnBridgeLogic": "0xBFA90e358a9B2218ceb900afD9ac78691C92ABa6",
+        "LnBridgeLogic": "0x954172969E00a47533A4c38D3A035ecf4A175fB4",
         "LnBridgeProxy": "0x7B8413FA1c1033844ac813A2E6475E15FB0fb3BA",
         "Ring": "0xFBAD806Bdf9cEC2943be281FB355Da05068DE925",
         "USDC": "0xEA70a40Df1432A1b38b916A51Fb81A4cc805a963"

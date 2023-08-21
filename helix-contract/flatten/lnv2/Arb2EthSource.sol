@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 7/12/2023
+ * 8/12/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -108,58 +108,57 @@ interface IAccessControl {
     function renounceRole(bytes32 role, address account) external;
 }
 
-// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 
 
 /**
- * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
+ * @dev Interface of the ERC165 standard, as defined in the
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ *
+ * Implementers can declare support of contract interfaces, which can then be
+ * queried by others ({ERC165Checker}).
+ *
+ * For an implementation, see {ERC165}.
  */
-interface IAccessControlEnumerable is IAccessControl {
+interface IERC165 {
     /**
-     * @dev Returns one of the accounts that have `role`. `index` must be a
-     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     * @dev Returns true if this contract implements the interface defined by
+     * `interfaceId`. See the corresponding
+     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     * to learn more about how these ids are created.
      *
-     * Role bearers are not sorted in any particular way, and their ordering may
-     * change at any point.
-     *
-     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
-     * you perform all queries on the same block. See the following
-     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
-     * for more information.
+     * This function call must use less than 30 000 gas.
      */
-    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
-
-    /**
-     * @dev Returns the number of accounts that have `role`. Can be used
-     * together with {getRoleMember} to enumerate all bearers of a role.
-     */
-    function getRoleMemberCount(bytes32 role) external view returns (uint256);
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
 
 
 /**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
+ * @dev Implementation of the {IERC165} interface.
  *
- * This contract is only required for intermediate, library-like contracts.
+ * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
+ * for the additional interface id that will be supported. For example:
+ *
+ * ```solidity
+ * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+ *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
+ * }
+ * ```
+ *
+ * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
  */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
+abstract contract ERC165 is IERC165 {
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC165).interfaceId;
     }
 }
 
@@ -239,57 +238,28 @@ library Strings {
     }
 }
 
-// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
 
 
 /**
- * @dev Interface of the ERC165 standard, as defined in the
- * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
  *
- * Implementers can declare support of contract interfaces, which can then be
- * queried by others ({ERC165Checker}).
- *
- * For an implementation, see {ERC165}.
+ * This contract is only required for intermediate, library-like contracts.
  */
-interface IERC165 {
-    /**
-     * @dev Returns true if this contract implements the interface defined by
-     * `interfaceId`. See the corresponding
-     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
-     * to learn more about how these ids are created.
-     *
-     * This function call must use less than 30 000 gas.
-     */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
 
-// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
-
-
-/**
- * @dev Implementation of the {IERC165} interface.
- *
- * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
- * for the additional interface id that will be supported. For example:
- *
- * ```solidity
- * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
- *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
- * }
- * ```
- *
- * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
- */
-abstract contract ERC165 is IERC165 {
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IERC165).interfaceId;
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
     }
 }
 
@@ -537,6 +507,36 @@ abstract contract AccessControl is Context, IAccessControl, ERC165 {
             emit RoleRevoked(role, account, _msgSender());
         }
     }
+}
+
+// File @zeppelin-solidity/contracts/access/IAccessControlEnumerable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (access/IAccessControlEnumerable.sol)
+
+
+/**
+ * @dev External interface of AccessControlEnumerable declared to support ERC165 detection.
+ */
+interface IAccessControlEnumerable is IAccessControl {
+    /**
+     * @dev Returns one of the accounts that have `role`. `index` must be a
+     * value between 0 and {getRoleMemberCount}, non-inclusive.
+     *
+     * Role bearers are not sorted in any particular way, and their ordering may
+     * change at any point.
+     *
+     * WARNING: When using {getRoleMember} and {getRoleMemberCount}, make sure
+     * you perform all queries on the same block. See the following
+     * https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum post]
+     * for more information.
+     */
+    function getRoleMember(bytes32 role, uint256 index) external view returns (address);
+
+    /**
+     * @dev Returns the number of accounts that have `role`. Can be used
+     * together with {getRoleMember} to enumerate all bearers of a role.
+     */
+    function getRoleMemberCount(bytes32 role) external view returns (uint256);
 }
 
 // File @zeppelin-solidity/contracts/utils/structs/EnumerableSet.sol@v4.7.3
@@ -1238,10 +1238,26 @@ contract LnBridgeHelper {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
     }
 
-    function getProviderKey(address provider, address token) pure public returns(bytes32) {
+    function _safeTransferNative(
+        address receiver,
+        uint256 amount
+    ) internal {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        require(success, "lnBridgeHelper:transfer native token failed");
+    }
+
+    function getProviderKey(address provider, address sourceToken) pure public returns(bytes32) {
         return keccak256(abi.encodePacked(
             provider,
-            token
+            sourceToken
+        ));
+    }
+
+    function getDefaultProviderKey(address provider, address sourceToken, address targetToken) pure public returns(bytes32) {
+        return keccak256(abi.encodePacked(
+            provider,
+            sourceToken,
+            targetToken
         ));
     }
 }
@@ -1326,6 +1342,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         address sourceToken,
         uint112 amount,
         uint112 fee,
+        uint64 timestamp,
         address receiver);
     event LiquidityWithdrawn(address provider, address token, uint112 amount);
     event Slash(bytes32 transferId, address provider, address token, uint112 margin, address slasher);
@@ -1375,7 +1392,8 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             // the margin can be only increased here
             margin + providerInfo.config.margin,
             baseFee,
-            liquidityFeeRate);
+            liquidityFeeRate
+        );
 
         lnProviders[providerKey].config = config;
 
@@ -1452,13 +1470,14 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         
         uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
         require(targetAmount < MAX_TRANSFER_AMOUNT, "overflow amount");
+        uint64 timestamp = uint64(block.timestamp);
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
             snapshot.provider,
             snapshot.sourceToken,
             tokenInfo.targetToken,
             receiver,
-            uint64(block.timestamp),
+            timestamp,
             uint112(targetAmount)));
         require(lockInfos[transferId].amountWithFeeAndPenalty == 0, "transferId exist");
         lockInfos[transferId] = LockInfo(amount + tokenInfo.penaltyLnCollateral + uint112(providerFee), false);
@@ -1468,13 +1487,13 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
 
         if (snapshot.sourceToken == address(0)) {
             require(amount + snapshot.totalFee == msg.value, "amount unmatched");
-            payable(snapshot.provider).transfer(amount + providerFee);
+            _safeTransferNative(snapshot.provider, amount + providerFee);
             if (tokenInfo.protocolFee > 0) {
-                payable(feeReceiver).transfer(tokenInfo.protocolFee);
+                _safeTransferNative(feeReceiver, tokenInfo.protocolFee);
             }
             uint256 refund = snapshot.totalFee - tokenInfo.protocolFee - providerFee;
             if ( refund > 0 ) {
-                payable(msg.sender).transfer(refund);
+                _safeTransferNative(msg.sender, refund);
             }
         } else {
             _safeTransferFrom(
@@ -1498,6 +1517,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             snapshot.sourceToken,
             amount,
             uint112(providerFee),
+            timestamp,
             receiver);
     }
 
@@ -1533,7 +1553,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         lnProviders[providerKey].config.margin = updatedMargin;
 
         if (sourceToken == address(0)) {
-            payable(slasher).transfer(slashAmount);
+            _safeTransferNative(slasher, slashAmount);
         } else {
             _safeTransfer(sourceToken, slasher, slashAmount);
         }
@@ -1566,41 +1586,11 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint112 updatedMargin = lnProvider.config.margin - amount;
         lnProviders[providerKey].config.margin = updatedMargin;
         if (sourceToken == address(0)) {
-            payable(provider).transfer(amount);
+            _safeTransferNative(provider, amount);
         } else {
             _safeTransfer(sourceToken, provider, amount);
         }
         emit LiquidityWithdrawn(provider, sourceToken, updatedMargin);
-    }
-}
-
-// File @arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol@v1.0.1
-// Copyright 2021-2022, Offchain Labs, Inc.
-// For license information, see https://github.com/nitro/blob/master/LICENSE
-// License-Identifier: BUSL-1.1
-
-
-library AddressAliasHelper {
-    uint160 internal constant OFFSET = uint160(0x1111000000000000000000000000000000001111);
-
-    /// @notice Utility function that converts the address in the L1 that submitted a tx to
-    /// the inbox to the msg.sender viewed in the L2
-    /// @param l1Address the address in the L1 that triggered the tx to L2
-    /// @return l2Address L2 address as viewed in msg.sender
-    function applyL1ToL2Alias(address l1Address) internal pure returns (address l2Address) {
-        unchecked {
-            l2Address = address(uint160(l1Address) + OFFSET);
-        }
-    }
-
-    /// @notice Utility function that converts the msg.sender viewed in the L2 to the
-    /// address in the L1 that submitted a tx to the inbox
-    /// @param l2Address L2 address as viewed in msg.sender
-    /// @return l1Address the address in the L1 that triggered the tx to L2
-    function undoL1ToL2Alias(address l2Address) internal pure returns (address l1Address) {
-        unchecked {
-            l1Address = address(uint160(l2Address) - OFFSET);
-        }
     }
 }
 
@@ -1960,6 +1950,36 @@ abstract contract Initializable {
         if (_initialized < type(uint8).max) {
             _initialized = type(uint8).max;
             emit Initialized(type(uint8).max);
+        }
+    }
+}
+
+// File @arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol@v1.0.1
+// Copyright 2021-2022, Offchain Labs, Inc.
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+// License-Identifier: BUSL-1.1
+
+
+library AddressAliasHelper {
+    uint160 internal constant OFFSET = uint160(0x1111000000000000000000000000000000001111);
+
+    /// @notice Utility function that converts the address in the L1 that submitted a tx to
+    /// the inbox to the msg.sender viewed in the L2
+    /// @param l1Address the address in the L1 that triggered the tx to L2
+    /// @return l2Address L2 address as viewed in msg.sender
+    function applyL1ToL2Alias(address l1Address) internal pure returns (address l2Address) {
+        unchecked {
+            l2Address = address(uint160(l1Address) + OFFSET);
+        }
+    }
+
+    /// @notice Utility function that converts the msg.sender viewed in the L2 to the
+    /// address in the L1 that submitted a tx to the inbox
+    /// @param l2Address L2 address as viewed in msg.sender
+    /// @return l1Address the address in the L1 that triggered the tx to L2
+    function undoL1ToL2Alias(address l2Address) internal pure returns (address l1Address) {
+        unchecked {
+            l1Address = address(uint160(l2Address) - OFFSET);
         }
     }
 }

@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 7/12/2023
+ * 8/12/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -168,10 +168,26 @@ contract LnBridgeHelper {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
     }
 
-    function getProviderKey(address provider, address token) pure public returns(bytes32) {
+    function _safeTransferNative(
+        address receiver,
+        uint256 amount
+    ) internal {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        require(success, "lnBridgeHelper:transfer native token failed");
+    }
+
+    function getProviderKey(address provider, address sourceToken) pure public returns(bytes32) {
         return keccak256(abi.encodePacked(
             provider,
-            token
+            sourceToken
+        ));
+    }
+
+    function getDefaultProviderKey(address provider, address sourceToken, address targetToken) pure public returns(bytes32) {
+        return keccak256(abi.encodePacked(
+            provider,
+            sourceToken,
+            targetToken
         ));
     }
 }
@@ -257,7 +273,7 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
 
         if (params.targetToken == address(0)) {
             require(msg.value >= params.amount, "invalid amount");
-            payable(params.receiver).transfer(params.amount);
+            _safeTransferNative(params.receiver, params.amount);
         } else {
             _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));
         }
@@ -1444,23 +1460,6 @@ contract LnAccessController is AccessControlEnumerable, Pausable {
     }
 }
 
-// File @arbitrum/nitro-contracts/src/bridge/IDelayedMessageProvider.sol@v1.0.1
-// Copyright 2021-2022, Offchain Labs, Inc.
-// For license information, see https://github.com/nitro/blob/master/LICENSE
-// License-Identifier: BUSL-1.1
-
-// solhint-disable-next-line compiler-version
-pragma solidity >=0.6.9 <0.9.0;
-
-interface IDelayedMessageProvider {
-    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
-    event InboxMessageDelivered(uint256 indexed messageNum, bytes data);
-
-    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
-    /// same as InboxMessageDelivered but the batch data is available in tx.input
-    event InboxMessageDeliveredFromOrigin(uint256 indexed messageNum);
-}
-
 // File @arbitrum/nitro-contracts/src/bridge/IOwnable.sol@v1.0.1
 // Copyright 2021-2022, Offchain Labs, Inc.
 // For license information, see https://github.com/nitro/blob/master/LICENSE
@@ -1586,6 +1585,23 @@ interface IBridge {
     // ---------- initializer ----------
 
     function initialize(IOwnable rollup_) external;
+}
+
+// File @arbitrum/nitro-contracts/src/bridge/IDelayedMessageProvider.sol@v1.0.1
+// Copyright 2021-2022, Offchain Labs, Inc.
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+// License-Identifier: BUSL-1.1
+
+// solhint-disable-next-line compiler-version
+pragma solidity >=0.6.9 <0.9.0;
+
+interface IDelayedMessageProvider {
+    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
+    event InboxMessageDelivered(uint256 indexed messageNum, bytes data);
+
+    /// @dev event emitted when a inbox message is added to the Bridge's delayed accumulator
+    /// same as InboxMessageDelivered but the batch data is available in tx.input
+    event InboxMessageDeliveredFromOrigin(uint256 indexed messageNum);
 }
 
 // File @arbitrum/nitro-contracts/src/libraries/IGasRefunder.sol@v1.0.1

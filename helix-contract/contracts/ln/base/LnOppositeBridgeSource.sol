@@ -80,6 +80,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         address sourceToken,
         uint112 amount,
         uint112 fee,
+        uint64 timestamp,
         address receiver);
     event LiquidityWithdrawn(address provider, address token, uint112 amount);
     event Slash(bytes32 transferId, address provider, address token, uint112 margin, address slasher);
@@ -129,7 +130,8 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             // the margin can be only increased here
             margin + providerInfo.config.margin,
             baseFee,
-            liquidityFeeRate);
+            liquidityFeeRate
+        );
 
         lnProviders[providerKey].config = config;
 
@@ -206,13 +208,14 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         
         uint256 targetAmount = uint256(amount) * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
         require(targetAmount < MAX_TRANSFER_AMOUNT, "overflow amount");
+        uint64 timestamp = uint64(block.timestamp);
         bytes32 transferId = keccak256(abi.encodePacked(
             snapshot.transferId,
             snapshot.provider,
             snapshot.sourceToken,
             tokenInfo.targetToken,
             receiver,
-            uint64(block.timestamp),
+            timestamp,
             uint112(targetAmount)));
         require(lockInfos[transferId].amountWithFeeAndPenalty == 0, "transferId exist");
         lockInfos[transferId] = LockInfo(amount + tokenInfo.penaltyLnCollateral + uint112(providerFee), false);
@@ -222,13 +225,13 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
 
         if (snapshot.sourceToken == address(0)) {
             require(amount + snapshot.totalFee == msg.value, "amount unmatched");
-            payable(snapshot.provider).transfer(amount + providerFee);
+            _safeTransferNative(snapshot.provider, amount + providerFee);
             if (tokenInfo.protocolFee > 0) {
-                payable(feeReceiver).transfer(tokenInfo.protocolFee);
+                _safeTransferNative(feeReceiver, tokenInfo.protocolFee);
             }
             uint256 refund = snapshot.totalFee - tokenInfo.protocolFee - providerFee;
             if ( refund > 0 ) {
-                payable(msg.sender).transfer(refund);
+                _safeTransferNative(msg.sender, refund);
             }
         } else {
             _safeTransferFrom(
@@ -252,6 +255,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
             snapshot.sourceToken,
             amount,
             uint112(providerFee),
+            timestamp,
             receiver);
     }
 
@@ -287,7 +291,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         lnProviders[providerKey].config.margin = updatedMargin;
 
         if (sourceToken == address(0)) {
-            payable(slasher).transfer(slashAmount);
+            _safeTransferNative(slasher, slashAmount);
         } else {
             _safeTransfer(sourceToken, slasher, slashAmount);
         }
@@ -320,7 +324,7 @@ contract LnOppositeBridgeSource is LnBridgeHelper {
         uint112 updatedMargin = lnProvider.config.margin - amount;
         lnProviders[providerKey].config.margin = updatedMargin;
         if (sourceToken == address(0)) {
-            payable(provider).transfer(amount);
+            _safeTransferNative(provider, amount);
         } else {
             _safeTransfer(sourceToken, provider, amount);
         }

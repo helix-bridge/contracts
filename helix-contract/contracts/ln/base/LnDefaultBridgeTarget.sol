@@ -80,7 +80,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
 
         if (params.targetToken == address(0)) {
             require(msg.value == params.amount, "lnBridgeTarget:invalid amount");
-            payable(params.receiver).transfer(params.amount);
+            _safeTransferNative(params.receiver, params.amount);
         } else {
             _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));
         }
@@ -118,7 +118,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         uint256 updatedAmount = providerInfo.slashReserveFund - amount;
         lnProviderInfos[providerKey].slashReserveFund = updatedAmount;
         if (targetToken == address(0)) {
-            payable(msg.sender).transfer(amount);
+            _safeTransferNative(msg.sender, amount);
         } else {
             _safeTransfer(targetToken, msg.sender, amount);
         }
@@ -148,7 +148,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
         lnProviderInfos[providerKey].withdrawNonce = withdrawNonce;
 
         if (targetToken == address(0)) {
-            payable(provider).transfer(amount);
+            _safeTransferNative(provider, amount);
         } else {
             _safeTransfer(targetToken, provider, amount);
         }
@@ -191,8 +191,8 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
             lnProviderInfos[providerKey].margin = updatedMargin;
 
             if (params.targetToken == address(0)) {
-                payable(params.receiver).transfer(params.amount);
-                payable(slasher).transfer(fee + penalty);
+                _safeTransferNative(params.receiver, params.amount);
+                _safeTransferNative(slasher, fee + penalty);
             } else {
                 _safeTransfer(params.targetToken, params.receiver, uint256(params.amount));
                 _safeTransfer(params.targetToken, slasher, fee + penalty);
@@ -205,7 +205,7 @@ contract LnDefaultBridgeTarget is LnBridgeHelper {
             require(providerInfo.slashReserveFund >= slashRefund, "slashReserveFund not enough");
             lnProviderInfos[providerKey].slashReserveFund = providerInfo.slashReserveFund - slashRefund;
             if (params.targetToken == address(0)) {
-                payable(slasher).transfer(slashRefund);
+                _safeTransferNative(slasher, slashRefund);
             } else {
                 _safeTransfer(params.targetToken, slasher, slashRefund);
             }

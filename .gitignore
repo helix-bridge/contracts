@@ -3,6 +3,9 @@ build
 dataDir
 account*.txt
 .vscode
+zksync-deployer/contracts
+zksync-deployer/artifacts-zk
+zksync-deployer/cache-zk
 
 #Hardhat files
 cache

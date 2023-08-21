@@ -1,0 +1,17 @@
+{
+    "zksync2ethereumLnV2-goerli": {
+        "LnBridgeProxyAdmin": "0x3F3eDBda6124462a09E071c5D90e072E0d5d4ed4",
+        "LnBridgeLogic": "0xAD723a507A2e953705E746f3019DA69Cc756669B",
+        "LnBridgeProxy": "0x6E7b0Af10aB840a47c47AeC97107487D2a17Eb2F",
+        "Ring": "0x1836BAFa3016Dd5Ce543D0F7199cB858ec69F41E",
+        "USDC": "0xd35CCeEAD182dcee0F148EbaC9447DA2c4D449c4",
+        "Inbox": "0xd80eF7aCBEC07dbf10Eb84452b40D0a8882ADfB5"
+    },
+    "zksync2ethereumLnV2-zksync-goerli": {
+        "LnBridgeProxyAdmin": "0x96892F3EaD26515592Da38432cFABad991BBd69d",
+        "LnBridgeLogic": "0xa81D72f3Ac6C07a36c5550e9262030BEea2c9929",
+        "LnBridgeProxy": "0x9422E7883d1F9Dd2E0f5926D585115542D6C71dA",
+        "Ring": "0x61C31A1fA4a8D765e63D4285f368aA2f4d912DbB",
+        "USDC": "0x0faF6df7054946141266420b43783387A78d82A9"
+    }
+}

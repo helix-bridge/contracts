@@ -81,7 +81,7 @@ contract LnOppositeBridgeTarget is LnBridgeHelper {
 
         if (params.targetToken == address(0)) {
             require(msg.value >= params.amount, "invalid amount");
-            payable(params.receiver).transfer(params.amount);
+            _safeTransferNative(params.receiver, params.amount);
         } else {
             _safeTransferFrom(params.targetToken, msg.sender, params.receiver, uint256(params.amount));
         }

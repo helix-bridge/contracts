@@ -13,7 +13,7 @@ import "../interface/ILnDefaultBridgeTarget.sol";
 contract LnDefaultBridgeSource is LnBridgeHelper {
     // the time(seconds) for liquidity provider to delivery message
     // if timeout, slasher can work.
-    uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
+    uint256 constant private MIN_SLASH_TIMESTAMP = 30 * 60;
     // liquidity fee base rate
     // liquidityFee = liquidityFeeRate / LIQUIDITY_FEE_RATE_BASE * sendAmount
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;

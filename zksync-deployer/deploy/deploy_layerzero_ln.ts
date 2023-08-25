@@ -15,7 +15,7 @@ const zkSyncNetwork = {
     // we should update this remote chain id when deploy
     // arbitrum-goerli: 10143
     // linea-goerli: 10157
-    remoteChainId: 10157,
+    remoteChainId: 10143,
 };
 
 export default async function (hre: HardhatRuntimeEnvironment) {
@@ -28,13 +28,13 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   // Create deployer object and load the artifact of the contract you want to deploy.
   const deployer = new Deployer(hre, wallet);
   // deploy logic contract
-  const artifact = await deployer.loadArtifact("LayerZeroBridge");
+  const artifact = await deployer.loadArtifact("LnBridgeBaseLZ");
   const logicContract = await deployer.deploy(artifact, []);
   const logicContractAddress = logicContract.address;
   console.log(`logic contract was deployed to ${logicContractAddress}`);
   const logicVerificationId = await hre.run("verify:verify", {
       address: logicContractAddress,
-      contract: "contracts/ln/LayerZeroBridge.sol:LayerZeroBridge",
+      contract: "contracts/ln/LnBridgeBaseLZ.sol:LnBridgeBaseLZ",
       constructorArguments: [],
   });
 

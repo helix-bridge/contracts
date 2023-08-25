@@ -23,11 +23,11 @@ const zkSyncNetwork = {
     usdc: "0x0faF6df7054946141266420b43783387A78d82A9",
     chainId: 10165,
     // to arbitrum
-    //logicAddress: "0x94AA0A07AF3E061545Eadd285191b95e5Ab86F16",
-    //proxyAddress: "0x01F741D1D25cCf2a45a9addFBdF45436Eb61881D",
+    //logicAddress: "0x60C7406916e015Acce5260B5c21a169eDdC4761e",
+    //proxyAddress: "0xa88b0119753A0dC9cB27e54Ab9F333DAd80D6141",
     // to linea
-    logicAddress: "0x0Cdd997C7f05783D6721bB1C5FF748Ab780ae73F",
-    proxyAddress: "0x965d47903b616e92f9a9659537Ed0d39E7752E82",
+    logicAddress: "0x33D05496F6323861F9e76228F72700C7b7C5766C",
+    proxyAddress: "0xAe753Ae021cf1Eb3ec55C5c8798C9015Acde6281",
 };
 
 const arbitrumNetwork = {
@@ -42,7 +42,7 @@ const arbitrumNetwork = {
 const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 async function getLnBridgeTargetInitData(wallet, dao, endpoint, chainId) {
-    const bridgeContract = await ethers.getContractFactory("LayerZeroBridge", wallet);
+    const bridgeContract = await ethers.getContractFactory("LnBridgeBaseLZ", wallet);
     const initdata = await ProxyDeployer.getInitializerData(
         bridgeContract.interface,
         [dao, endpoint, chainId],
@@ -124,7 +124,7 @@ async function slash(
     amount,
     expectedTransferId,
 ) {
-    const bridge = await ethers.getContractAt("LayerZeroSource", bridgeAddress, wallet);
+    const bridge = await ethers.getContractAt("LnBridgeBaseLZ", bridgeAddress, wallet);
     const cost = await bridge.estimateSlashFee(
         [
             previousTransferId,
@@ -161,7 +161,7 @@ async function requestWithdrawMargin(
     sourceToken,
     amount,
 ) {
-    const bridge = await ethers.getContractAt("LayerZeroBridge", bridgeAddress, wallet);
+    const bridge = await ethers.getContractAt("LnBridgeBaseLZ", bridgeAddress, wallet);
     const cost = await bridge.estimateWithdrawFee(
         "0x851E1255171825594B313D8AE96F277C0DBAAB5246B9BC661BA98538F675425C",
         1,
@@ -190,7 +190,7 @@ function wallet(sourceUrl, targetUrl) {
 }
 
 async function deployLnBridge(wallet, dao, proxyAdminAddress, endpoint, chainId) {
-    const bridgeContract = await ethers.getContractFactory("LayerZeroBridge", wallet);
+    const bridgeContract = await ethers.getContractFactory("LnBridgeBaseLZ", wallet);
     const lnBridgeLogic = await bridgeContract.deploy();
     await lnBridgeLogic.deployed();
     console.log("finish to deploy ln bridge logic, address: ", lnBridgeLogic.address);
@@ -216,8 +216,8 @@ async function deploy(wallet01, wallet02, network01, network02) {
         network01.chainId
     );
 
-    const bridge01 = await ethers.getContractAt("LayerZeroBridge", bridgeAddress01, wallet01);
-    const bridge02 = await ethers.getContractAt("LayerZeroBridge", bridgeAddress02, wallet02);
+    const bridge01 = await ethers.getContractAt("LnBridgeBaseLZ", bridgeAddress01, wallet01);
+    const bridge02 = await ethers.getContractAt("LnBridgeBaseLZ", bridgeAddress02, wallet02);
     await bridge01.updateFeeReceiver(network01.dao);
     await bridge02.updateFeeReceiver(network02.dao);
     await bridge01.setRemoteBridge(bridgeAddress02);
@@ -267,12 +267,12 @@ async function deploy(wallet01, wallet02, network01, network02) {
     await bridge01.depositProviderMargin(
         usdc02.address,
         usdc01.address,
-        100000000,
+        10000000000,
     );
     await bridge02.depositProviderMargin(
         usdc01.address,
         usdc02.address,
-        100000000,
+        10000000000,
     );
     await bridge01.depositSlashFundReserve(
         usdc02.address,
@@ -298,11 +298,9 @@ async function main() {
     const wallet01 = wallets[0];
     const wallet02 = wallets[1];
 
-    /*
     const deployed = await deploy(wallet01, wallet02, network01, network02);
     console.log(deployed);
     return;
-    */
     
     const bridgeAddress01 = "0x965d47903b616e92f9a9659537Ed0d39E7752E82";
     const bridgeAddress02 = "0x2B0aC3b9a8e89Ba2e6e806f59272bb1c718e1E2a";

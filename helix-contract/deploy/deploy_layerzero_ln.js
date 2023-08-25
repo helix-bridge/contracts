@@ -36,7 +36,7 @@ const arbitrumNetwork = {
 const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 async function getLnBridgeTargetInitData(wallet, dao, endpoint, chainId) {
-    const bridgeContract = await ethers.getContractFactory("LayerZeroBridge", wallet);
+    const bridgeContract = await ethers.getContractFactory("LnBridgeBaseLZ", wallet);
     const initdata = await ProxyDeployer.getInitializerData(
         bridgeContract.interface,
         [dao, endpoint, chainId],
@@ -118,7 +118,7 @@ async function slash(
     amount,
     expectedTransferId,
 ) {
-    const bridge = await ethers.getContractAt("LayerZeroSource", bridgeAddress, wallet);
+    const bridge = await ethers.getContractAt("LnBridgeBaseLZ", bridgeAddress, wallet);
     const cost = await bridge.estimateSlashFee(
         [
             previousTransferId,
@@ -155,7 +155,7 @@ async function requestWithdrawMargin(
     sourceToken,
     amount,
 ) {
-    const bridge = await ethers.getContractAt("LayerZeroBridge", bridgeAddress, wallet);
+    const bridge = await ethers.getContractAt("LnBridgeBaseLZ", bridgeAddress, wallet);
     const cost = await bridge.estimateWithdrawFee(
         "0x851E1255171825594B313D8AE96F277C0DBAAB5246B9BC661BA98538F675425C",
         1,
@@ -184,7 +184,7 @@ function wallet(sourceUrl, targetUrl) {
 }
 
 async function deployLnBridge(wallet, dao, proxyAdminAddress, endpoint, chainId) {
-    const bridgeContract = await ethers.getContractFactory("LayerZeroBridge", wallet);
+    const bridgeContract = await ethers.getContractFactory("LnBridgeBaseLZ", wallet);
     const lnBridgeLogic = await bridgeContract.deploy();
     await lnBridgeLogic.deployed();
     console.log("finish to deploy ln bridge logic, address: ", lnBridgeLogic.address);
@@ -215,8 +215,8 @@ async function deploy(wallet01, wallet02, network01, network02) {
         network01.chainId
     );
 
-    const bridge01 = await ethers.getContractAt("LayerZeroBridge", bridgeAddress01, wallet01);
-    const bridge02 = await ethers.getContractAt("LayerZeroBridge", bridgeAddress02, wallet02);
+    const bridge01 = await ethers.getContractAt("LnBridgeBaseLZ", bridgeAddress01, wallet01);
+    const bridge02 = await ethers.getContractAt("LnBridgeBaseLZ", bridgeAddress02, wallet02);
     await bridge01.updateFeeReceiver(network01.dao);
     await bridge02.updateFeeReceiver(network02.dao);
     await bridge01.setRemoteBridge(bridgeAddress02);
@@ -266,12 +266,12 @@ async function deploy(wallet01, wallet02, network01, network02) {
     await bridge01.depositProviderMargin(
         usdc02.address,
         usdc01.address,
-        100000000,
+        10000000000,
     );
     await bridge02.depositProviderMargin(
         usdc01.address,
         usdc02.address,
-        100000000,
+        10000000000,
     );
     await bridge01.depositSlashFundReserve(
         usdc02.address,
@@ -291,7 +291,7 @@ async function deploy(wallet01, wallet02, network01, network02) {
 
 // 2. deploy mapping token factory
 async function main() {
-    const network01 = zkSyncNetwork;
+    const network01 = arbitrumNetwork;
     const network02 = lineaNetwork;
     const wallets = wallet(network01.url, network02.url);
     const wallet01 = wallets[0];
@@ -301,8 +301,8 @@ async function main() {
     console.log(deployed);
     return;
     
-    const bridgeAddress01 = "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119";
-    const bridgeAddress02 = "0x17bAfDDB48b2bD2424da843df67ACfe9183E087E";
+    const bridgeAddress01 = "0x774715816Ac0DE4Eaa0dFe511a9a9C746F97AA50";
+    const bridgeAddress02 = "0xBfbCe15bb38a28add41f3Bf1B80E579ae7B7a4c0";
 
     const usdc01 = await ethers.getContractAt("Erc20", network01.usdc, wallet01);
     //await usdc01.approve(bridgeAddress01, ethers.utils.parseEther("10000000"));
@@ -381,22 +381,21 @@ async function main() {
     */
     
     // withdraw
-    
+    /*
     await requestWithdrawMargin(
         wallet02,
         bridgeAddress02,
         usdc02.address,
         1200000
     );
+    */
 
-    /*
     await requestWithdrawMargin(
         wallet01,
         bridgeAddress01,
         usdc01.address,
         320000
     );
-    */
     
     console.log("withdraw successed");
     

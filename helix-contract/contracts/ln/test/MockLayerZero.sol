@@ -22,9 +22,15 @@ contract LayerZeroEndpointMock is ILayerZeroEndpoint {
         bytes calldata
     ) external payable {
         address receiver = address(bytes20(_destination[0:20]));
+        bytes memory path = _destination;
+        address srcInPath;
+        assembly {
+            srcInPath := mload(add(add(path, 20), 20))
+        }
+        bytes memory transformedDestination = abi.encodePacked(srcInPath, receiver);
         ILayerZeroReceiver(receiver).lzReceive(
             srcChainId,
-            _destination,
+            transformedDestination,
             0,
             _payload
         );

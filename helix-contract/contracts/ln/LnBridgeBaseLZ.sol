@@ -7,7 +7,7 @@ import "./base/LnDefaultBridgeSource.sol";
 import "./base/LnDefaultBridgeTarget.sol";
 import "./interface/ILayerZeroEndpoint.sol";
 
-contract LayerZeroBridge is Initializable, LnAccessController, LnDefaultBridgeSource, LnDefaultBridgeTarget {
+contract LnBridgeBaseLZ is Initializable, LnAccessController, LnDefaultBridgeSource, LnDefaultBridgeTarget {
     ILayerZeroEndpoint public endpoint;
     address public remoteBridge;
     bytes32 public trustedRemote;

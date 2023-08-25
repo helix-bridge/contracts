@@ -88,7 +88,7 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
       console.log("deploy mock endpoint success");
       //******* deploy endpoint finished ********
 
-      const eth2arbSourceContract = await ethers.getContractFactory("LayerZeroBridge");
+      const eth2arbSourceContract = await ethers.getContractFactory("LnBridgeBaseLZ");
       const eth2arbSource = await eth2arbSourceContract.deploy();
       await eth2arbSource.deployed();
 
@@ -107,7 +107,7 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
           18
       );
 
-      const eth2arbTargetContract = await ethers.getContractFactory("LayerZeroBridge");
+      const eth2arbTargetContract = await ethers.getContractFactory("LnBridgeBaseLZ");
       const eth2arbTarget = await eth2arbTargetContract.deploy();
       await eth2arbTarget.deployed();
       await eth2arbTarget.initialize(dao, endpoint.address, srcChainId);

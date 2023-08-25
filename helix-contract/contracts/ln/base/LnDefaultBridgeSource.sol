@@ -294,7 +294,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         address slasher,
         uint112 fee,
         uint112 penalty
-    ) internal pure returns(bytes memory message) {
+    ) public pure returns(bytes memory message) {
         return abi.encodeWithSelector(
            ILnDefaultBridgeTarget.slash.selector,
            params,
@@ -311,7 +311,7 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         address sourceToken,
         address targetToken,
         uint112 amount
-    ) internal pure returns(bytes memory message) {
+    ) public pure returns(bytes memory message) {
         return abi.encodeWithSelector(
             ILnDefaultBridgeTarget.withdraw.selector,
             lastTransferId,

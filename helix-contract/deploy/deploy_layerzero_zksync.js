@@ -22,6 +22,12 @@ const zkSyncNetwork = {
     endpoint: "0x093D2CF57f764f09C3c2Ac58a42A2601B8C79281",
     usdc: "0x0faF6df7054946141266420b43783387A78d82A9",
     chainId: 10165,
+    // to arbitrum
+    //logicAddress: "0x94AA0A07AF3E061545Eadd285191b95e5Ab86F16",
+    //proxyAddress: "0x01F741D1D25cCf2a45a9addFBdF45436Eb61881D",
+    // to linea
+    logicAddress: "0x0Cdd997C7f05783D6721bB1C5FF748Ab780ae73F",
+    proxyAddress: "0x965d47903b616e92f9a9659537Ed0d39E7752E82",
 };
 
 const arbitrumNetwork = {
@@ -199,14 +205,9 @@ async function deployLnBridge(wallet, dao, proxyAdminAddress, endpoint, chainId)
     return lnBridgeProxy.address;
 }
 
+// network01 is zksync, which has been deployed
 async function deploy(wallet01, wallet02, network01, network02) {
-    const bridgeAddress01 = await deployLnBridge(
-        wallet01,
-        network01.dao,
-        network01.proxyAdmin,
-        network01.endpoint,
-        network02.chainId
-    );
+    const bridgeAddress01 = network01.proxyAddress;
     const bridgeAddress02 = await deployLnBridge(
         wallet02,
         network02.dao,
@@ -297,12 +298,14 @@ async function main() {
     const wallet01 = wallets[0];
     const wallet02 = wallets[1];
 
+    /*
     const deployed = await deploy(wallet01, wallet02, network01, network02);
     console.log(deployed);
     return;
+    */
     
-    const bridgeAddress01 = "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119";
-    const bridgeAddress02 = "0x17bAfDDB48b2bD2424da843df67ACfe9183E087E";
+    const bridgeAddress01 = "0x965d47903b616e92f9a9659537Ed0d39E7752E82";
+    const bridgeAddress02 = "0x2B0aC3b9a8e89Ba2e6e806f59272bb1c718e1E2a";
 
     const usdc01 = await ethers.getContractAt("Erc20", network01.usdc, wallet01);
     //await usdc01.approve(bridgeAddress01, ethers.utils.parseEther("10000000"));
@@ -312,7 +315,6 @@ async function main() {
     const amount1 = 3000000;
     
     // lock
-    /*
     await transferAndLockMargin(
         wallet01,
         bridgeAddress01,
@@ -323,7 +325,6 @@ async function main() {
         wallet01.address,
         0,
     );
-    */
     /*
     await transferAndLockMargin(
         wallet02,

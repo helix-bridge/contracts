@@ -21,7 +21,7 @@ const zkSyncTestnet =
 
 const config: HardhatUserConfig = {
   zksolc: {
-    version: "1.3.11",
+    version: "1.3.13",
     compilerSource: "binary",
     settings: {
       "compilerPath": "/usr/local/bin/zksolc",

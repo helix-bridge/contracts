@@ -7,24 +7,20 @@ import "./base/LnDefaultBridgeSource.sol";
 import "./base/LnDefaultBridgeTarget.sol";
 import "./interface/ILayerZeroEndpoint.sol";
 
-contract LayerZeroBridge is Initializable, LnAccessController, LnDefaultBridgeTarget, LnDefaultBridgeSource {
+contract LayerZeroBridge is Initializable, LnAccessController, LnDefaultBridgeSource, LnDefaultBridgeTarget {
     ILayerZeroEndpoint public endpoint;
     address public remoteBridge;
     bytes32 public trustedRemote;
     uint16 public remoteChainId;
 
     event WithdrawMargin(address sourceToken, uint112 amount);
+    event CallResult(bytes srcAddress, bool successed);
 
     receive() external payable {}
 
     modifier onlyRemoteBridge(bytes calldata srcAddress) {
         require(msg.sender == address(endpoint), "invalid caller");
         require(trustedRemote == keccak256(srcAddress), "invalid remote caller");
-        _;
-    }
-
-    modifier onlySelf() {
-        require(msg.sender == address(this), "only self");
         _;
     }
 
@@ -41,7 +37,7 @@ contract LayerZeroBridge is Initializable, LnAccessController, LnDefaultBridgeTa
 
     function setRemoteBridge(address _remoteBridge) external onlyDao {
         remoteBridge = _remoteBridge;
-        trustedRemote = keccak256(abi.encodePacked(address(this), _remoteBridge));
+        trustedRemote = keccak256(abi.encodePacked(_remoteBridge, address(this)));
     }
 
     function setTokenInfo(
@@ -155,7 +151,8 @@ contract LayerZeroBridge is Initializable, LnAccessController, LnDefaultBridgeTa
         require(_srcChainId == remoteChainId, "invalid src chainid");
         // call
         (bool success,) = address(this).call(_payload);
-        require(success, "receive call failed");
+        // don't revert to prevent message block
+        emit CallResult(_srcAddress, success);
     }
 
     function slash(
@@ -163,7 +160,8 @@ contract LayerZeroBridge is Initializable, LnAccessController, LnDefaultBridgeTa
         address slasher,
         uint112 fee,
         uint112 penalty
-    ) external onlySelf {
+    ) external {
+        require(msg.sender == address(this), "only self");
         _slash(
           params,
           slasher,
@@ -179,7 +177,8 @@ contract LayerZeroBridge is Initializable, LnAccessController, LnDefaultBridgeTa
         address sourceToken,
         address targetToken,
         uint112 amount
-    ) external onlySelf {
+    ) external {
+        require(msg.sender == address(this), "only self");
         _withdraw(lastTransferId, withdrawNonce, provider, sourceToken, targetToken, amount);
     }
 }

@@ -1,0 +1,51 @@
+{
+    "arbitrum<>linea": {
+        "arbitrum-goerli": {
+            "proxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",
+            "chainId": 10143,
+            "bridgeLogic": "0x7C46146F50757Dc5A244C68C35FA2341351D5410",
+            "bridgeProxy": "0x17bAfDDB48b2bD2424da843df67ACfe9183E087E",
+            "usdc": "0xEA70a40Df1432A1b38b916A51Fb81A4cc805a963"
+        },
+        "linea-goerli": {
+            "proxyAdmin": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
+            "chainId": 10157,
+            "bridgeLogic": "0xCF8923ebF4244cedC647936a0281dd10bDFCBF18",
+            "bridgeProxy": "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119",
+            "usdc": "0xB4257F31750961C8e536f5cfCBb3079437700416"
+        }
+    },
+    "arbitrum<>zksync": {
+        "arbitrum-goerli": {
+            "proxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",
+            "chainId": 10143,
+            "bridgeLogic": "0xfB03e247f0fbDaB1Be9b0e2F319F0E35b530630c",
+            "bridgeProxy": "0xB516830B211e5654dfb99B6304D1CDc6a742BeD2",
+            "usdc": "0xEA70a40Df1432A1b38b916A51Fb81A4cc805a963"
+        },
+        "zksync-goerli": {
+            "proxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",
+            "chainId": 10165,
+            "bridgeLogic": "0x94AA0A07AF3E061545Eadd285191b95e5Ab86F16",
+            "bridgeProxy": "0x01F741D1D25cCf2a45a9addFBdF45436Eb61881D",
+            "usdc": "0x0faF6df7054946141266420b43783387A78d82A9"
+        }
+    },
+    "linea<>zksync": {
+        "linea-goerli": {
+            "proxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",
+            "chainId": 10143,
+            "bridgeLogic": "0xd129596B8b30CaA090Cc37A5a8F31c2BC29ffd6F",
+            "bridgeProxy": "0x2B0aC3b9a8e89Ba2e6e806f59272bb1c718e1E2a",
+            "usdc": "0xEA70a40Df1432A1b38b916A51Fb81A4cc805a963"
+        },
+        "zksync-goerli": {
+            "proxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",
+            "chainId": 10165,
+            "bridgeLogic": "0x0Cdd997C7f05783D6721bB1C5FF748Ab780ae73F",
+            "bridgeProxy": "0x965d47903b616e92f9a9659537Ed0d39E7752E82",
+            "usdc": "0x0faF6df7054946141266420b43783387A78d82A9"
+        }
+    }
+}
+

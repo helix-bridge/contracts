@@ -37,7 +37,7 @@
             "chainId": 10143,
             "bridgeLogic": "0xeC00AB2F4db348F0c4850836Cd039AeF3397EA61",
             "bridgeProxy": "0xA4A380B592ceC969bD43BA54F8833d88b8b24811",
-            "usdc": "0xEA70a40Df1432A1b38b916A51Fb81A4cc805a963"
+            "usdc": "0xB4257F31750961C8e536f5cfCBb3079437700416"
         },
         "zksync-goerli": {
             "proxyAdmin": "0x66d86a686e50c98bac236105efafb99ee7605dc5",

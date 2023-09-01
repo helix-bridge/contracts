@@ -14,6 +14,7 @@ contract Linea2EthSource is Initializable, LnAccessController, LnOppositeBridgeS
     receive() external payable {}
 
     modifier onlyRemoteBridge() {
+        require(msg.sender == messageService, "invalid msg.sender");
         require(ILineaMessageService(messageService).sender() == remoteBridge, "invalid remote caller");
         _;
     }

@@ -297,19 +297,21 @@ async function main() {
     const wallet01 = wallets[0];
     const wallet02 = wallets[1];
 
+    /*
     const deployed = await deploy(wallet01, wallet02, network01, network02);
     console.log(deployed);
     return;
+    */
     
-    const bridgeAddress01 = "0x774715816Ac0DE4Eaa0dFe511a9a9C746F97AA50";
-    const bridgeAddress02 = "0xBfbCe15bb38a28add41f3Bf1B80E579ae7B7a4c0";
+    const bridgeAddress01 = "0x504F597CfB0A32704AA6533Fb75dCD60dB982836";
+    const bridgeAddress02 = "0xE4B4b7707450b60421b5d7DE372fA5920F2bBDa8";
 
     const usdc01 = await ethers.getContractAt("Erc20", network01.usdc, wallet01);
     //await usdc01.approve(bridgeAddress01, ethers.utils.parseEther("10000000"));
     const usdc02 = await ethers.getContractAt("Erc20", network02.usdc, wallet02);
     //await usdc02.approve(bridgeAddress02, ethers.utils.parseEther("10000000"));
 
-    const amount1 = 3000000;
+    const amount1 = 3300000;
     
     // lock
     /*
@@ -324,7 +326,7 @@ async function main() {
         0,
     );
     */
-    /*
+    
     await transferAndLockMargin(
         wallet02,
         bridgeAddress02,
@@ -337,7 +339,6 @@ async function main() {
     );
     console.log("transfer and lock margin 1 successed");
     return;
-    */
 
     // relay
     // query: lastTransferId on linea
@@ -390,12 +391,14 @@ async function main() {
     );
     */
 
+    /*
     await requestWithdrawMargin(
         wallet01,
         bridgeAddress01,
         usdc01.address,
         320000
     );
+    */
     
     console.log("withdraw successed");
     

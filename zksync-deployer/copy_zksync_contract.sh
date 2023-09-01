@@ -10,3 +10,4 @@ cp -r ../helix-contract/contracts/ln/ZkSync2EthSource.sol ./contracts/ln/
 cp -r ../helix-contract/contracts/ln/ZkSync2EthTarget.sol ./contracts/ln/
 cp -r ../helix-contract/contracts/ln/ProxyAdmin.sol ./contracts/ln/
 cp -r ../helix-contract/contracts/ln/TransparentUpgradeableProxy.sol ./contracts/ln/
+cp -r ../helix-contract/contracts/ln/LnBridgeBaseLZ.sol ./contracts/ln/

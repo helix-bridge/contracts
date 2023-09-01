@@ -13,6 +13,7 @@ contract Eth2LineaTarget is Initializable, LnAccessController, LnDefaultBridgeTa
     receive() external payable {}
 
     modifier onlyRemoteBridge() {
+        require(msg.sender == messageService, "invalid msg.sender");
         require(ILineaMessageService(messageService).sender() == remoteBridge, "invalid remote caller");
         _;
     }

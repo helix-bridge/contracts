@@ -4,7 +4,7 @@ pragma solidity ^0.8.10;
 import "./LnBridgeHelper.sol";
 
 contract LnDefaultBridgeTarget is LnBridgeHelper {
-    uint256 constant public MIN_SLASH_TIMESTAMP = 30 * 60;
+    uint256 constant private MIN_SLASH_TIMESTAMP = 30 * 60;
 
     struct ProviderInfo {
         uint256 margin;

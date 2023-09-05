@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "../interface/ILayerZeroEndpoint.sol";
+import "../messager/interface/ILayerZeroEndpoint.sol";
 
 interface ILayerZeroReceiver {
     function lzReceive(uint16 _srcChainId, bytes calldata _srcAddress, uint64 _nonce, bytes calldata _payload) external;

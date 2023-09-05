@@ -12,6 +12,7 @@ interface ILnDefaultBridgeTarget {
     ) external;
 
     function withdraw(
+        uint256 _sourceChainId,
         bytes32 lastTransferId,
         uint64 withdrawNonce,
         address provider,

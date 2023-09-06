@@ -5,7 +5,7 @@ import "./interface/ILayerZeroEndpoint.sol";
 import "../interface/ILowLevelMessager.sol";
 import "../base/LnAccessController.sol";
 
-contract LayerZeroMessager is ILowLevelMessager, LnAccessController {
+contract LayerZeroMessager is LnAccessController {
     ILayerZeroEndpoint public endpoint;
 
     struct RemoteMessager {
@@ -20,7 +20,8 @@ contract LayerZeroMessager is ILowLevelMessager, LnAccessController {
 
     // token bridge pair
     // hash(lzRemoteChainId, localAppAddress) => remoteAppAddress
-    mapping(bytes32=>address) public appPairs;
+    mapping(bytes32=>address) public remoteAppReceivers;
+    mapping(bytes32=>address) public remoteAppSenders;
 
     event CallResult(uint16 lzRemoteChainId, bytes srcAddress, bool successed);
 
@@ -40,11 +41,18 @@ contract LayerZeroMessager is ILowLevelMessager, LnAccessController {
         trustedRemotes[_lzRemoteChainId] = keccak256(abi.encodePacked(_remoteMessager, address(this)));
     }
 
-    function registerBridgePair(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteReceiver(uint256 _remoteChainId, address _remoteBridge) external {
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.lzRemoteChainId, msg.sender));
-        appPairs[key] = _remoteBridge;
+        remoteAppReceivers[key] = _remoteBridge;
+    }
+
+    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) external {
+        RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
+        require(remoteMessager.messager != address(0), "remote not configured");
+        bytes32 key = keccak256(abi.encodePacked(remoteMessager.lzRemoteChainId, msg.sender));
+        remoteAppSenders[key] = _remoteBridge;
     }
 
     function sendMessage(uint256 _remoteChainId, bytes memory _message, bytes memory _params) external payable {
@@ -56,7 +64,7 @@ contract LayerZeroMessager is ILowLevelMessager, LnAccessController {
             address(this)
         );
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.lzRemoteChainId, msg.sender));
-        address remoteAppAddress = appPairs[key];
+        address remoteAppAddress = remoteAppReceivers[key];
         require(remoteAppAddress != address(0), "app pair not registered");
         bytes memory lzPayload = abi.encode(msg.sender, remoteAppAddress, _message);
         endpoint.send{ value: msg.value }(
@@ -76,9 +84,9 @@ contract LayerZeroMessager is ILowLevelMessager, LnAccessController {
         uint64, //nonce unused
         bytes calldata _payload) onlyRemoteBridge(_srcChainId, _srcAddress) external {
         // call
-        (address localAppAddress, address remoteAppAddress, bytes memory message) = abi.decode(_payload, (address, address, bytes));
+        (address remoteAppAddress, address localAppAddress, bytes memory message) = abi.decode(_payload, (address, address, bytes));
         bytes32 key = keccak256(abi.encodePacked(_srcChainId, localAppAddress));
-        require(remoteAppAddress == appPairs[key], "invalid remote address");
+        require(remoteAppAddress == remoteAppSenders[key], "invalid remote address");
         (bool success,) = localAppAddress.call(message);
         // don't revert to prevent message block
         emit CallResult(_srcChainId, _srcAddress, success);

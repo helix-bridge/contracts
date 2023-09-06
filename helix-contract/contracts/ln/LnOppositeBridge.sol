@@ -8,13 +8,27 @@ import "./base/LnOppositeBridgeTarget.sol";
 import "./interface/ILowLevelMessager.sol";
 
 contract LnOppositeBridge is Initializable, LnAccessController, LnOppositeBridgeSource, LnOppositeBridgeTarget {
-    mapping(uint256=>address) messagers;
+    struct MessagerService {
+        address sendService;
+        address receiveService;
+    }
+    mapping(uint256=>MessagerService) messagers;
 
     receive() external payable {}
 
     function initialize(address _dao) public initializer {
         _initialize(_dao);
         _updateFeeReceiver(_dao);
+    }
+
+    function setSendService(uint256 _remoteChainId, address _remoteBridge, address _service) external onlyDao {
+        messagers[_remoteChainId].sendService = _service;
+        ILowLevelMessageSender(_service).registerRemoteReceiver(_remoteChainId, _remoteBridge);
+    }
+
+    function setReceiveService(uint256 _remoteChainId, address _remoteBridge, address _service) external onlyDao {
+        messagers[_remoteChainId].receiveService = _service;
+        ILowLevelMessageReceiver(_service).registerRemoteSender(_remoteChainId, _remoteBridge);
     }
 
     function updateFeeReceiver(address _receiver) external onlyDao {
@@ -42,14 +56,14 @@ contract LnOppositeBridge is Initializable, LnAccessController, LnOppositeBridge
     }
 
     function _sendMessageToTarget(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) internal override {
-        address messager = messagers[_remoteChainId];
-        require(messager != address(0), "invalid messager");
-        ILowLevelMessager(messager).sendMessage(_remoteChainId, _payload, _extParams);
+        address sendService = messagers[_remoteChainId].sendService;
+        require(sendService != address(0), "invalid messager");
+        ILowLevelMessageSender(sendService).sendMessage(_remoteChainId, _payload, _extParams);
     }
 
     function _verifyRemote(uint256 _remoteChainId) whenNotPaused internal view override {
-        address messager = messagers[_remoteChainId];
-        require(messager == msg.sender, "invalid messager");
+        address receiveService = messagers[_remoteChainId].receiveService;
+        require(receiveService == msg.sender, "invalid messager");
     }
 }
 

@@ -60,11 +60,14 @@ contract LnDefaultBridgeTarget {
 
     function transferAndReleaseMargin(
         LnBridgeHelper.TransferParameter calldata _params,
+        uint256 _remoteChainId,
         bytes32 _expectedTransferId
     ) external payable {
         require(_params.provider == msg.sender, "invalid provider");
         require(_params.previousTransferId == bytes32(0) || fillTransfers[_params.previousTransferId].timestamp > 0, "last transfer not filled");
         bytes32 transferId = keccak256(abi.encodePacked(
+           _remoteChainId,
+           block.chainid,
            _params.previousTransferId,
            _params.provider,
            _params.sourceToken,
@@ -79,7 +82,7 @@ contract LnDefaultBridgeTarget {
 
         fillTransfers[transferId].timestamp = uint64(block.timestamp);
         if (block.timestamp - LnBridgeHelper.SLASH_EXPIRE_TIME > _params.timestamp) {
-            bytes32 providerKey = LnBridgeHelper.getProviderKey(_params.remoteChainId, msg.sender, _params.sourceToken, _params.targetToken);
+            bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, msg.sender, _params.sourceToken, _params.targetToken);
             tgtProviders[providerKey].lastExpireFillTime = uint64(block.timestamp);
         }
 
@@ -165,15 +168,16 @@ contract LnDefaultBridgeTarget {
 
     function slash(
         LnBridgeHelper.TransferParameter memory _params,
-        uint256 _sourceChainId,
+        uint256 _remoteChainId,
         address _slasher,
         uint112 _fee,
         uint112 _penalty
-    ) external allowRemoteCall(_sourceChainId) {
+    ) external allowRemoteCall(_remoteChainId) {
         require(_params.previousTransferId == bytes32(0) || fillTransfers[_params.previousTransferId].timestamp > 0, "last transfer not filled");
 
         bytes32 transferId = keccak256(abi.encodePacked(
-            _params.remoteChainId,
+            _remoteChainId,
+            block.chainid,
             _params.previousTransferId,
             _params.provider,
             _params.sourceToken,
@@ -183,7 +187,7 @@ contract LnDefaultBridgeTarget {
         ));
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.slasher == address(0), "transfer has been slashed");
-        bytes32 providerKey = LnBridgeHelper.getProviderKey(_params.remoteChainId, _params.provider, _params.sourceToken, _params.targetToken);
+        bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, _params.provider, _params.sourceToken, _params.targetToken);
         TargetProviderInfo memory providerInfo = tgtProviders[providerKey];
         uint256 updatedMargin = providerInfo.margin;
         // transfer is not filled

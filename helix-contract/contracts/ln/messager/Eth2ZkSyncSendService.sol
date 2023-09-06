@@ -5,19 +5,12 @@ import "./interface/IZksyncMailbox.sol";
 import "../interface/ILowLevelMessager.sol";
 
 // from ethereum to zkSync messager
-contract Eth2ZkSyncMessager is ILowLevelMessager {
-    uint160 constant offset = uint160(0x1111000000000000000000000000000000001111);
+contract Eth2ZkSyncSendService is ILowLevelMessageSender {
     uint256 immutable public REMOTE_CHAINID;
     IMailbox public mailbox;
     address public remoteMessager;
-    address public remoteMessagerAlias;
 
     mapping(address=>address) public appPairs;
-
-    modifier onlyRemoteBridge() {
-        require(msg.sender == remoteMessagerAlias, "invalid remote caller");
-        _;
-    }
 
     constructor(address _mailbox, uint256 _remoteChainId) {
         mailbox = IMailbox(_mailbox);
@@ -28,10 +21,9 @@ contract Eth2ZkSyncMessager is ILowLevelMessager {
     function setRemoteMessager(address _remoteMessager) external {
         require(remoteMessager == address(0), "remote exist");
         remoteMessager = _remoteMessager;
-        remoteMessagerAlias = address(uint160(_remoteMessager) + offset);
     }
 
-    function registerBridgePair(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteReceiver(uint256 _remoteChainId, address _remoteBridge) external {
         require(_remoteChainId == REMOTE_CHAINID, "invalid remote chainId");
         appPairs[msg.sender] = _remoteBridge;
     }
@@ -44,7 +36,7 @@ contract Eth2ZkSyncMessager is ILowLevelMessager {
         (uint256 l2GasLimit, uint256 l2GasPerPubdataByteLimit, address refunder) = abi.decode(_params, (uint256, uint256, address));
 
         bytes memory remoteReceiveCall = abi.encodeWithSelector(
-            Eth2ZkSyncMessager.recvMessage.selector,
+            ILowLevelMessageReceiver.recvMessage.selector,
             msg.sender,
             remoteAppAddress,
             _message
@@ -58,13 +50,6 @@ contract Eth2ZkSyncMessager is ILowLevelMessager {
             new bytes[](0),
             refunder
         );
-    }
-
-    function recvMessage(address _remoteApp, address _localApp, bytes memory _message) onlyRemoteBridge external {
-        address remoteAppAddress = appPairs[_localApp];
-        require(remoteAppAddress == _remoteApp, "invalid remote app");
-        (bool result,) = _localApp.call(_message);
-        require(result == true, "local call failed");
     }
 
     function fee(

@@ -8,9 +8,13 @@ import "./base/LnDefaultBridgeTarget.sol";
 import "./interface/ILowLevelMessager.sol";
 
 contract LnDefaultBridge is Initializable, LnAccessController, LnDefaultBridgeSource, LnDefaultBridgeTarget {
+    struct MessagerService {
+        address sendService;
+        address receiveService;
+    }
 
     // remoteChainId => messager
-    mapping(uint256=>address) public messagers;
+    mapping(uint256=>MessagerService) public messagers;
 
     receive() external payable {}
 
@@ -20,9 +24,14 @@ contract LnDefaultBridge is Initializable, LnAccessController, LnDefaultBridgeSo
     }
 
     // the remote endpoint is unique, if we want multi-path to remote endpoint, then the messager should support multi-path
-    function setBridgeInfo(uint256 _remoteChainId, address _remoteBridge, address _messager) external onlyDao {
-        messagers[_remoteChainId] = _messager;
-        ILowLevelMessager(_messager).registerBridgePair(_remoteChainId, _remoteBridge);
+    function setSendService(uint256 _remoteChainId, address _remoteBridge, address _service) external onlyDao {
+        messagers[_remoteChainId].sendService = _service;
+        ILowLevelMessageSender(_service).registerRemoteReceiver(_remoteChainId, _remoteBridge);
+    }
+
+    function setReceiveService(uint256 _remoteChainId, address _remoteBridge, address _service) external onlyDao {
+        messagers[_remoteChainId].receiveService = _service;
+        ILowLevelMessageReceiver(_service).registerRemoteSender(_remoteChainId, _remoteBridge);
     }
 
     function updateFeeReceiver(address _receiver) external onlyDao {
@@ -50,14 +59,14 @@ contract LnDefaultBridge is Initializable, LnAccessController, LnDefaultBridgeSo
     }
 
     function _sendMessageToTarget(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) internal override {
-        address messager = messagers[_remoteChainId];
-        require(messager != address(0), "invalid messager");
-        ILowLevelMessager(messager).sendMessage(_remoteChainId, _payload, _extParams);
+        address sendService = messagers[_remoteChainId].sendService;
+        require(sendService != address(0), "invalid messager");
+        ILowLevelMessageSender(sendService).sendMessage(_remoteChainId, _payload, _extParams);
     }
 
     function _verifyRemote(uint256 _remoteChainId) whenNotPaused internal view override {
-        address messager = messagers[_remoteChainId];
-        require(messager == msg.sender, "invalid messager");
+        address receiveService = messagers[_remoteChainId].receiveService;
+        require(receiveService == msg.sender, "invalid messager");
     }
 }
 

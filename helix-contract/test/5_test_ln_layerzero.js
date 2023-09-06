@@ -14,24 +14,41 @@ async function getBlockTimestamp() {
 }
 
 function getTransferId(
+    localChainId,
+    remoteChainId,
     lastTransferId, // lastTransferId
     provider, // provider
     sourceToken, // sourceToken
     targetToken, // targetToken
     receiver, // receiver
-    timestamp,
     amount, // amount
 ) {
     const encoded = ethers.utils.solidityPack([
+        "uint256",
+        "uint256",
         "bytes32",
         "address",
         "address",
         "address",
         "address",
-        "uint64",
         "uint112",
-    ], [lastTransferId, provider, sourceToken, targetToken, receiver, timestamp, amount]);
+    ], [localChainId, remoteChainId, lastTransferId, provider, sourceToken, targetToken, receiver, amount]);
     return ethUtil.keccak256(encoded);
+}
+
+function getProviderKey(
+    remoteChainId,
+    provider,
+    sourceToken,
+    remoteToken
+) {
+    const encode = ethers.utils.solidityPack([
+        "uint256",
+        "address",
+        "address",
+        "address",
+    ], [remoteChainId, provider, sourceToken, remoteToken]);
+    return ethUtil.keccak256(encode);
 }
 
 describe("eth->arb lnv2 layerzero bridge tests", () => {
@@ -52,8 +69,8 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
       const initSlashReserveFund = 1000;
       const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
       const transferAmount = 30;
-      const srcChainId = 100;
-      const dstChainId = 200;
+      const ethChainId = 31337;
+      const arbChainId = 31337;
 
       // deploy erc20 token contract
       const tokenNameOnEthereum = "Darwinia Ring On Ethereum";
@@ -83,22 +100,36 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
 
       // deploy LayerZeroEndpointMock
       const endpointContract = await ethers.getContractFactory("LayerZeroEndpointMock");
-      const endpoint = await endpointContract.deploy(srcChainId);
+      const endpoint = await endpointContract.deploy(ethChainId);
       await endpoint.deployed();
       console.log("deploy mock endpoint success");
       //******* deploy endpoint finished ********
 
-      const eth2arbSourceContract = await ethers.getContractFactory("LnBridgeBaseLZ");
-      const eth2arbSource = await eth2arbSourceContract.deploy();
-      await eth2arbSource.deployed();
+      // deploy layerzero messager
+      const lzMessagerContract = await ethers.getContractFactory("LayerZeroMessager");
+      const lzMessagerEth = await lzMessagerContract.deploy(dao, endpoint.address);
+      await lzMessagerEth.deployed();
+      const lzMessagerArb = await lzMessagerContract.deploy(dao, endpoint.address);
+      await lzMessagerArb.deployed();
+
+      await lzMessagerEth.setRemoteMessager(arbChainId, arbChainId, lzMessagerArb.address);
+      await lzMessagerArb.setRemoteMessager(ethChainId, ethChainId, lzMessagerEth.address);
+
+      const lnDefaultBridgeContract = await ethers.getContractFactory("LnDefaultBridge");
+
+      const lnDefaultBridgeEth = await lnDefaultBridgeContract.deploy();
+      await lnDefaultBridgeEth.deployed();
+      const lnDefaultBridgeArb = await lnDefaultBridgeContract.deploy();
+      await lnDefaultBridgeArb.deployed();
 
       // configure
       // init
       // set fee receiver
       // register token
-      await eth2arbSource.initialize(dao, endpoint.address, dstChainId);
-      await eth2arbSource.updateFeeReceiver(feeReceiver);
-      await eth2arbSource.setTokenInfo(
+      await lnDefaultBridgeEth.initialize(dao);
+      await lnDefaultBridgeEth.updateFeeReceiver(feeReceiver);
+      await lnDefaultBridgeEth.setTokenInfo(
+          arbChainId,
           ethToken.address,
           arbToken.address,
           protocolFee,
@@ -107,30 +138,43 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
           18
       );
 
-      const eth2arbTargetContract = await ethers.getContractFactory("LnBridgeBaseLZ");
-      const eth2arbTarget = await eth2arbTargetContract.deploy();
-      await eth2arbTarget.deployed();
-      await eth2arbTarget.initialize(dao, endpoint.address, srcChainId);
+      await lnDefaultBridgeArb.initialize(dao);
+      await lnDefaultBridgeArb.updateFeeReceiver(feeReceiver);
+      await lnDefaultBridgeArb.setTokenInfo(
+          arbChainId,
+          arbToken.address,
+          ethToken.address,
+          protocolFee,
+          penalty,
+          18,
+          18
+      );
+      // ******************* register token **************
 
-      await eth2arbSource.setRemoteBridge(eth2arbTarget.address);
-      await eth2arbTarget.setRemoteBridge(eth2arbSource.address);
+      // set bridge infos
+      lnDefaultBridgeEth.setSendService(arbChainId, lnDefaultBridgeArb.address, lzMessagerEth.address);
+      lnDefaultBridgeArb.setReceiveService(ethChainId, lnDefaultBridgeEth.address, lzMessagerArb.address);
       console.log("deploy bridge finished");
 
       // provider 
-      await ethToken.connect(relayer).approve(eth2arbSource.address, initTokenBalance);
-      await arbToken.connect(relayer).approve(eth2arbTarget.address, initTokenBalance);
+      await ethToken.connect(relayer).approve(lnDefaultBridgeEth.address, initTokenBalance);
+      await arbToken.connect(relayer).approve(lnDefaultBridgeArb.address, initTokenBalance);
       // register on source chain(set provider fee)
-      await eth2arbSource.connect(relayer).setProviderFee(
+      await lnDefaultBridgeEth.connect(relayer).setProviderFee(
+          arbChainId,
           ethToken.address,
+          arbToken.address,
           baseFee,
           liquidityFeeRate
       );
-      await eth2arbTarget.connect(relayer).depositProviderMargin(
+      await lnDefaultBridgeArb.connect(relayer).depositProviderMargin(
+          ethChainId,
           ethToken.address,
           arbToken.address,
           initMargin
       );
-      await eth2arbTarget.connect(relayer).depositSlashFundReserve(
+      await lnDefaultBridgeArb.connect(relayer).depositSlashFundReserve(
+          ethChainId,
           ethToken.address,
           arbToken.address,
           initSlashReserveFund
@@ -139,33 +183,38 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
       async function getCurrentTransferId(lastTransferId) {
           const blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
           const transferId = getTransferId(
+              ethChainId,
+              arbChainId,
               lastTransferId, // lastTransferId
               relayer.address, // provider
               ethToken.address, // sourceToken
               arbToken.address, // targetToken
               user.address, // receiver
-              blockTimestamp,
               transferAmount, // amount
           );
 
           // check transferId exist on source chain
-          const lockInfo = await eth2arbSource.lockInfos(transferId);
-          expect(lockInfo.isLocked).to.equal(true);
+          const lockInfo = await lnDefaultBridgeEth.lockInfos(transferId);
+          expect(lockInfo.timestamp).to.equal(blockTimestamp);
           return transferId;
       }
 
       async function transfer(lastTransferId, withdrawNonce) {
-          const totalFee = Number(await eth2arbSource.totalFee(
+          const totalFee = Number(await lnDefaultBridgeEth.totalFee(
+              arbChainId,
               relayer.address,
               ethToken.address,
+              arbToken.address,
               transferAmount
           ));
           const balanceOfUser = await ethToken.balanceOf(user.address);
           const balanceOfRelayer = await ethToken.balanceOf(relayer.address);
-          const tx = await eth2arbSource.connect(user).transferAndLockMargin(
+          const tx = await lnDefaultBridgeEth.connect(user).transferAndLockMargin(
               [
+                  arbChainId,
                   relayer.address,
                   ethToken.address,
+                  arbToken.address,
                   lastTransferId,
                   totalFee,
                   withdrawNonce
@@ -187,7 +236,7 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
           }
           const balanceOfUser = await arbToken.balanceOf(user.address);
           const balanceOfRelayer = await arbToken.balanceOf(relayer.address);
-          const relayTransaction = await eth2arbTarget.connect(relayer).transferAndReleaseMargin(
+          const relayTransaction = await lnDefaultBridgeArb.connect(relayer).transferAndReleaseMargin(
               [
                   lastTransferId, // lastTransferId
                   relayer.address, // provider
@@ -197,12 +246,13 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
                   blockTimestamp,
                   user.address
               ],
+              ethChainId,
               transferId
           );
 
           // check relay result
           const relayTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
-          const fillInfo = await eth2arbTarget.fillTransfers(transferId);
+          const fillInfo = await lnDefaultBridgeArb.fillTransfers(transferId);
           expect(fillInfo.timestamp).to.equal(relayTimestamp);
           expect(fillInfo.slasher).to.equal(nullAddress);
           const balanceOfUserAfter = await arbToken.balanceOf(user.address);
@@ -217,11 +267,11 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
           if (blockTimestamp === null) { 
               blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
           }
-          const fillInfoBefore = await eth2arbTarget.fillTransfers(expectedTransferId);
+          const fillInfoBefore = await lnDefaultBridgeArb.fillTransfers(expectedTransferId);
           const timestampBefore = fillInfoBefore.timestamp;
           const balanceOfUser = await arbToken.balanceOf(user.address);
           const balanceOfSlasher = await arbToken.balanceOf(slasher.address);
-          const slashTransaction = await eth2arbSource.connect(slasher).slashAndRemoteRelease(
+          const slashTransaction = await lnDefaultBridgeEth.connect(slasher).requestSlashAndRemoteRelease(
               [
                   lastTransferId,
                   relayer.address,
@@ -231,10 +281,12 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
                   blockTimestamp,
                   user.address
               ],
-              expectedTransferId
+              ethChainId,
+              expectedTransferId,
+              relayer.address
           );
           const relayTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
-          const fillInfo = await eth2arbTarget.fillTransfers(expectedTransferId);
+          const fillInfo = await lnDefaultBridgeArb.fillTransfers(expectedTransferId);
           const balanceOfUserAfter = await arbToken.balanceOf(user.address);
           const balanceOfSlasherAfter = await arbToken.balanceOf(slasher.address);
           if (timestampBefore > 0) {
@@ -242,9 +294,11 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
               expect(balanceOfUserAfter - balanceOfUser).to.equal(0);
               expect(balanceOfSlasherAfter - balanceOfSlasher).to.equal(penalty/5);
           } else {
-              const totalFee = Number(await eth2arbSource.totalFee(
+              const totalFee = Number(await lnDefaultBridgeEth.totalFee(
+                  arbChainId,
                   relayer.address,
                   ethToken.address,
+                  arbToken.address,
                   transferAmount
               ));
               expect(fillInfo.timestamp).to.equal(relayTimestamp);
@@ -255,11 +309,37 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
           return slashTransaction;
       }
 
+      async function withdraw(amount) {
+          const providerKey = getProviderKey(ethChainId, relayer.address, ethToken.address, arbToken.address);
+          const marginBefore = (await lnDefaultBridgeArb.tgtProviders(providerKey)).margin;
+          const balanceOfRelayerBefore = await arbToken.balanceOf(relayer.address);
+          const withdrawTransaction = await lnDefaultBridgeEth.connect(relayer).requestWithdrawMargin(
+              ethChainId,
+              ethToken.address,
+              arbToken.address,
+              amount,
+              relayer.address
+          );
+          const balanceOfRelayerAfter = await arbToken.balanceOf(relayer.address);
+          const marginAfter = (await lnDefaultBridgeArb.tgtProviders(providerKey)).margin;
+
+          let successWithdrawAmount = amount;
+          if (marginBefore.lt(amount)) {
+              // if withdraw failed
+              successWithdrawAmount = 0;
+          }
+          expect(balanceOfRelayerAfter - balanceOfRelayerBefore).to.equal(successWithdrawAmount);
+          expect(marginBefore - marginAfter).to.equal(successWithdrawAmount);
+          return successWithdrawAmount > 0;
+      }
+
       // user lock
-      await ethToken.connect(user).approve(eth2arbSource.address, initTokenBalance);
-      const totalFee = Number(await eth2arbSource.totalFee(
+      await ethToken.connect(user).approve(lnDefaultBridgeEth.address, initTokenBalance);
+      const totalFee = Number(await lnDefaultBridgeEth.totalFee(
+          arbChainId,
           relayer.address,
           ethToken.address,
+          arbToken.address,
           transferAmount
       ));
       const lockTransaction = await transfer(initTransferId, 0);
@@ -318,9 +398,11 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
       // relay 02 && slash 02
       await relay(transferId01, transferId02, blockTimestamp02);
       // can't relay twice
+      console.log("test relay twice error");
       await expect(relay(transferId01, transferId02, blockTimestamp02)).to.be.revertedWith("transfer has been filled");
       // 3. slash when timeout but relayed(timeout)
       // can slash if relayed when timeout
+      console.log("test can slash when relayed timeout");
       await slash(transferId01, transferId02, blockTimestamp02);
       // 4. slash when slash has finished
       // can't slash twice
@@ -328,8 +410,11 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
       // slash 03
       // 5. slash when timeout and not relayed
       // can slash if not relayed when timeout
+      console.log("test slash when not relayed and timeout");
       await slash(transferId02, transferId03, blockTimestamp03);
       
+      expect(await withdraw(15000)).to.equal(false);
+      expect(await withdraw(5000)).to.equal(true);
       console.log("ln bridge test finished");
   });
 });

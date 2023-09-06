@@ -7,6 +7,9 @@ const secp256k1 = require('secp256k1');
 
 chai.use(solidity);
 
+// ethereum -> arbitrum using arbitrum L1->L2 message
+// arbitrum -> ethereum using layerzero message
+
 async function getBlockTimestamp() {
     const blockNumber = await ethers.provider.getBlockNumber();
     const block = await ethers.provider.getBlock(blockNumber);
@@ -14,24 +17,41 @@ async function getBlockTimestamp() {
 }
 
 function getTransferId(
+    localChainId,
+    remoteChainId,
     lastTransferId, // lastTransferId
     provider, // provider
     sourceToken, // sourceToken
     targetToken, // targetToken
     receiver, // receiver
-    timestamp,
     amount, // amount
 ) {
     const encoded = ethers.utils.solidityPack([
+        "uint256",
+        "uint256",
         "bytes32",
         "address",
         "address",
         "address",
         "address",
-        "uint64",
         "uint112",
-    ], [lastTransferId, provider, sourceToken, targetToken, receiver, timestamp, amount]);
+    ], [localChainId, remoteChainId, lastTransferId, provider, sourceToken, targetToken, receiver, amount]);
     return ethUtil.keccak256(encoded);
+}
+
+function getProviderKey(
+    remoteChainId,
+    provider,
+    sourceToken,
+    remoteToken
+) {
+    const encode = ethers.utils.solidityPack([
+        "uint256",
+        "address",
+        "address",
+        "address",
+    ], [remoteChainId, provider, sourceToken, remoteToken]);
+    return ethUtil.keccak256(encode);
 }
 
 describe("eth->arb lnv2 positive bridge tests", () => {
@@ -49,9 +69,10 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       const liquidityFeeRate = 1;
       const initTokenBalance = 1000000;
       const initMargin = 10000;
-      const initSlashReserveFund = 1000;
       const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
       const transferAmount = 30;
+      const ethChainId = 31337;
+      const arbChainId = 31337;
 
       // deploy erc20 token contract
       const tokenNameOnEthereum = "Darwinia Ring On Ethereum";
@@ -86,17 +107,59 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       console.log("deploy mock inbox success");
       //******* deploy inboundLane/outboundLane finished ********
 
-      const eth2arbSourceContract = await ethers.getContractFactory("Eth2ArbSource");
-      const eth2arbSource = await eth2arbSourceContract.deploy();
-      await eth2arbSource.deployed();
+      
+      const bridgeContract = await ethers.getContractFactory("LnOppositeBridge");
+
+      const ethBridge = await bridgeContract.deploy();
+      await ethBridge.deployed();
+      await ethBridge.initialize(dao);
+      await ethBridge.updateFeeReceiver(feeReceiver);
+      const arbBridge = await bridgeContract.deploy();
+      await arbBridge.deployed();
+      await arbBridge.initialize(dao);
+      await arbBridge.updateFeeReceiver(feeReceiver);
+
+      // eth -> arb messager service
+      console.log("deploy etherum to arbitrum l1->l2 message service");
+      const eth2arbSendServiceContract = await ethers.getContractFactory("Eth2ArbSendService");
+      const eth2arbSendService = await eth2arbSendServiceContract.deploy(inbox.address, arbChainId);
+      await eth2arbSendService.deployed();
+      const eth2arbRecvServiceContract = await ethers.getContractFactory("MockEth2ArbReceiveService");
+      const eth2arbRecvService = await eth2arbRecvServiceContract.deploy(ethChainId);
+      await eth2arbRecvService.deployed();
+
+      await eth2arbRecvService.setRemoteMessagerAlias(inbox.address);
+
+      // arb -> eth message service
+      console.log("deploy arbitrum to ethereum layerzero message service");
+      const endpointContract = await ethers.getContractFactory("LayerZeroEndpointMock");
+      const endpoint = await endpointContract.deploy(arbChainId);
+      await endpoint.deployed();
+      console.log("deploy mock endpoint success");
+      //******* deploy endpoint finished ********
+
+      // deploy layerzero messager
+      const lzMessagerContract = await ethers.getContractFactory("LayerZeroMessager");
+      const lzMessagerEth = await lzMessagerContract.deploy(dao, endpoint.address);
+      await lzMessagerEth.deployed();
+      const lzMessagerArb = await lzMessagerContract.deploy(dao, endpoint.address);
+      await lzMessagerArb.deployed();
+
+      await lzMessagerEth.setRemoteMessager(arbChainId, arbChainId, lzMessagerArb.address);
+      await lzMessagerArb.setRemoteMessager(ethChainId, ethChainId, lzMessagerEth.address);
+      console.log("messager service deploy finished");
+
+      console.log("configure message service for token bridge");
+      await ethBridge.setSendService(arbChainId, arbBridge.address, eth2arbSendService.address);
+      await ethBridge.setReceiveService(arbChainId, arbBridge.address, lzMessagerEth.address);
+      await arbBridge.setSendService(ethChainId, ethBridge.address, lzMessagerArb.address);
+      await arbBridge.setReceiveService(ethChainId, ethBridge.address, eth2arbRecvService.address);
 
       // configure
-      // init
-      // set fee receiver
       // register token
-      await eth2arbSource.initialize(dao, inbox.address);
-      await eth2arbSource.updateFeeReceiver(feeReceiver);
-      await eth2arbSource.setTokenInfo(
+      console.log("register token info");
+      await ethBridge.setTokenInfo(
+          arbChainId,
           ethToken.address,
           arbToken.address,
           protocolFee,
@@ -104,184 +167,248 @@ describe("eth->arb lnv2 positive bridge tests", () => {
           18,
           18
       );
-
-      const eth2arbTargetContract = await ethers.getContractFactory("Eth2ArbTarget");
-      const eth2arbTarget = await eth2arbTargetContract.deploy();
-      await eth2arbTarget.deployed();
-      await eth2arbTarget.initialize(dao);
-
-      await eth2arbSource.setRemoteBridge(eth2arbTarget.address);
-      await eth2arbTarget.setRemoteBridge(eth2arbSource.address);
-      await eth2arbTarget.setRemoteBridgeAlias(inbox.address);
-      console.log("deploy bridge finished");
-
-      // provider 
-      await ethToken.connect(relayer).approve(eth2arbSource.address, initTokenBalance);
-      await arbToken.connect(relayer).approve(eth2arbTarget.address, initTokenBalance);
-      // register on source chain(set provider fee)
-      await eth2arbSource.connect(relayer).setProviderFee(
+      await arbBridge.setTokenInfo(
+          ethChainId,
+          arbToken.address,
           ethToken.address,
+          protocolFee,
+          penalty,
+          18,
+          18
+      );
+
+      console.log("provider register");
+      // provider 
+      await ethToken.connect(relayer).approve(ethBridge.address, initTokenBalance);
+      await arbToken.connect(relayer).approve(arbBridge.address, initTokenBalance);
+      // register on source chain
+      await arbBridge.connect(relayer).updateProviderFeeAndMargin(
+          ethChainId,
+          arbToken.address,
+          ethToken.address,
+          initMargin,
           baseFee,
           liquidityFeeRate
       );
-      await eth2arbTarget.connect(relayer).depositProviderMargin(
+
+      await ethBridge.connect(relayer).updateProviderFeeAndMargin(
+          arbChainId,
           ethToken.address,
           arbToken.address,
-          initMargin
-      );
-      await eth2arbTarget.connect(relayer).depositSlashFundReserve(
-          ethToken.address,
-          arbToken.address,
-          initSlashReserveFund
+          initMargin,
+          baseFee,
+          liquidityFeeRate
       );
 
-      async function getCurrentTransferId(lastTransferId) {
+      async function getChainInfo(direction) {
+          if (direction === 'eth2arb') {
+              return {
+                  srcChainId: ethChainId,
+                  dstChainId: arbChainId,
+                  srcToken: ethToken,
+                  dstToken: arbToken,
+                  srcBridge: ethBridge,
+                  dstBridge: arbBridge,
+                  extParams: relayer.address,
+              };
+          } else {
+              return {
+                  srcChainId: arbChainId,
+                  dstChainId: ethChainId,
+                  srcToken: arbToken,
+                  dstToken: ethToken,
+                  srcBridge: arbBridge,
+                  dstBridge: ethBridge,
+                  extParams: await arbBridge.encodeParams(0, 0, 200, relayer.address),
+              };
+          }
+      }
+
+      async function getCurrentTransferId(direction, lastTransferId) {
+          const chainInfo = await getChainInfo(direction);
           const blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
+          
           const transferId = getTransferId(
+              chainInfo.srcChainId,
+              chainInfo.dstChainId,
               lastTransferId, // lastTransferId
               relayer.address, // provider
-              ethToken.address, // sourceToken
-              arbToken.address, // targetToken
+              chainInfo.srcToken.address, // sourceToken
+              chainInfo.dstToken.address, // targetToken
               user.address, // receiver
-              blockTimestamp,
               transferAmount, // amount
           );
 
           // check transferId exist on source chain
-          const lockInfo = await eth2arbSource.lockInfos(transferId);
-          expect(lockInfo.isLocked).to.equal(true);
+          const lockInfo = await chainInfo.srcBridge.lockInfos(transferId);
+          expect(lockInfo.timestamp).to.equal(blockTimestamp);
           return transferId;
       }
 
-      async function transfer(lastTransferId, withdrawNonce) {
-          const totalFee = Number(await eth2arbSource.totalFee(
+      async function transfer(direction, lastTransferId, leftMargin) {
+          const chainInfo = await getChainInfo(direction);
+          const totalFee = Number(await chainInfo.srcBridge.totalFee(
+              chainInfo.dstChainId,
               relayer.address,
-              ethToken.address,
+              chainInfo.srcToken.address,
+              chainInfo.dstToken.address,
               transferAmount
           ));
-          const balanceOfUser = await ethToken.balanceOf(user.address);
-          const balanceOfRelayer = await ethToken.balanceOf(relayer.address);
-          const tx = await eth2arbSource.connect(user).transferAndLockMargin(
+          const balanceOfUser = await chainInfo.srcToken.balanceOf(user.address);
+          const balanceOfRelayer = await chainInfo.srcToken.balanceOf(relayer.address);
+          const tx = await chainInfo.srcBridge.connect(user).transferAndLockMargin(
               [
+                  chainInfo.dstChainId,
                   relayer.address,
-                  ethToken.address,
+                  chainInfo.srcToken.address,
+                  chainInfo.dstToken.address,
                   lastTransferId,
                   totalFee,
-                  withdrawNonce
+                  leftMargin
               ],
               transferAmount,
               user.address,
           );
-          const balanceOfUserAfter = await ethToken.balanceOf(user.address);
-          const balanceOfRelayerAfter = await ethToken.balanceOf(relayer.address);
+          const balanceOfUserAfter = await chainInfo.srcToken.balanceOf(user.address);
+          const balanceOfRelayerAfter = await chainInfo.srcToken.balanceOf(relayer.address);
           expect(balanceOfUser - balanceOfUserAfter).to.equal(totalFee + transferAmount);
           expect(balanceOfRelayerAfter - balanceOfRelayer).to.equal(transferAmount + totalFee - protocolFee);
           return tx;
       }
 
-      async function relay(lastTransferId, transferId, timestamp) {
+      async function relay(direction, lastTransferId, transferId, timestamp) {
+          const chainInfo = await getChainInfo(direction);
           let blockTimestamp = timestamp;
           if (blockTimestamp === null) { 
               blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
           }
-          const balanceOfUser = await arbToken.balanceOf(user.address);
-          const balanceOfRelayer = await arbToken.balanceOf(relayer.address);
-          const relayTransaction = await eth2arbTarget.connect(relayer).transferAndReleaseMargin(
+          const balanceOfUser = await chainInfo.dstToken.balanceOf(user.address);
+          const balanceOfRelayer = await chainInfo.dstToken.balanceOf(relayer.address);
+          const relayTransaction = await chainInfo.dstBridge.connect(relayer).transferAndReleaseMargin(
               [
                   lastTransferId, // lastTransferId
                   relayer.address, // provider
-                  ethToken.address, // sourceToken
-                  arbToken.address, // targetToken
+                  chainInfo.srcToken.address, // sourceToken
+                  chainInfo.dstToken.address, // targetToken
                   transferAmount,
                   blockTimestamp,
                   user.address
               ],
+              chainInfo.srcChainId,
               transferId
           );
 
           // check relay result
           const relayTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
-          const fillInfo = await eth2arbTarget.fillTransfers(transferId);
-          expect(fillInfo.timestamp).to.equal(relayTimestamp);
-          expect(fillInfo.slasher).to.equal(nullAddress);
-          const balanceOfUserAfter = await arbToken.balanceOf(user.address);
-          const balanceOfRelayerAfter = await arbToken.balanceOf(relayer.address);
+          //const fillInfo = await chainInfo.dstBridge.fillTransfers(transferId);
+          //expect(fillInfo.timestamp).to.equal(relayTimestamp);
+          const slashInfo = await chainInfo.dstBridge.slashInfos(transferId);
+          expect(slashInfo.slasher).to.equal(nullAddress);
+          const balanceOfUserAfter = await chainInfo.dstToken.balanceOf(user.address);
+          const balanceOfRelayerAfter = await chainInfo.dstToken.balanceOf(relayer.address);
           expect(balanceOfUserAfter - balanceOfUser).to.equal(transferAmount);
           expect(balanceOfRelayer - balanceOfRelayerAfter).to.equal(transferAmount);
           return relayTransaction;
       }
 
-      async function slash(lastTransferId, expectedTransferId, timestamp) {
+      async function slash(direction, lastTransferId, expectedTransferId, timestamp) {
+          const chainInfo = await getChainInfo(direction);
           let blockTimestamp = timestamp;
           if (blockTimestamp === null) { 
               blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
           }
-          const fillInfoBefore = await eth2arbTarget.fillTransfers(expectedTransferId);
-          const timestampBefore = fillInfoBefore.timestamp;
-          const balanceOfUser = await arbToken.balanceOf(user.address);
-          const balanceOfSlasher = await arbToken.balanceOf(slasher.address);
-          const slashTransaction = await eth2arbSource.connect(slasher).slashAndRemoteRelease(
+          const balanceOfUser = await chainInfo.dstToken.balanceOf(user.address);
+          const balanceOfSlasher = await chainInfo.dstToken.balanceOf(slasher.address);
+          const balanceOfSlasherOnSrc = await chainInfo.srcToken.balanceOf(slasher.address);
+          const slashTransaction = await chainInfo.dstBridge.connect(slasher).requestSlashAndRemoteRelease(
               [
                   lastTransferId,
                   relayer.address,
-                  ethToken.address,
-                  arbToken.address,
+                  chainInfo.srcToken.address,
+                  chainInfo.dstToken.address,
                   transferAmount,
                   blockTimestamp,
                   user.address
               ],
+              chainInfo.srcChainId,
               expectedTransferId,
-              0,
-              0,
-              200
+              chainInfo.extParams,
           );
-          const relayTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
-          const fillInfo = await eth2arbTarget.fillTransfers(expectedTransferId);
-          const balanceOfUserAfter = await arbToken.balanceOf(user.address);
-          const balanceOfSlasherAfter = await arbToken.balanceOf(slasher.address);
-          if (timestampBefore > 0) {
-              expect(fillInfo.timestamp).to.equal(timestampBefore);
-              expect(balanceOfUserAfter - balanceOfUser).to.equal(0);
-              expect(balanceOfSlasherAfter - balanceOfSlasher).to.equal(penalty/5);
-          } else {
-              const totalFee = Number(await eth2arbSource.totalFee(
-                  relayer.address,
-                  ethToken.address,
-                  transferAmount
-              ));
-              expect(fillInfo.timestamp).to.equal(relayTimestamp);
-              expect(balanceOfUserAfter - balanceOfUser).to.equal(transferAmount);
-              expect(balanceOfSlasherAfter - balanceOfSlasher).to.equal(penalty + totalFee);
-          }
-          expect(fillInfo.slasher).to.equal(slasher.address);
+          const slashInfo = await chainInfo.dstBridge.slashInfos(expectedTransferId);
+          const balanceOfUserAfter = await chainInfo.dstToken.balanceOf(user.address);
+          const balanceOfSlasherAfter = await chainInfo.dstToken.balanceOf(slasher.address);
+          const balanceOfSlasherAfterOnSrc = await chainInfo.srcToken.balanceOf(slasher.address);
+          const totalFee = Number(await chainInfo.srcBridge.totalFee(
+              chainInfo.dstChainId,
+              relayer.address,
+              chainInfo.srcToken.address,
+              chainInfo.dstToken.address,
+              transferAmount
+          ));
+          expect(balanceOfUserAfter - balanceOfUser).to.equal(transferAmount);
+          expect(balanceOfSlasher - balanceOfSlasherAfter).to.equal(transferAmount);
+          expect(slashInfo.slasher).to.equal(slasher.address);
+          expect(balanceOfSlasherAfterOnSrc - balanceOfSlasherOnSrc).to.equal(transferAmount + penalty + totalFee - protocolFee);
           return slashTransaction;
       }
 
-      // user lock
-      await ethToken.connect(user).approve(eth2arbSource.address, initTokenBalance);
-      const totalFee = Number(await eth2arbSource.totalFee(
+      async function withdraw(direction, lastTransferId, amount) {
+          const chainInfo = await getChainInfo(direction);
+          const providerKey = getProviderKey(chainInfo.dstChainId, relayer.address, chainInfo.srcToken.address, chainInfo.dstToken.address);
+          const marginBefore = (await chainInfo.srcBridge.srcProviders(providerKey)).config.margin;
+
+          const balanceOfRelayerBefore = await chainInfo.srcToken.balanceOf(relayer.address);
+          const withdrawTransaction = await chainInfo.dstBridge.connect(relayer).requestWithdrawMargin(
+              chainInfo.srcChainId,
+              lastTransferId,
+              chainInfo.srcToken.address,
+              chainInfo.dstToken.address,
+              amount,
+              relayer.address
+          );
+          const balanceOfRelayerAfter = await chainInfo.srcToken.balanceOf(relayer.address);
+          const marginAfter = (await chainInfo.srcBridge.srcProviders(providerKey)).config.margin;
+
+          let successWithdrawAmount = amount;
+          if (marginBefore.lt(amount)) {
+              // if withdraw failed
+              successWithdrawAmount = 0;
+          }
+          expect(balanceOfRelayerAfter - balanceOfRelayerBefore).to.equal(successWithdrawAmount);
+          expect(marginBefore - marginAfter).to.equal(successWithdrawAmount);
+          return successWithdrawAmount > 0;
+      }
+
+      // eth -> arb
+      await ethToken.connect(user).approve(ethBridge.address, initTokenBalance);
+      const totalFee = Number(await ethBridge.totalFee(
+          ethChainId,
           relayer.address,
           ethToken.address,
+          arbToken.address,
           transferAmount
       ));
-      const lockTransaction = await transfer(initTransferId, 0);
+
+      // 1. transfer from eth to arb
+      const lockTransaction = await transfer('eth2arb', initTransferId, initMargin);
       let lockReceipt = await lockTransaction.wait();
       let lockGasUsed = lockReceipt.cumulativeGasUsed;
       console.log("transferAndLockMargin gas used", lockGasUsed);
       const blockTimestamp01 = (await ethers.provider.getBlock("latest")).timestamp;
 
-      const transferId01 = await getCurrentTransferId(initTransferId);
+      const transferId01 = await getCurrentTransferId('eth2arb', initTransferId);
 
-      const relayTransaction = await relay(initTransferId, transferId01, null);
+      // 2. relay "transfer from eth to arb"
+      const relayTransaction = await relay('eth2arb', initTransferId, transferId01, null);
       let relayReceipt = await relayTransaction.wait();
       let relayGasUsed = relayReceipt.cumulativeGasUsed;
       console.log("relay gas used", relayGasUsed);
 
       // check balance
       const userEthBalance = initTokenBalance - transferAmount - totalFee;
-      const relayerEthBalance = initTokenBalance + transferAmount + totalFee - protocolFee;
+      const relayerEthBalance = initTokenBalance + transferAmount + totalFee - protocolFee - initMargin ;
       const userArbBalance = initTokenBalance + transferAmount;
-      const relayerArbBalance = initTokenBalance - transferAmount - initMargin - initSlashReserveFund;
+      const relayerArbBalance = initTokenBalance - transferAmount - initMargin;
       expect(await ethToken.balanceOf(user.address)).to.equal(userEthBalance);
       expect(await ethToken.balanceOf(relayer.address)).to.equal(relayerEthBalance);
       expect(await arbToken.balanceOf(user.address)).to.equal(userArbBalance);
@@ -289,48 +416,48 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       console.log("normal lock and release test finished");
 
       // check unique and continuous
-      await expect(transfer(initTransferId, 0)).to.be.revertedWith("snapshot expired:transfer");
-      await expect(transfer(transferId01, 1)).to.be.revertedWith("snapshot expired:withdraw");
+      await expect(transfer("eth2arb", initTransferId, initMargin)).to.be.revertedWith("snapshot expired");
+      await expect(transfer("eth2arb", transferId01, initMargin + 1)).to.be.revertedWith("margin updated");
 
-      const lockTransaction1 = await transfer(transferId01, 0)
+      const lockTransaction1 = await transfer("eth2arb", transferId01, initMargin)
       lockReceipt = await lockTransaction1.wait();
       lockGasUsed = lockReceipt.cumulativeGasUsed;
       console.log("transferAndLockMargin 01 gas used", lockGasUsed);
       const blockTimestamp02 = (await ethers.provider.getBlock("latest")).timestamp;
-      const transferId02 = await getCurrentTransferId(transferId01);
-      await transfer(transferId02, 0)
+      const transferId02 = await getCurrentTransferId("eth2arb", transferId01);
+      await transfer("eth2arb", transferId02, 0)
       const blockTimestamp03 = (await ethers.provider.getBlock("latest")).timestamp;
-      const transferId03 = await getCurrentTransferId(transferId02);
+      const transferId03 = await getCurrentTransferId("eth2arb", transferId02);
 
       // release transfer02 failed
-      await expect(relay(transferId02, transferId03, null)).to.be.revertedWith("last transfer not filled");
+      await expect(relay("eth2arb", transferId02, transferId03, null)).to.be.revertedWith("previous fill not exist");
       // 1. slash when not timeout
-      await expect(slash(transferId02, transferId03, null)).to.be.revertedWith("invalid timestamp");
+      await expect(slash("eth2arb", transferId02, transferId03, null)).to.be.revertedWith("slash time not expired");
 
       await hre.network.provider.request({
           method: "evm_increaseTime",
           params: [18001],
       });
-      await expect(slash(transferId02, transferId03, blockTimestamp03)).to.be.revertedWith("arbitrum mock call failed");
+      await expect(slash("eth2arb", transferId02, transferId03, blockTimestamp03)).to.be.revertedWith("previous fill not exist");
       console.log("check continuous success");
 
       // 2. slash when timeout, but relayed
-      await expect(slash(initTransferId, transferId01, blockTimestamp01)).to.be.revertedWith("arbitrum mock call failed");
+      await expect(slash("eth2arb", initTransferId, transferId01, blockTimestamp01)).to.be.revertedWith("fill exist");
       // relay 02 && slash 02
-      await relay(transferId01, transferId02, blockTimestamp02);
+      await relay("eth2arb", transferId01, transferId02, blockTimestamp02);
       // can't relay twice
-      await expect(relay(transferId01, transferId02, blockTimestamp02)).to.be.revertedWith("transfer has been filled");
+      await expect(relay("eth2arb", transferId01, transferId02, blockTimestamp02)).to.be.revertedWith("fill exist");
       // 3. slash when timeout but relayed(timeout)
-      // can slash if relayed when timeout
-      await slash(transferId01, transferId02, blockTimestamp02);
-      // 4. slash when slash has finished
-      // can't slash twice
-      await expect(slash(transferId01, transferId02, blockTimestamp02)).to.be.revertedWith("arbitrum mock call failed");
+      // can't slash event if relayed when timeout
+      await expect(slash("eth2arb", transferId01, transferId02, blockTimestamp02)).to.be.revertedWith("fill exist");
       // slash 03
-      // 5. slash when timeout and not relayed
+      // 4. slash when timeout and not relayed
       // can slash if not relayed when timeout
-      await slash(transferId02, transferId03, blockTimestamp03);
+      await arbToken.connect(slasher).approve(arbBridge.address, initTokenBalance);
+      await slash("eth2arb", transferId02, transferId03, blockTimestamp03);
       
+      expect(await withdraw('eth2arb', transferId03, 15000)).to.equal(false);
+      expect(await withdraw('eth2arb', transferId03, 5000)).to.equal(true);
       console.log("ln bridge test finished");
   });
 });

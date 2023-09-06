@@ -13,7 +13,6 @@ library LnBridgeHelper {
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
 
     struct TransferParameter {
-        uint256 remoteChainId;
         bytes32 previousTransferId;
         address provider;
         address sourceToken;

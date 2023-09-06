@@ -6,6 +6,7 @@ import "../base/LnBridgeHelper.sol";
 interface ILnDefaultBridgeTarget {
     function slash(
         LnBridgeHelper.TransferParameter memory params,
+        uint256 remoteChainId,
         address slasher,
         uint112 fee,
         uint112 penalty

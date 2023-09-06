@@ -65,9 +65,12 @@ contract LnOppositeBridgeTarget {
     //    III. Both I and II => latestSlashTransferId is trusted if previousTransfer is normal relayed tranfer
     function _fillTransfer(
         LnBridgeHelper.TransferParameter calldata _params,
+        uint256 _remoteChainId,
         bytes32 _expectedTransferId
     ) internal {
         bytes32 transferId = keccak256(abi.encodePacked(
+            _remoteChainId,
+            block.chainid,
             _params.previousTransferId,
             _params.provider,
             _params.sourceToken,
@@ -90,11 +93,12 @@ contract LnOppositeBridgeTarget {
 
     function transferAndReleaseMargin(
         LnBridgeHelper.TransferParameter calldata _params,
+        uint256 _remoteChainId,
         bytes32 _expectedTransferId
     ) payable external {
         // normal relay message, fill slasher as zero
         require(_params.provider == msg.sender, "invalid provider");
-        _fillTransfer(_params, _expectedTransferId);
+        _fillTransfer(_params, _remoteChainId, _expectedTransferId);
 
         emit TransferFilled(_expectedTransferId, address(0));
     }
@@ -105,10 +109,11 @@ contract LnOppositeBridgeTarget {
     // So we needs to carry the the previous shash transferId to ensure that the slash is continuous.
     function _slashAndRemoteReleaseCall(
         LnBridgeHelper.TransferParameter calldata _params,
+        uint256 _remoteChainId,
         bytes32 _expectedTransferId
     ) internal returns(bytes memory message) {
         require(block.timestamp > _params.timestamp + LnBridgeHelper.SLASH_EXPIRE_TIME, "slash time not expired");
-        _fillTransfer(_params, _expectedTransferId);
+        _fillTransfer(_params, _remoteChainId, _expectedTransferId);
 
         // slasher = msg.sender
         slashInfos[_expectedTransferId] = SlashInfo(_params.provider, _params.sourceToken, _params.targetToken, msg.sender, _params.timestamp);
@@ -149,9 +154,9 @@ contract LnOppositeBridgeTarget {
         bytes32 _latestSlashTransferId,
         bytes32 _transferId,
         uint256 _timestamp,
-        address _provider,
         address _sourceToken,
         address _targetToken,
+        address _provider,
         address _slasher
     ) internal view returns(bytes memory) {
         return abi.encodeWithSelector(
@@ -171,15 +176,17 @@ contract LnOppositeBridgeTarget {
 
     function requestSlashAndRemoteRelease(
         LnBridgeHelper.TransferParameter calldata _params,
+        uint256 _remoteChainId,
         bytes32 _expectedTransferId,
         bytes memory _extParams
     ) payable external {
         bytes memory slashCallMessage = _slashAndRemoteReleaseCall(
            _params,
+           _remoteChainId,
            _expectedTransferId
         );
-        _sendMessageToTarget(_params.remoteChainId, slashCallMessage, _extParams);
-        emit SlashRequest(_params.remoteChainId, _params.sourceToken, _params.targetToken, _expectedTransferId);
+        _sendMessageToTarget(_remoteChainId, slashCallMessage, _extParams);
+        emit SlashRequest(_remoteChainId, _params.sourceToken, _params.targetToken, _expectedTransferId);
     }
 
     function requestRetrySlashAndRemoteRelease(

@@ -240,16 +240,17 @@ contract LnDefaultBridgeSource {
 
     function _slashAndRemoteReleaseCall(
         LnBridgeHelper.TransferParameter memory _params,
+        uint256 _remoteChainId,
         bytes32 _expectedTransferId
     ) internal view returns(bytes memory message) {
-        bytes32 key = keccak256(abi.encodePacked(_params.remoteChainId, _params.sourceToken, _params.targetToken));
+        bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _params.sourceToken, _params.targetToken));
         LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.isRegistered, "token not registered");
         uint112 targetAmount = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, _params.amount);
 
         bytes32 transferId = keccak256(abi.encodePacked(
            block.chainid,
-           _params.remoteChainId,
+           _remoteChainId,
            _params.previousTransferId,
            _params.provider,
            _params.sourceToken,
@@ -259,7 +260,7 @@ contract LnDefaultBridgeSource {
         ));
         require(_expectedTransferId == transferId, "expected transfer id not match");
         LockInfo memory lockInfo = lockInfos[transferId];
-        require(lockInfo.timestamp == _params.timestamp, "lock info not match");
+        require(lockInfo.timestamp == _params.timestamp, "invalid timestamp");
         require(block.timestamp > lockInfo.timestamp + LnBridgeHelper.SLASH_EXPIRE_TIME, "invalid timestamp");
         uint112 targetFee = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, lockInfo.fee);
         uint112 targetPenalty = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, lockInfo.penalty);
@@ -267,6 +268,7 @@ contract LnDefaultBridgeSource {
         message = abi.encodeWithSelector(
            ILnDefaultBridgeTarget.slash.selector,
            _params,
+           _remoteChainId,
            msg.sender, // slasher
            targetFee,
            targetPenalty
@@ -301,6 +303,7 @@ contract LnDefaultBridgeSource {
 
     function encodeSlashCall(
         LnBridgeHelper.TransferParameter memory _params,
+        uint256 _remoteChainId,
         address _slasher,
         uint112 _fee,
         uint112 _penalty
@@ -308,6 +311,7 @@ contract LnDefaultBridgeSource {
         return abi.encodeWithSelector(
            ILnDefaultBridgeTarget.slash.selector,
            _params,
+           _remoteChainId,
            _slasher,
            _fee,
            _penalty
@@ -338,15 +342,17 @@ contract LnDefaultBridgeSource {
 
     function requestSlashAndRemoteRelease(
         LnBridgeHelper.TransferParameter calldata _params,
+        uint256 _remoteChainId,
         bytes32 _expectedTransferId,
         bytes memory _extParams
     ) payable external {
         bytes memory slashCallMessage = _slashAndRemoteReleaseCall(
            _params,
+           _remoteChainId,
            _expectedTransferId
         );
-        _sendMessageToTarget(_params.remoteChainId, slashCallMessage, _extParams);
-        emit SlashRequest(_params.remoteChainId, _params.sourceToken, _params.targetToken, _expectedTransferId);
+        _sendMessageToTarget(_remoteChainId, slashCallMessage, _extParams);
+        emit SlashRequest(_remoteChainId, _params.sourceToken, _params.targetToken, _expectedTransferId);
     }
 
     function requestWithdrawMargin(

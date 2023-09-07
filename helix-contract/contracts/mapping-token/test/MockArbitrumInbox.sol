@@ -18,6 +18,7 @@ contract MockArbitrumInbox {
         bytes calldata data
     ) external payable returns (uint256) {
         // we use this gas price to mock failed remote call
+        console.log("mock arbitrum inbox call", to);
         if (maxFeePerGas > 100) {
             (bool result, ) = to.call(data);
             require(result == true, "arbitrum mock call failed");

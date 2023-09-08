@@ -1,0 +1,25 @@
+{
+    "messagers": {
+        "goerli": {
+            "Eth2ArbSendService": "0x4828Bb749469Cd8a3d8357A6CF0970517538Da2e",
+            "Eth2LineaSendService": "0xf68574f974634e72CCD280991A7A7660F8008A28",
+            "layerzeroMessager": "0xf8ec3b0c834a07CC9381c4265CC8469716A1D0f3"
+        },
+        "arbitrum-goerli": {
+            "Eth2ArbReceiveService": "0x1556514f6D56eD991E19A30C822d7fC51E22C571",
+            "layerzeroMessager": "0x52f77d33cc830d6E927e637EC93B25ac025d29C6"
+        },
+        "linea-goerli": {
+            "Eth2LineaReceiveService": "0x5dcdF43d3aa318CedE2b89f6f576b8Af096c83a0",
+            "layerzeroMessager": "0x761731CD0BFeBED233648369053FF999704D6229"
+        },
+        "mantle-goerli": {
+            "layerzeroMessager": "0xBc42F098a8f4fF1cE56b4E49E61A1B0cB52cA300"
+        }
+    },
+    "ProxyAdmin": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
+    "LnDefaultBridgeLogic": "0xe319bb075bd1F8Da3eFba54a14A83D4F0b7548AA",
+    "LnOppositeBridgeLogic": "0xfCf4d16D6E9c0EF2EBD01e470C558fA5Cbb42005",
+    "LnDefaultBridgeProxy": "0x04c7F678cD8F244461d7d6126839D57dFed7EF59",
+    "LnOppositeBridgeProxy": "0x12D4DA4619fB3d1CF2D416BF477684539F05342B"
+}

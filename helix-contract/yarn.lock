@@ -4083,7 +4083,7 @@ ethereumjs-wallet@0.6.5:
     utf8 "^3.0.0"
     uuid "^3.3.2"
 
-ethers@^5.0.0, ethers@^5.0.1, ethers@^5.0.2, ethers@^5.5.2, ethers@^5.6.9:
+ethers@^5.0.0, ethers@^5.0.1, ethers@^5.0.14, ethers@^5.0.2, ethers@^5.5.2, ethers@^5.6.9:
   version "5.7.2"
   resolved "https://registry.yarnpkg.com/ethers/-/ethers-5.7.2.tgz#3a7deeabbb8c030d4126b24f84e525466145872e"
   integrity sha512-wswUsmWo1aOK8rR7DIKiWSw9DbLWe6x98Jrn8wcTflTVvaXhAMaB5zGAXy0GYQEQp9iO1iSHWVyARQm11zUtyg==
@@ -4966,6 +4966,13 @@ hardhat-abi-exporter@^2.2.1:
   dependencies:
     "@ethersproject/abi" "^5.5.0"
     delete-empty "^3.0.0"
+
+hardhat-solidity-create2-deployer@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/hardhat-solidity-create2-deployer/-/hardhat-solidity-create2-deployer-1.0.2.tgz#deef793b01cb99d032dab6a272cb8339a0a0e593"
+  integrity sha512-u0tY4cE59GqoxbjB5vIRARZYdUcwBCKqu7ULv5V/Ad2t/GGH5buR1hLQrfaZNqh+hSppnwWbnnoIzAmkJFH9IA==
+  dependencies:
+    ethers "^5.0.14"
 
 hardhat@^2.11.2:
   version "2.12.4"
@@ -8931,6 +8938,13 @@ solc@^0.6.3:
     require-from-string "^2.0.0"
     semver "^5.5.0"
     tmp "0.0.33"
+
+solidity-create2-deployer@^0.4.0:
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/solidity-create2-deployer/-/solidity-create2-deployer-0.4.0.tgz#d966256e3ade848d840ed231cad3d3cd364d3b99"
+  integrity sha512-bB5d8fPt4dWsOoRodrsyfWKcjiv77IFl84+e6EckMMGYlfL2ZFqUoMz6tnqqiUFrM9abF1p6dWFOgJ/3zVc8yQ==
+  dependencies:
+    ethers "^5.0.14"
 
 sorted-object@~2.0.1:
   version "2.0.1"

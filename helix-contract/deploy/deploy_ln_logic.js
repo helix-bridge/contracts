@@ -48,10 +48,13 @@ async function deployLnOppositeBridge(wallet, deployerAddress, salt) {
 
 // 2. deploy mapping token factory
 async function main() {
+    //const network = goerliNetwork;
+    //const network = mantleNetwork;
+    //const network = arbitrumNetwork;
     const network = lineaNetwork;
     const w = wallet(network.url);
-    await deployLnDefaultBridge(w, network.deployer, "ln-default-logic-v1.0.0");
-    await deployLnOppositeBridge(w, network.deployer, "ln-opposite-logic-v1.0.0");
+    await deployLnDefaultBridge(w, network.deployer, "ln-default-logic-v1.0.1");
+    await deployLnOppositeBridge(w, network.deployer, "ln-opposite-logic-v1.0.1");
 }
 
 main()

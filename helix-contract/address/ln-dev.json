@@ -18,8 +18,8 @@
         }
     },
     "ProxyAdmin": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
-    "LnDefaultBridgeLogic": "0xe319bb075bd1F8Da3eFba54a14A83D4F0b7548AA",
-    "LnOppositeBridgeLogic": "0xfCf4d16D6E9c0EF2EBD01e470C558fA5Cbb42005",
-    "LnDefaultBridgeProxy": "0x04c7F678cD8F244461d7d6126839D57dFed7EF59",
-    "LnOppositeBridgeProxy": "0x12D4DA4619fB3d1CF2D416BF477684539F05342B"
+    "LnDefaultBridgeLogic": "0x43ae847d170e8AB26901a80b474d356Aaa30CEE1",
+    "LnOppositeBridgeLogic": "0xdE4667Fa1Db7a73914d13aF664933a027e5F9f54",
+    "LnDefaultBridgeProxy": "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
+    "LnOppositeBridgeProxy": "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D"
 }

@@ -27,10 +27,10 @@ contract LnDefaultBridgeTarget {
     // transferId => FillTransfer
     mapping(bytes32 => FillTransfer) public fillTransfers;
 
-    event TransferFilled(address provider, bytes32 transferId);
-    event Slash(bytes32 transferId, address provider, address token, uint256 margin, address slasher);
-    event MarginUpdated(address provider, address token, uint256 amount, uint64 withdrawNonce);
-    event SlashReserveUpdated(address provider, address token, uint256 amount);
+    event TransferFilled(bytes32 transferId, address provider);
+    event Slash(bytes32 transferId, uint256 remoteChainId, address provider, address sourceToken, address targetToken, uint256 margin, address slasher);
+    event MarginUpdated(uint256 remoteChainId, address provider, address sourceToken, address targetToken, uint256 amount, uint64 withdrawNonce);
+    event SlashReserveUpdated(address provider, address sourceToken, address targetToken, uint256 amount);
 
     modifier allowRemoteCall(uint256 _remoteChainId) {
         _verifyRemote(_remoteChainId);
@@ -55,7 +55,7 @@ contract LnDefaultBridgeTarget {
         } else {
             LnBridgeHelper.safeTransferFrom(_targetToken, msg.sender, address(this), _margin);
         }
-        emit MarginUpdated(msg.sender, _sourceToken, updatedMargin, providerInfo.withdrawNonce);
+        emit MarginUpdated(_remoteChainId, msg.sender, _sourceToken, _targetToken, updatedMargin, providerInfo.withdrawNonce);
     }
 
     function transferAndReleaseMargin(
@@ -92,7 +92,7 @@ contract LnDefaultBridgeTarget {
         } else {
             LnBridgeHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.amount));
         }
-        emit TransferFilled(_params.provider, transferId);
+        emit TransferFilled(transferId, _params.provider);
     }
 
     function depositSlashFundReserve(
@@ -110,7 +110,7 @@ contract LnDefaultBridgeTarget {
         } else {
             LnBridgeHelper.safeTransferFrom(_targetToken, msg.sender, address(this), _amount);
         }
-        emit SlashReserveUpdated(msg.sender, _sourceToken, updatedAmount);
+        emit SlashReserveUpdated(msg.sender, _sourceToken, _targetToken, updatedAmount);
     }
 
     // withdraw slash fund
@@ -132,7 +132,7 @@ contract LnDefaultBridgeTarget {
         } else {
             LnBridgeHelper.safeTransfer(_targetToken, msg.sender, _amount);
         }
-        emit SlashReserveUpdated(msg.sender, _sourceToken, updatedAmount);
+        emit SlashReserveUpdated(msg.sender, _sourceToken, _targetToken, updatedAmount);
     }
 
     function withdraw(
@@ -163,7 +163,7 @@ contract LnDefaultBridgeTarget {
         } else {
             LnBridgeHelper.safeTransfer(_targetToken, _provider, _amount);
         }
-        emit MarginUpdated(_provider, _sourceToken, updatedMargin, _withdrawNonce);
+        emit MarginUpdated(_remoteChainId, _provider, _sourceToken, _targetToken, updatedMargin, _withdrawNonce);
     }
 
     function slash(
@@ -223,7 +223,7 @@ contract LnDefaultBridgeTarget {
                 LnBridgeHelper.safeTransfer(_params.targetToken, _slasher, slashRefund);
             }
         }
-        emit Slash(transferId, _params.provider, _params.sourceToken, updatedMargin, _slasher);
+        emit Slash(transferId, _remoteChainId, _params.provider, _params.sourceToken, _params.targetToken, updatedMargin, _slasher);
     }
 }
 

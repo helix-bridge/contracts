@@ -9,8 +9,8 @@ const privateKey = process.env.PRIKEY
 const lineaNetwork = {
     url: "https://rpc.goerli.linea.build",
     chainId: 59140,
-    defaultBridgeProxy: "0x04c7F678cD8F244461d7d6126839D57dFed7EF59",
-    oppositeBridgeProxy: "0x12D4DA4619fB3d1CF2D416BF477684539F05342B",
+    defaultBridgeProxy: "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
+    oppositeBridgeProxy: "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D",
     name: "lineaGoerli",
     usdc: "0xb5E028f980dF5533cB0e8F04530B76637383d993",
     usdt: "0xBC1A2f123Dc9CD2ec8d3cE42eF16c28F3C9bA686",
@@ -19,8 +19,8 @@ const lineaNetwork = {
 const arbitrumNetwork = {
     url: "https://goerli-rollup.arbitrum.io/rpc",
     chainId: 421613,
-    defaultBridgeProxy: "0x04c7F678cD8F244461d7d6126839D57dFed7EF59",
-    oppositeBridgeProxy: "0x12D4DA4619fB3d1CF2D416BF477684539F05342B",
+    defaultBridgeProxy: "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
+    oppositeBridgeProxy: "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D",
     name: "arbitrumGoerli",
     usdc: "0x39dE82E1d9B8F62E11022FC3FC127a82F93fE47E",
     usdt: "0x6d828718c1097A4C573bc25c638Cc05bF10dFeAF",
@@ -29,8 +29,8 @@ const arbitrumNetwork = {
 const goerliNetwork = {
     url: "https://rpc.ankr.com/eth_goerli",
     chainId: 5,
-    defaultBridgeProxy: "0x04c7F678cD8F244461d7d6126839D57dFed7EF59",
-    oppositeBridgeProxy: "0x12D4DA4619fB3d1CF2D416BF477684539F05342B",
+    defaultBridgeProxy: "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
+    oppositeBridgeProxy: "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D",
     name: "goerli",
     usdc: "0x1a70127284B774fF4A4dbfe0115114642f0eca65",
     usdt: "0x2303e4d55BF16a897Cb5Ab71c6225399509d9314",
@@ -39,8 +39,8 @@ const goerliNetwork = {
 const mantleNetwork = {
     url: "https://rpc.testnet.mantle.xyz",
     chainId: 5001,
-    defaultBridgeProxy: "0x04c7F678cD8F244461d7d6126839D57dFed7EF59",
-    oppositeBridgeProxy: "0x12D4DA4619fB3d1CF2D416BF477684539F05342B",
+    defaultBridgeProxy: "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
+    oppositeBridgeProxy: "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D",
     name: "mantleGoerli",
     usdc: "0x0258Eb547bFEd540ed17843658C018569fe1E328",
     usdt: "0x5F8D4232367759bCe5d9488D3ade77FCFF6B9b6B",
@@ -199,7 +199,7 @@ async function registerRelayer(contractName, srcWallet, dstWallet, srcNetwork, d
     // default bridge
     if (contractName == "LnDefaultBridge") {
         // set source network
-        const margin = ethers.utils.parseUnits("100000", srcDecimals);
+        const margin = ethers.utils.parseUnits("1000000", dstDecimals);
         const source = await ethers.getContractAt(contractName, srcNetwork.defaultBridgeProxy, srcWallet);
         await source.setProviderFee(
             dstNetwork.chainId,
@@ -217,7 +217,7 @@ async function registerRelayer(contractName, srcWallet, dstWallet, srcNetwork, d
             margin
         );
     } else {
-        const margin = ethers.utils.parseUnits("100000", dstDecimals);
+        const margin = ethers.utils.parseUnits("1000000", srcDecimals);
         const source = await ethers.getContractAt(contractName, srcNetwork.oppositeBridgeProxy, srcWallet);
         await source.updateProviderFeeAndMargin(
             dstNetwork.chainId,
@@ -280,8 +280,8 @@ async function mintAndApproveToken(tokenAddress, network, wallet) {
     const token = await ethers.getContractAt("Erc20", network[tokenAddress], wallet);
     const decimals = await token.decimals();
     const amount = ethers.utils.parseUnits("10000000", decimals);
-    console.log("start to mint token", tokenAddress, amount);
-    await token.mint(wallet.address, amount);
+    //console.log("start to mint token", tokenAddress, amount);
+    //await token.mint(wallet.address, amount);
     await wait(5000);
     console.log("start to approve", tokenAddress);
     await token.approve(network.defaultBridgeProxy, ethers.utils.parseUnits("10000000000000", decimals));
@@ -313,7 +313,7 @@ async function main() {
     //await connectAll(arbWallet, lineaWallet, goerliWallet, mantleWallet);
     //await registerAllToken(arbWallet, lineaWallet, goerliWallet, mantleWallet);
     //await mintAndApproveAll(arbWallet, lineaWallet, goerliWallet, mantleWallet);
-    //await registerAllRelayer(arbWallet, lineaWallet, goerliWallet, mantleWallet);
+    await registerAllRelayer(arbWallet, lineaWallet, goerliWallet, mantleWallet);
 }
 
 main()

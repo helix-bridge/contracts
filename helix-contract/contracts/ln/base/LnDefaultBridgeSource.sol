@@ -63,6 +63,7 @@ contract LnDefaultBridgeSource {
         bytes32 transferId,
         address provider,
         address sourceToken,
+        address targetToken,
         uint112 amount,
         uint112 fee,
         uint64  timestamp,
@@ -166,8 +167,9 @@ contract LnDefaultBridgeSource {
         address _receiver
     ) external payable {
         require(_amount > 0, "invalid amount");
-        bytes32 tokenKey = LnBridgeHelper.getTokenKey(_snapshot.remoteChainId, _snapshot.sourceToken, _snapshot.targetToken);
-        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[tokenKey];
+        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[
+            LnBridgeHelper.getTokenKey(_snapshot.remoteChainId, _snapshot.sourceToken, _snapshot.targetToken)
+        ];
         require(tokenInfo.isRegistered, "token not registered");
         
         bytes32 providerKey = LnBridgeHelper.getProviderKey(_snapshot.remoteChainId, _snapshot.provider, _snapshot.sourceToken, _snapshot.targetToken);
@@ -232,6 +234,7 @@ contract LnDefaultBridgeSource {
             transferId,
             _snapshot.provider,
             _snapshot.sourceToken,
+            _snapshot.targetToken,
             targetAmount,
             providerFee,
             uint64(block.timestamp),

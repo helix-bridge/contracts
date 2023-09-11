@@ -184,6 +184,7 @@ contract LnDefaultBridgeSource {
         require(_snapshot.totalFee >= providerFee + tokenInfo.protocolFee && providerFee > 0, "fee is invalid");
         
         uint112 targetAmount = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, _amount);
+        require(targetAmount > 0, "invalid target amount");
         require(block.timestamp < type(uint32).max, "timestamp overflow");
         bytes32 transferId = keccak256(abi.encodePacked(
             block.chainid,

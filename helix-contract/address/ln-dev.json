@@ -19,7 +19,7 @@
     },
     "ProxyAdmin": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
     "LnDefaultBridgeLogic": "0x43ae847d170e8AB26901a80b474d356Aaa30CEE1",
-    "LnOppositeBridgeLogic": "0xdE4667Fa1Db7a73914d13aF664933a027e5F9f54",
+    "LnOppositeBridgeLogic": "0x5ae6AF7b7fb6c869219289ba2570C6D4eF20Be2a",
     "LnDefaultBridgeProxy": "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
     "LnOppositeBridgeProxy": "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D"
 }

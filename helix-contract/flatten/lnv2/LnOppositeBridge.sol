@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 9/7/2023
+ * 9/11/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -442,12 +442,13 @@ contract LnOppositeBridgeSource {
         bytes32 transferId,
         address provider,
         address sourceToken,
+        address targetToken,
         uint112 amount,
         uint112 fee,
         uint64 timestamp,
         address receiver);
-    event LiquidityWithdrawn(address provider, address token, uint112 amount);
-    event Slash(bytes32 transferId, address provider, address token, uint112 margin, address slasher);
+    event LiquidityWithdrawn(uint256 remoteChainId, address provider, address sourceToken, address targetToken, uint112 amount);
+    event Slash(uint256 remoteChainId, bytes32 transferId, address provider, address sourceToken, address targetToken, uint112 margin, address slasher);
     // relayer
     event LnProviderUpdated(uint256 remoteChainId, address provider, address sourceToken, address targetToken, uint112 margin, uint112 baseFee, uint16 liquidityfeeRate);
 
@@ -564,8 +565,9 @@ contract LnOppositeBridgeSource {
 
         require(!providerInfo.config.pause, "provider paused");
 
-        bytes32 tokenKey = LnBridgeHelper.getTokenKey(_snapshot.remoteChainId, _snapshot.sourceToken, _snapshot.targetToken);
-        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[tokenKey];
+        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[
+            LnBridgeHelper.getTokenKey(_snapshot.remoteChainId, _snapshot.sourceToken, _snapshot.targetToken)
+        ];
 
         uint112 providerFee = LnBridgeHelper.calculateProviderFee(providerInfo.config.baseFee, providerInfo.config.liquidityFeeRate, _amount);
         
@@ -577,6 +579,7 @@ contract LnOppositeBridgeSource {
         require(_snapshot.totalFee >= tokenInfo.protocolFee + providerFee, "fee is invalid");
         
         uint112 targetAmount = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, _amount);
+        require(targetAmount > 0, "invalid amount");
         require(block.timestamp < type(uint32).max, "timestamp overflow");
         bytes32 transferId = keccak256(abi.encodePacked(
             block.chainid,
@@ -624,7 +627,8 @@ contract LnOppositeBridgeSource {
             transferId,
             _snapshot.provider,
             _snapshot.sourceToken,
-            _amount,
+            _snapshot.targetToken,
+            targetAmount,
             providerFee,
             uint64(block.timestamp),
             _receiver);
@@ -670,7 +674,7 @@ contract LnOppositeBridgeSource {
             LnBridgeHelper.safeTransfer(_sourceToken, _slasher, slashAmount);
         }
 
-        emit Slash(_transferId, _provider, _sourceToken, updatedMargin, _slasher);
+        emit Slash(_remoteChainId, _transferId, _provider, _sourceToken, _targetToken, updatedMargin, _slasher);
     }
 
     // lastTransfer is the latest slash transfer, all transfer must be relayed or slashed
@@ -704,8 +708,21 @@ contract LnOppositeBridgeSource {
         } else {
             LnBridgeHelper.safeTransfer(_sourceToken, _provider, _amount);
         }
-        emit LiquidityWithdrawn(_provider, _sourceToken, updatedMargin);
+        emit LiquidityWithdrawn(_remoteChainId, _provider, _sourceToken, _targetToken, updatedMargin);
     }
+}
+
+// File contracts/ln/interface/ILowLevelMessager.sol
+// License-Identifier: MIT
+
+interface ILowLevelMessageSender {
+    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
+    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
+}
+
+interface ILowLevelMessageReceiver {
+    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
+    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
 // File contracts/ln/interface/ILnOppositeBridgeSource.sol
@@ -971,19 +988,6 @@ contract LnOppositeBridgeTarget {
         _sendMessageToTarget(_remoteChainId, withdrawCallMessage, _extParams);
         emit WithdrawMarginRequest(_remoteChainId, _sourceToken, _targetToken, _amount);
     }
-}
-
-// File contracts/ln/interface/ILowLevelMessager.sol
-// License-Identifier: MIT
-
-interface ILowLevelMessageSender {
-    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
-    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
-}
-
-interface ILowLevelMessageReceiver {
-    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
-    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
 // File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3

@@ -202,6 +202,7 @@ contract LnOppositeBridgeSource {
         require(_snapshot.totalFee >= tokenInfo.protocolFee + providerFee, "fee is invalid");
         
         uint112 targetAmount = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, _amount);
+        require(targetAmount > 0, "invalid amount");
         require(block.timestamp < type(uint32).max, "timestamp overflow");
         bytes32 transferId = keccak256(abi.encodePacked(
             block.chainid,
@@ -250,7 +251,7 @@ contract LnOppositeBridgeSource {
             _snapshot.provider,
             _snapshot.sourceToken,
             _snapshot.targetToken,
-            _amount,
+            targetAmount,
             providerFee,
             uint64(block.timestamp),
             _receiver);

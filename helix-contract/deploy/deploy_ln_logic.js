@@ -53,8 +53,8 @@ async function main() {
     //const network = arbitrumNetwork;
     const network = lineaNetwork;
     const w = wallet(network.url);
-    await deployLnDefaultBridge(w, network.deployer, "ln-default-logic-v1.0.1");
-    await deployLnOppositeBridge(w, network.deployer, "ln-opposite-logic-v1.0.1");
+    //await deployLnDefaultBridge(w, network.deployer, "ln-default-logic-v1.0.1");
+    await deployLnOppositeBridge(w, network.deployer, "ln-opposite-logic-v1.0.2");
 }
 
 main()

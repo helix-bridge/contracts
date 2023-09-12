@@ -119,7 +119,7 @@ contract LnOppositeBridgeTarget {
         slashInfos[_expectedTransferId] = SlashInfo(_params.provider, _params.sourceToken, _params.targetToken, msg.sender, _params.timestamp);
 
         // Do not slash `transferId` in source chain unless `latestSlashTransferId` has been slashed
-        message = _encodeSlashCall(
+        message = encodeSlashCall(
             fillTransfers[_expectedTransferId],
             _expectedTransferId,
             _params.timestamp,
@@ -139,7 +139,7 @@ contract LnOppositeBridgeTarget {
         // transfer must be slashed
         SlashInfo memory slashInfo = slashInfos[_transferId];
         require(slashInfo.slasher != address(0), "slasher not exist");
-        message = _encodeSlashCall(
+        message = encodeSlashCall(
             latestSlashTransferId,
             _transferId,
             slashInfo.timestamp,
@@ -150,7 +150,7 @@ contract LnOppositeBridgeTarget {
         );
     }
 
-    function _encodeSlashCall(
+    function encodeSlashCall(
         bytes32 _latestSlashTransferId,
         bytes32 _transferId,
         uint256 _timestamp,
@@ -158,7 +158,7 @@ contract LnOppositeBridgeTarget {
         address _targetToken,
         address _provider,
         address _slasher
-    ) internal view returns(bytes memory) {
+    ) public view returns(bytes memory) {
         return abi.encodeWithSelector(
             ILnOppositeBridgeSource.slash.selector,
             _latestSlashTransferId,
@@ -198,14 +198,17 @@ contract LnOppositeBridgeTarget {
         _sendMessageToTarget(remoteChainId, retryCallMessage, _extParams);
     }
 
-    function _requestWithdrawMargin(
+    function encodeWithdrawMargin(
         bytes32 _lastTransferId,
         address _sourceToken,
         address _targetToken,
         uint112 _amount
-    ) internal view returns(bytes memory message) {
-        bytes32 latestSlashTransferId = fillTransfers[_lastTransferId];
-        require(latestSlashTransferId != bytes32(0), "invalid last transfer");
+    ) public view returns(bytes memory message) {
+        bytes32 latestSlashTransferId = LnBridgeHelper.INIT_SLASH_TRANSFER_ID;
+        if (_lastTransferId != bytes32(0)) {
+            latestSlashTransferId = fillTransfers[_lastTransferId];
+            require(latestSlashTransferId != bytes32(0), "invalid last transfer");
+        }
 
         return abi.encodeWithSelector(
             ILnOppositeBridgeSource.withdrawMargin.selector,
@@ -227,7 +230,7 @@ contract LnOppositeBridgeTarget {
         uint112 _amount,
         bytes memory _extParams
     ) payable external {
-        bytes memory withdrawCallMessage = _requestWithdrawMargin(
+        bytes memory withdrawCallMessage = encodeWithdrawMargin(
             _lastTransferId,
             _sourceToken,
             _targetToken,

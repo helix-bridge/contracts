@@ -61,7 +61,7 @@ contract LnDefaultBridge is Initializable, LnAccessController, LnDefaultBridgeSo
     function _sendMessageToTarget(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) internal override {
         address sendService = messagers[_remoteChainId].sendService;
         require(sendService != address(0), "invalid messager");
-        ILowLevelMessageSender(sendService).sendMessage(_remoteChainId, _payload, _extParams);
+        ILowLevelMessageSender(sendService).sendMessage{value: msg.value}(_remoteChainId, _payload, _extParams);
     }
 
     function _verifyRemote(uint256 _remoteChainId) whenNotPaused internal view override {

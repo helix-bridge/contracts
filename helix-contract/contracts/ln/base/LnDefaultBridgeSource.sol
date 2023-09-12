@@ -66,7 +66,7 @@ contract LnDefaultBridgeSource {
         address targetToken,
         uint112 amount,
         uint112 fee,
-        uint64  timestamp,
+        uint32  timestamp,
         address receiver);
     event LnProviderUpdated(uint256 remoteChainId, address provider, address sourceToken, address targetToken, uint112 baseFee, uint8 liquidityfeeRate);
 
@@ -238,7 +238,7 @@ contract LnDefaultBridgeSource {
             _snapshot.targetToken,
             targetAmount,
             providerFee,
-            uint64(block.timestamp),
+            uint32(block.timestamp),
             _receiver);
     }
 

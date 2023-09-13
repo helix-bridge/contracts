@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@arbitrum/nitro-contracts": "1.0.1",
+    "@axelar-network/axelar-gmp-sdk-solidity": "^5.3.1",
     "@darwinia/contracts-periphery": "@darwinia/contracts-periphery@2.1.1-fix2",
     "@darwinia/contracts-utils": "^1.0.4",
     "@zeppelin-solidity/contracts": "npm:@openzeppelin/contracts@v4.7.3",

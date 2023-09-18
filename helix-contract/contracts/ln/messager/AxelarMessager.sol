@@ -45,7 +45,6 @@ contract AxelarMessager is LnAccessController {
         bytes calldata _payload
     ) external {
         // check message comes from remote messager
-        require(msg.sender == address(gateway), "invalid caller");
         require(gateway.validateContractCall(_commandId, _sourceChain, _sourceAddress, keccak256(_payload)), "invalid contract call");
         require(_sourceAddress.toAddress() == trustedRemotes[_sourceChain], "invalid remote messager");
         // check message comes from remote app
@@ -85,7 +84,7 @@ contract AxelarMessager is LnAccessController {
         require(remoteAppAddress != address(0), "app pair not registered");
         bytes memory axPayload = abi.encode(msg.sender, remoteAppAddress, _message);
 
-        string memory stringAddress = remoteAppAddress.toString();
+        string memory stringAddress = remoteMessager.messager.toString();
         gasReceiver.payNativeGasForContractCall{value: msg.value}(
             address(this),
             remoteMessager.axRemoteChainName,

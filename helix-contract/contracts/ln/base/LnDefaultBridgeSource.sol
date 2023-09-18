@@ -199,7 +199,7 @@ contract LnDefaultBridgeSource {
         require(lockInfos[transferId].timestamp == 0, "transferId exist");
         // if the transfer refund, then the fee and penalty should be given to slasher, but the protocol fee is ignored
         // and we use the penalty value configure at the moment transfer confirmed
-        lockInfos[transferId] = LockInfo(_snapshot.totalFee, tokenInfo.penaltyLnCollateral, uint32(block.timestamp));
+        lockInfos[transferId] = LockInfo(providerFee, tokenInfo.penaltyLnCollateral, uint32(block.timestamp));
 
         // update the state to prevent other transfers using the same snapshot
         srcProviders[providerKey].lastTransferId = transferId;
@@ -272,7 +272,7 @@ contract LnDefaultBridgeSource {
         message = abi.encodeWithSelector(
            ILnDefaultBridgeTarget.slash.selector,
            _params,
-           _remoteChainId,
+           block.chainid,
            msg.sender, // slasher
            targetFee,
            targetPenalty
@@ -307,7 +307,7 @@ contract LnDefaultBridgeSource {
 
     function encodeSlashCall(
         LnBridgeHelper.TransferParameter memory _params,
-        uint256 _remoteChainId,
+        uint256 _localChainId,
         address _slasher,
         uint112 _fee,
         uint112 _penalty
@@ -315,7 +315,7 @@ contract LnDefaultBridgeSource {
         return abi.encodeWithSelector(
            ILnDefaultBridgeTarget.slash.selector,
            _params,
-           _remoteChainId,
+           _localChainId,
            _slasher,
            _fee,
            _penalty
@@ -324,15 +324,16 @@ contract LnDefaultBridgeSource {
 
     function encodeWithdrawCall(
         bytes32 _lastTransferId,
+        uint256 _localChainId,
         uint64  _withdrawNonce,
         address _provider,
         address _sourceToken,
         address _targetToken,
         uint112 _amount
-    ) public view returns(bytes memory message) {
+    ) public pure returns(bytes memory message) {
         return abi.encodeWithSelector(
             ILnDefaultBridgeTarget.withdraw.selector,
-            block.chainid,
+            _localChainId,
             _lastTransferId,
             _withdrawNonce,
             _provider,

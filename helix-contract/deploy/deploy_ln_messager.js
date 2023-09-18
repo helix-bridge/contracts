@@ -125,7 +125,6 @@ async function main() {
     await lzArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.lzChainId, lzMantle.address);
     await lzLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.lzChainId, lzMantle.address);
     await lzMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.lzChainId, lzLinea.address);
-    */
     // deploy axelar
     console.log("deploy axelar messager");
     const axGoerli = await deployContract(goerliWallet, "AxelarMessager", goerliNetwork.dao, goerliNetwork.axGateway, goerliNetwork.axGasService);
@@ -134,20 +133,26 @@ async function main() {
     const axMantle = await deployContract(mantleWallet, "AxelarMessager", mantleNetwork.dao, mantleNetwork.axGateway, mantleNetwork.axGasService);
     console.log("configure axelar messager");
     await axGoerli.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.axName, axArbitrum.address);
-    await axGoerli.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
-    await axGoerli.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
-
     await axArbitrum.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.axName, axGoerli.address);
-    await axArbitrum.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
-    await axArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
-
     await axLinea.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.axName, axGoerli.address);
-    await axLinea.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.axName, axArbitrum.address);
-    await axLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
-
     await axMantle.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.axName, axGoerli.address);
+
+    await axGoerli.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
+    await axArbitrum.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
+    await axLinea.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.axName, axArbitrum.address);
     await axMantle.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.axName, axArbitrum.address);
+
+    await axGoerli.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
+    await axArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
+    await axLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
     await axMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
+    */
+
+    // deploy debug messager
+    await deployContract(goerliWallet, "DebugMessager");
+    await deployContract(arbWallet, "DebugMessager");
+    await deployContract(lineaWallet, "DebugMessager");
+    await deployContract(mantleWallet, "DebugMessager");
     console.log("finished!");
 }
 

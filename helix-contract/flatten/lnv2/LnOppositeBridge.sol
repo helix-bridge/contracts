@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 9/12/2023
+ * 9/18/2023
  **/
 
 pragma solidity ^0.8.10;
@@ -706,7 +706,8 @@ contract LnOppositeBridgeSource {
         // amount + providerFee + penaltyLnCollateral
         // the Indexer should be care about this value, it will frozen lnProvider's margin when the transfer not finished.
         // and when the slasher slash success, this amount of token will be transfer from lnProvider's margin to slasher.
-        uint112 amountWithFeeAndPenalty;
+        uint112 amount;
+        uint112 feeAndPenalty;
         uint32 timestamp;
         bool hasSlashed;
     }
@@ -726,7 +727,7 @@ contract LnOppositeBridgeSource {
         address targetToken,
         uint112 amount,
         uint112 fee,
-        uint64 timestamp,
+        uint32 timestamp,
         address receiver);
     event LiquidityWithdrawn(uint256 remoteChainId, address provider, address sourceToken, address targetToken, uint112 amount);
     event Slash(uint256 remoteChainId, bytes32 transferId, address provider, address sourceToken, address targetToken, uint112 margin, address slasher);
@@ -872,7 +873,7 @@ contract LnOppositeBridgeSource {
             _receiver,
             targetAmount));
         require(lockInfos[transferId].timestamp == 0, "transferId exist");
-        lockInfos[transferId] = LockInfo(_amount + tokenInfo.penaltyLnCollateral + providerFee, uint32(block.timestamp), false);
+        lockInfos[transferId] = LockInfo(_amount, tokenInfo.penaltyLnCollateral + providerFee, uint32(block.timestamp), false);
 
         // update the state to prevent other transfers using the same snapshot
         srcProviders[providerKey].lastTransferId = transferId;
@@ -911,7 +912,7 @@ contract LnOppositeBridgeSource {
             _snapshot.targetToken,
             targetAmount,
             providerFee,
-            uint64(block.timestamp),
+            uint32(block.timestamp),
             _receiver);
     }
 
@@ -937,14 +938,14 @@ contract LnOppositeBridgeSource {
 
         // ensure transfer exist and not slashed yet
         require(!lockInfo.hasSlashed, "transfer has been slashed");
-        require(lockInfo.timestamp > 0 && lockInfo.timestamp == _timestamp, "lnBridgeSource:invalid timestamp");
+        require(lockInfo.timestamp > 0, "lnBridgeSource:invalid timestamp");
 
         bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, _provider, _sourceToken, _targetToken);
 
         SourceProviderInfo memory lnProvider = srcProviders[providerKey];
         lockInfos[_transferId].hasSlashed = true;
         // transfer token to the slasher
-        uint112 slashAmount = lockInfo.amountWithFeeAndPenalty;
+        uint112 slashAmount = (lockInfo.timestamp == _timestamp ? lockInfo.amount + lockInfo.feeAndPenalty : lockInfo.amount);
         require(lnProvider.config.margin >= slashAmount, "margin not enough");
         uint112 updatedMargin = lnProvider.config.margin - slashAmount;
         srcProviders[providerKey].config.margin = updatedMargin;

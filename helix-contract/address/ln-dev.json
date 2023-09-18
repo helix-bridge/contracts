@@ -4,25 +4,29 @@
             "Eth2ArbSendService": "0x4828Bb749469Cd8a3d8357A6CF0970517538Da2e",
             "Eth2LineaSendService": "0xf68574f974634e72CCD280991A7A7660F8008A28",
             "layerzeroMessager": "0xf8ec3b0c834a07CC9381c4265CC8469716A1D0f3",
-            "axelarMessager": "0x5BdECe2537A36aEC8aa1497310d55e8284c5bDa9"
+            "axelarMessager": "0x6a2BbbB83DF4485347421a0E8C9dFa46FbAf2ed2",
+            "debugMessager": "0x2e8D237226041FAFe3F66b6cfc54b064923D454E"
         },
         "arbitrum-goerli": {
             "Eth2ArbReceiveService": "0x1556514f6D56eD991E19A30C822d7fC51E22C571",
             "layerzeroMessager": "0x52f77d33cc830d6E927e637EC93B25ac025d29C6",
-            "axelarMessager": "0x94cC54D6fEC47146f18c32476A715ed20D6eC801"
+            "axelarMessager": "0xc6F1Ee9D76A7aa79d76681709a51EbD2d6A1F807",
+            "debugMessager": "0x7f431D5ba484Eb96811C469BE3DcbB23c67ae4a8"
         },
         "linea-goerli": {
             "Eth2LineaReceiveService": "0x5dcdF43d3aa318CedE2b89f6f576b8Af096c83a0",
             "layerzeroMessager": "0x761731CD0BFeBED233648369053FF999704D6229",
-            "axelarMessager": "0x1c90D8027712015b9A93dE40efFe83787AA843B3"
+            "axelarMessager": "0xC7FBfe49e709A91908Cb161747c5e0e6472BeCcf",
+            "debugMessager": "0x25Ce9C92526D002a11aBA105563a713357429A99"
         },
         "mantle-goerli": {
             "layerzeroMessager": "0xBc42F098a8f4fF1cE56b4E49E61A1B0cB52cA300",
-            "axelarMessager": "0x374A9Ac632E6DdFBBDfE5F1e60B14bB58452a7e2"
+            "axelarMessager": "0x91f14687bc135938e165B3672D8D74D59Dd21DE1",
+            "debugMessager": "0x84f7a56483C100ECb12CbB4A31b7873dAE0d8E9B"
         }
     },
     "ProxyAdmin": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
-    "LnDefaultBridgeLogic": "0x230Bd5EeECaB61CcBdcd0bCeC4F2da83e6d56B8F",
+    "LnDefaultBridgeLogic": "0x26d6693553f4d2bff7C3aa93596BBb6A91D5c2A4",
     "LnOppositeBridgeLogic": "0x001878Cd54E82356eE714007701F7981d2dc4943",
     "LnDefaultBridgeProxy": "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
     "LnOppositeBridgeProxy": "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D"

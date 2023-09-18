@@ -313,7 +313,7 @@ async function main() {
     //await connectAll(arbWallet, lineaWallet, goerliWallet, mantleWallet);
     //await registerAllToken(arbWallet, lineaWallet, goerliWallet, mantleWallet);
     //await mintAndApproveAll(arbWallet, lineaWallet, goerliWallet, mantleWallet);
-    await registerRelayer("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "usdt");
+    //await registerRelayer("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "usdt");
     //await registerAllRelayer(arbWallet, lineaWallet, goerliWallet, mantleWallet);
 }
 

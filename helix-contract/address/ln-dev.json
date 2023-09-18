@@ -3,23 +3,27 @@
         "goerli": {
             "Eth2ArbSendService": "0x4828Bb749469Cd8a3d8357A6CF0970517538Da2e",
             "Eth2LineaSendService": "0xf68574f974634e72CCD280991A7A7660F8008A28",
-            "layerzeroMessager": "0xf8ec3b0c834a07CC9381c4265CC8469716A1D0f3"
+            "layerzeroMessager": "0xf8ec3b0c834a07CC9381c4265CC8469716A1D0f3",
+            "axelarMessager": "0x5BdECe2537A36aEC8aa1497310d55e8284c5bDa9"
         },
         "arbitrum-goerli": {
             "Eth2ArbReceiveService": "0x1556514f6D56eD991E19A30C822d7fC51E22C571",
-            "layerzeroMessager": "0x52f77d33cc830d6E927e637EC93B25ac025d29C6"
+            "layerzeroMessager": "0x52f77d33cc830d6E927e637EC93B25ac025d29C6",
+            "axelarMessager": "0x94cC54D6fEC47146f18c32476A715ed20D6eC801"
         },
         "linea-goerli": {
             "Eth2LineaReceiveService": "0x5dcdF43d3aa318CedE2b89f6f576b8Af096c83a0",
-            "layerzeroMessager": "0x761731CD0BFeBED233648369053FF999704D6229"
+            "layerzeroMessager": "0x761731CD0BFeBED233648369053FF999704D6229",
+            "axelarMessager": "0x1c90D8027712015b9A93dE40efFe83787AA843B3"
         },
         "mantle-goerli": {
-            "layerzeroMessager": "0xBc42F098a8f4fF1cE56b4E49E61A1B0cB52cA300"
+            "layerzeroMessager": "0xBc42F098a8f4fF1cE56b4E49E61A1B0cB52cA300",
+            "axelarMessager": "0x374A9Ac632E6DdFBBDfE5F1e60B14bB58452a7e2"
         }
     },
     "ProxyAdmin": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
     "LnDefaultBridgeLogic": "0x230Bd5EeECaB61CcBdcd0bCeC4F2da83e6d56B8F",
-    "LnOppositeBridgeLogic": "0xcfeb6AE6099DE8655a78e099571D25a21DeAD6d3",
+    "LnOppositeBridgeLogic": "0x001878Cd54E82356eE714007701F7981d2dc4943",
     "LnDefaultBridgeProxy": "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
     "LnOppositeBridgeProxy": "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D"
 }

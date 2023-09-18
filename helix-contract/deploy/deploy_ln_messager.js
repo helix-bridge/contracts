@@ -14,6 +14,9 @@ const lineaNetwork = {
     // layerzero used
     endpoint: "0x6aB5Ae6822647046626e83ee6dB8187151E1d5ab",
     messageService: "0xC499a572640B64eA1C8c194c43Bc3E19940719dC",
+    axGateway: "0xe432150cce91c13a887f7D836923d5597adD8E31",
+    axGasService: "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    axName: "linea",
 };
 
 const zkSyncNetwork = {
@@ -30,6 +33,9 @@ const arbitrumNetwork = {
     chainId: 421613,
     lzChainId: 10143,
     endpoint: "0x6aB5Ae6822647046626e83ee6dB8187151E1d5ab",
+    axGateway: "0xe432150cce91c13a887f7D836923d5597adD8E31",
+    axGasService: "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    axName: "arbitrum",
 };
 
 const goerliNetwork = {
@@ -40,6 +46,9 @@ const goerliNetwork = {
     endpoint: "0xbfD2135BFfbb0B5378b56643c2Df8a87552Bfa23",
     messageService: "0x70BaD09280FD342D02fe64119779BC1f0791BAC2",
     inbox: "0x6BEbC4925716945D46F0Ec336D5C2564F419682C",
+    axGateway: "0xe432150cce91c13a887f7D836923d5597adD8E31",
+    axGasService: "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    axName: "ethereum-2",
 };
 
 const mantleNetwork = {
@@ -48,6 +57,9 @@ const mantleNetwork = {
     chainId: 5001,
     lzChainId: 10181,
     endpoint: "0x2cA20802fd1Fd9649bA8Aa7E50F0C82b479f35fe",
+    axGateway: "0xe432150cce91c13a887f7D836923d5597adD8E31",
+    axGasService: "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
+    axName: "mantle",
 }
 
 function wait(ms) {
@@ -75,6 +87,7 @@ async function main() {
     const goerliWallet = wallet(goerliNetwork.url);
     const mantleWallet = wallet(mantleNetwork.url);
 
+    /*
     // deploy arb<>eth
     console.log("deploy arb <> eth messager");
     const Eth2ArbReceiveService = await deployContract(arbWallet, "Eth2ArbReceiveService", goerliNetwork.chainId);
@@ -112,6 +125,29 @@ async function main() {
     await lzArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.lzChainId, lzMantle.address);
     await lzLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.lzChainId, lzMantle.address);
     await lzMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.lzChainId, lzLinea.address);
+    */
+    // deploy axelar
+    console.log("deploy axelar messager");
+    const axGoerli = await deployContract(goerliWallet, "AxelarMessager", goerliNetwork.dao, goerliNetwork.axGateway, goerliNetwork.axGasService);
+    const axArbitrum = await deployContract(arbWallet, "AxelarMessager", arbitrumNetwork.dao, arbitrumNetwork.axGateway, arbitrumNetwork.axGasService);
+    const axLinea = await deployContract(lineaWallet, "AxelarMessager", lineaNetwork.dao, lineaNetwork.axGateway, lineaNetwork.axGasService);
+    const axMantle = await deployContract(mantleWallet, "AxelarMessager", mantleNetwork.dao, mantleNetwork.axGateway, mantleNetwork.axGasService);
+    console.log("configure axelar messager");
+    await axGoerli.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.axName, axArbitrum.address);
+    await axGoerli.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
+    await axGoerli.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
+
+    await axArbitrum.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.axName, axGoerli.address);
+    await axArbitrum.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
+    await axArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
+
+    await axLinea.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.axName, axGoerli.address);
+    await axLinea.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.axName, axArbitrum.address);
+    await axLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
+
+    await axMantle.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.axName, axGoerli.address);
+    await axMantle.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.axName, axArbitrum.address);
+    await axMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
     console.log("finished!");
 }
 

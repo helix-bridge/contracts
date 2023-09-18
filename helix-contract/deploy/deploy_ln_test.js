@@ -411,7 +411,7 @@ async function main() {
 
     //await transfer("default", networks.goerli, networks.linea, networks.goerli.usdt, networks.linea.usdt, "320");
     //await transfer("opposite", networks.linea, networks.goerli, networks.linea.usdt, networks.goerli.usdt, "500");
-    //await transfer("default", networks.goerli, networks.mantle, networks.goerli.usdc, networks.mantle.usdc, 7000000);
+    await transfer("default", networks.goerli, networks.mantle, networks.goerli.usdc, networks.mantle.usdc, "500");
     //await transfer("default",networks.mantle, networks.goerli, networks.mantle.usdc, networks.goerli.usdc, "132");
     //console.log("transfer and relay successed");
     //return;
@@ -421,6 +421,7 @@ async function main() {
     console.log(fee);
     await withdraw("default", networks.arbitrum, networks.linea, networks.arbitrum.usdc, networks.linea.usdc, "20", fee.nativeFee, networks.arbitrum.wallet.address);
     */
+    /*
     const sendInfo = await eth2arbFee(networks.arbitrum, networks.goerli, networks.arbitrum.usdc, networks.goerli.usdc);
     console.log(sendInfo);
     await withdraw("opposite", networks.arbitrum, networks.goerli, networks.arbitrum.usdc, networks.goerli.usdc, "20", sendInfo[0], sendInfo[1]);
@@ -441,6 +442,35 @@ async function main() {
     );
     console.log("slash successed");
     return;
+    */
+
+    const testers = [
+        "0x5861e3c9148D5DeB59b854805d8eCf3D5443fbEF",
+        "0x0e86Bf507Fd6025A5110dfb35df32ee2B2cf8A05",
+        "0x8481f3D3Be89c7a5D26176772c45ee3bDb307E79"
+    ];
+    for (let networkName in networks) {
+        const network = networks[networkName];
+        console.log(network.url);
+        const w = wallet(network);
+        const token = await ethers.getContractAt("Erc20", network.usdc, w);
+        const decimals = await token.decimals();
+        for (const tester of testers) {
+        //for (const key of privateKeys) {
+            // mint token
+            await token.mint(tester, ethers.utils.parseUnits("500000", decimals));
+            console.log(`mint for ${tester} successed`);
+            // approve
+            /*
+            const provider = new ethers.providers.JsonRpcProvider(network.url);
+            const testerWallet = new ethers.Wallet(key, provider);
+            const testerToken = await ethers.getContractAt("Erc20", network.usdt, testerWallet);
+            await testerToken.approve("0x54cc9716905ba8ebdD01E6364125cA338Cd0054E", ethers.utils.parseEther("1000000000000"));
+            await testerToken.approve("0x79e6f452f1e491a7aF0382FA0a6EF9368691960D", ethers.utils.parseEther("1000000000000"));
+            console.log(`${testerWallet.address} approve successed`);
+            */
+        }
+    }
 }
 
 main()

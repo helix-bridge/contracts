@@ -87,19 +87,18 @@ async function main() {
     const goerliWallet = wallet(goerliNetwork.url);
     const mantleWallet = wallet(mantleNetwork.url);
 
-    /*
     // deploy arb<>eth
     console.log("deploy arb <> eth messager");
-    const Eth2ArbReceiveService = await deployContract(arbWallet, "Eth2ArbReceiveService", goerliNetwork.chainId);
-    const Eth2ArbSendService = await deployContract(goerliWallet, "Eth2ArbSendService", goerliNetwork.inbox, arbitrumNetwork.chainId);
+    const Eth2ArbReceiveService = await deployContract(arbWallet, "Eth2ArbReceiveService", arbitrumNetwork.dao, goerliNetwork.chainId);
+    const Eth2ArbSendService = await deployContract(goerliWallet, "Eth2ArbSendService", goerliNetwork.dao, goerliNetwork.inbox, arbitrumNetwork.chainId);
     await wait(10000);
     await Eth2ArbReceiveService.setRemoteMessager(Eth2ArbSendService.address);
     await Eth2ArbSendService.setRemoteMessager(Eth2ArbReceiveService.address);
     await wait(10000);
     // deploy linea<>eth
     console.log("deploy linea <> eth messager");
-    const Eth2LineaReceiveService = await deployContract(lineaWallet, "Eth2LineaReceiveService", lineaNetwork.messageService, goerliNetwork.chainId);
-    const Eth2LineaSendService = await deployContract(goerliWallet, "Eth2LineaSendService", goerliNetwork.messageService, lineaNetwork.chainId);
+    const Eth2LineaReceiveService = await deployContract(lineaWallet, "Eth2LineaReceiveService", lineaNetwork.dao, lineaNetwork.messageService, goerliNetwork.chainId);
+    const Eth2LineaSendService = await deployContract(goerliWallet, "Eth2LineaSendService", goerliNetwork.dao, goerliNetwork.messageService, lineaNetwork.chainId);
     await wait(10000);
     await Eth2LineaReceiveService.setRemoteMessager(Eth2LineaSendService.address);
     await Eth2LineaSendService.setRemoteMessager(Eth2LineaReceiveService.address);
@@ -146,13 +145,14 @@ async function main() {
     await axArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
     await axLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
     await axMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
-    */
 
+    /*
     // deploy debug messager
     await deployContract(goerliWallet, "DebugMessager");
     await deployContract(arbWallet, "DebugMessager");
     await deployContract(lineaWallet, "DebugMessager");
     await deployContract(mantleWallet, "DebugMessager");
+    */
     console.log("finished!");
 }
 

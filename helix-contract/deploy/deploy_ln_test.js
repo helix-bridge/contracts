@@ -412,6 +412,7 @@ async function main() {
     //await transfer("default", networks.goerli, networks.linea, networks.goerli.usdt, networks.linea.usdt, "320");
     //await transfer("opposite", networks.linea, networks.goerli, networks.linea.usdt, networks.goerli.usdt, "500");
     await transfer("default", networks.goerli, networks.mantle, networks.goerli.usdc, networks.mantle.usdc, "500");
+    return;
     //await transfer("default",networks.mantle, networks.goerli, networks.mantle.usdc, networks.goerli.usdc, "132");
     //console.log("transfer and relay successed");
     //return;

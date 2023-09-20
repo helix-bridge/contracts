@@ -1,27 +1,27 @@
 {
     "messagers": {
         "goerli": {
-            "Eth2ArbSendService": "0x4828Bb749469Cd8a3d8357A6CF0970517538Da2e",
-            "Eth2LineaSendService": "0xf68574f974634e72CCD280991A7A7660F8008A28",
-            "layerzeroMessager": "0xf8ec3b0c834a07CC9381c4265CC8469716A1D0f3",
-            "axelarMessager": "0x6a2BbbB83DF4485347421a0E8C9dFa46FbAf2ed2",
+            "Eth2ArbSendService": "0x3A48cB99a052fe0176CA347B8A1d428DCDf21743",
+            "Eth2LineaSendService": "0x64f30477bb6e4964ab8Bc52B737BAA21Bbf5c0F8",
+            "layerzeroMessager": "0x35CC32798979f5BE7258006036d8855d1311BEFb",
+            "axelarMessager": "0x18675889c188Cbd1B631AD93214a70Bc5CAc3F0c",
             "debugMessager": "0x2e8D237226041FAFe3F66b6cfc54b064923D454E"
         },
         "arbitrum-goerli": {
-            "Eth2ArbReceiveService": "0x1556514f6D56eD991E19A30C822d7fC51E22C571",
-            "layerzeroMessager": "0x52f77d33cc830d6E927e637EC93B25ac025d29C6",
-            "axelarMessager": "0xc6F1Ee9D76A7aa79d76681709a51EbD2d6A1F807",
+            "Eth2ArbReceiveService": "0xf214024C0bc123F8E109D3dF1D4A4ef9A3b87b61",
+            "layerzeroMessager": "0xd66FFAbf8766afB1957507382191381B570907db",
+            "axelarMessager": "0xB03dD202186d4b98BE607361DC451bE01b6543F9",
             "debugMessager": "0x7f431D5ba484Eb96811C469BE3DcbB23c67ae4a8"
         },
         "linea-goerli": {
-            "Eth2LineaReceiveService": "0x5dcdF43d3aa318CedE2b89f6f576b8Af096c83a0",
-            "layerzeroMessager": "0x761731CD0BFeBED233648369053FF999704D6229",
-            "axelarMessager": "0xC7FBfe49e709A91908Cb161747c5e0e6472BeCcf",
+            "Eth2LineaReceiveService": "0x7d86d2aA6342AcF09b3354591d59Eb888543f7c8",
+            "layerzeroMessager": "0x19fDb8B01B3e37B43B291DD24093cA17Ae43863E",
+            "axelarMessager": "0xaF421E2a796984E1eAFF34E3bBD47C9caAd60E82",
             "debugMessager": "0x25Ce9C92526D002a11aBA105563a713357429A99"
         },
         "mantle-goerli": {
-            "layerzeroMessager": "0xBc42F098a8f4fF1cE56b4E49E61A1B0cB52cA300",
-            "axelarMessager": "0x91f14687bc135938e165B3672D8D74D59Dd21DE1",
+            "layerzeroMessager": "0xB3D5ffebdf185Ad1EeA8bc90075FDED515Ba3077",
+            "axelarMessager": "0x258512bb76beA435aB353f3bdc187F4D5574289a",
             "debugMessager": "0x84f7a56483C100ECb12CbB4A31b7873dAE0d8E9B"
         }
     },

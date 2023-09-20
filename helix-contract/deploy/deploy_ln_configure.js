@@ -48,20 +48,24 @@ const mantleNetwork = {
 
 const messagers = {
     goerli: {
-        Eth2ArbSendService: "0x4828Bb749469Cd8a3d8357A6CF0970517538Da2e",
-        Eth2LineaSendService: "0xf68574f974634e72CCD280991A7A7660F8008A28",
-        layerzeroMessager: "0xf8ec3b0c834a07CC9381c4265CC8469716A1D0f3"
+        Eth2ArbSendService: "0x3A48cB99a052fe0176CA347B8A1d428DCDf21743",
+        Eth2LineaSendService: "0x64f30477bb6e4964ab8Bc52B737BAA21Bbf5c0F8",
+        layerzeroMessager: "0x35CC32798979f5BE7258006036d8855d1311BEFb",
+        axelarMessager: "0x18675889c188Cbd1B631AD93214a70Bc5CAc3F0c"
     },
     arbitrumGoerli: {
-        Eth2ArbReceiveService: "0x1556514f6D56eD991E19A30C822d7fC51E22C571",
-        layerzeroMessager: "0x52f77d33cc830d6E927e637EC93B25ac025d29C6"
+        Eth2ArbReceiveService: "0xf214024C0bc123F8E109D3dF1D4A4ef9A3b87b61",
+        layerzeroMessager: "0xd66FFAbf8766afB1957507382191381B570907db",
+        axelarMessager: "0xB03dD202186d4b98BE607361DC451bE01b6543F9"
     },
     lineaGoerli: {
-        Eth2LineaReceiveService: "0x5dcdF43d3aa318CedE2b89f6f576b8Af096c83a0",
-        layerzeroMessager: "0x761731CD0BFeBED233648369053FF999704D6229"
+        Eth2LineaReceiveService: "0x7d86d2aA6342AcF09b3354591d59Eb888543f7c8",
+        layerzeroMessager: "0x19fDb8B01B3e37B43B291DD24093cA17Ae43863E",
+        axelarMessager: "0xaF421E2a796984E1eAFF34E3bBD47C9caAd60E82"
     },
     mantleGoerli: {
-        layerzeroMessager: "0xBc42F098a8f4fF1cE56b4E49E61A1B0cB52cA300"
+        layerzeroMessager: "0xB3D5ffebdf185Ad1EeA8bc90075FDED515Ba3077",
+        axelarMessager: "0x258512bb76beA435aB353f3bdc187F4D5574289a"
     }
 };
 
@@ -76,17 +80,23 @@ function wallet(url) {
 }
 
 async function connectArbAndEth(arbWallet, goerliWallet) {
+    const arbitrumReceiveService = await ethers.getContractAt("Eth2ArbReceiveService", messagers.arbitrumGoerli.Eth2ArbReceiveService, arbWallet);
+    const ethereumSendService = await ethers.getContractAt("Eth2ArbSendService", messagers.goerli.Eth2ArbSendService, goerliWallet);
     // arb<>eth
     // arb->eth opposite bridge using l1->l2 messager
     console.log("start to connect arb->eth using l1->l2 messager");
     const arb2ethSource = await ethers.getContractAt("LnOppositeBridge", arbitrumNetwork.oppositeBridgeProxy, arbWallet);
     const arb2ethTarget = await ethers.getContractAt("LnOppositeBridge", goerliNetwork.oppositeBridgeProxy, goerliWallet);
+    await arbitrumReceiveService.authoriseAppCaller(arb2ethSource.address, true);
+    await ethereumSendService.authoriseAppCaller(arb2ethTarget.address, true);
     await arb2ethSource.setReceiveService(goerliNetwork.chainId, arb2ethTarget.address, messagers.arbitrumGoerli.Eth2ArbReceiveService);
     await arb2ethTarget.setSendService(arbitrumNetwork.chainId, arb2ethSource.address, messagers.goerli.Eth2ArbSendService);
     // eth->arb default bridge using l1->l2 messager
     console.log("start to connect eth->arb using l1->l2 messager");
     const eth2arbSource = await ethers.getContractAt("LnDefaultBridge", goerliNetwork.defaultBridgeProxy, goerliWallet);
     const eth2arbTarget = await ethers.getContractAt("LnDefaultBridge", arbitrumNetwork.defaultBridgeProxy, arbWallet);
+    await ethereumSendService.authoriseAppCaller(eth2arbSource.address, true);
+    await arbitrumReceiveService.authoriseAppCaller(eth2arbTarget.address, true);
     await eth2arbSource.setSendService(arbitrumNetwork.chainId, eth2arbTarget.address, messagers.goerli.Eth2ArbSendService);
     await eth2arbTarget.setReceiveService(goerliNetwork.chainId, eth2arbSource.address, messagers.arbitrumGoerli.Eth2ArbReceiveService);
     console.log("finish connect arb<>eth token bridge");
@@ -94,30 +104,54 @@ async function connectArbAndEth(arbWallet, goerliWallet) {
 
 
 async function connectLineaAndEth(lineaWallet, goerliWallet) {
+    const lineaReceiveService = await ethers.getContractAt("Eth2LineaReceiveService", messagers.lineaGoerli.Eth2LineaReceiveService, lineaWallet);
+    const ethereumSendService = await ethers.getContractAt("Eth2LineaSendService", messagers.goerli.Eth2LineaSendService, goerliWallet);
     // linea<>eth
     // linea->eth opposite bridge using l1->l2 messager
     console.log("start to connect linea->eth using l1->l2 messager");
     const linea2ethSource = await ethers.getContractAt("LnOppositeBridge", lineaNetwork.oppositeBridgeProxy, lineaWallet);
     const linea2ethTarget = await ethers.getContractAt("LnOppositeBridge", goerliNetwork.oppositeBridgeProxy, goerliWallet);
+    await lineaReceiveService.authoriseAppCaller(linea2ethSource.address, true);
+    await ethereumSendService.authoriseAppCaller(linea2ethTarget.address, true);
     await linea2ethSource.setReceiveService(goerliNetwork.chainId, linea2ethTarget.address, messagers.lineaGoerli.Eth2LineaReceiveService);
     await linea2ethTarget.setSendService(lineaNetwork.chainId, linea2ethSource.address, messagers.goerli.Eth2LineaSendService);
     // eth->linea default bridge using l1->l2 messager
     console.log("start to connect eth->linea using l1->l2 messager");
     const eth2lineaSource = await ethers.getContractAt("LnDefaultBridge", goerliNetwork.defaultBridgeProxy, goerliWallet);
     const eth2lineaTarget = await ethers.getContractAt("LnDefaultBridge", lineaNetwork.defaultBridgeProxy, lineaWallet);
+    await lineaReceiveService.authoriseAppCaller(eth2lineaTarget.address, true);
+    await ethereumSendService.authoriseAppCaller(eth2lineaSource.address, true);
     await eth2lineaSource.setSendService(lineaNetwork.chainId, eth2lineaTarget.address, messagers.goerli.Eth2LineaSendService);
     await eth2lineaTarget.setReceiveService(goerliNetwork.chainId, eth2lineaSource.address, messagers.lineaGoerli.Eth2LineaReceiveService);
     console.log("finish connect linea<>eth token bridge");
 }
 
 async function connectUsingLayerzero(leftWallet, rightWallet, leftNetwork, rightNetwork) {
+    const leftMessager = await ethers.getContractAt("LayerZeroMessager", messagers[leftNetwork.name].layerzeroMessager, leftWallet);
+    const rightMessager = await ethers.getContractAt("LayerZeroMessager", messagers[rightNetwork.name].layerzeroMessager, rightWallet);
     console.log("start to connect network by using layerzero");
     const left = await ethers.getContractAt("LnDefaultBridge", leftNetwork.defaultBridgeProxy, leftWallet);
     const right = await ethers.getContractAt("LnDefaultBridge", rightNetwork.defaultBridgeProxy, rightWallet);
+    await leftMessager.authoriseAppCaller(left.address, true);
+    await rightMessager.authoriseAppCaller(right.address, true);
     await left.setSendService(rightNetwork.chainId, right.address, messagers[leftNetwork.name].layerzeroMessager);
     await right.setReceiveService(leftNetwork.chainId, left.address, messagers[rightNetwork.name].layerzeroMessager);
     await left.setReceiveService(rightNetwork.chainId, right.address, messagers[leftNetwork.name].layerzeroMessager);
     await right.setSendService(leftNetwork.chainId, left.address, messagers[rightNetwork.name].layerzeroMessager);
+}
+
+async function connectUsingAxelar(leftWallet, rightWallet, leftNetwork, rightNetwork) {
+    const leftMessager = await ethers.getContractAt("AxelarMessager", messagers[leftNetwork.name].axelarMessager, leftWallet);
+    const rightMessager = await ethers.getContractAt("AxelarMessager", messagers[rightNetwork.name].axelarMessager, rightWallet);
+    console.log("start to connect network by using axelar");
+    const left = await ethers.getContractAt("LnDefaultBridge", leftNetwork.defaultBridgeProxy, leftWallet);
+    const right = await ethers.getContractAt("LnDefaultBridge", rightNetwork.defaultBridgeProxy, rightWallet);
+    await leftMessager.authoriseAppCaller(left.address, true);
+    await rightMessager.authoriseAppCaller(right.address, true);
+    await left.setSendService(rightNetwork.chainId, right.address, messagers[leftNetwork.name].axelarMessager);
+    await right.setReceiveService(leftNetwork.chainId, left.address, messagers[rightNetwork.name].axelarMessager);
+    await left.setReceiveService(rightNetwork.chainId, right.address, messagers[leftNetwork.name].axelarMessager);
+    await right.setSendService(leftNetwork.chainId, left.address, messagers[rightNetwork.name].axelarMessager);
 }
 
 async function connectAll(arbWallet, lineaWallet, goerliWallet, mantleWallet) {
@@ -126,6 +160,7 @@ async function connectAll(arbWallet, lineaWallet, goerliWallet, mantleWallet) {
     await connectUsingLayerzero(arbWallet, lineaWallet, arbitrumNetwork, lineaNetwork);
     await connectUsingLayerzero(arbWallet, mantleWallet, arbitrumNetwork, mantleNetwork);
     await connectUsingLayerzero(lineaWallet, mantleWallet, lineaNetwork, mantleNetwork);
+    await connectUsingAxelar(mantleWallet, goerliWallet, mantleNetwork, goerliNetwork);
 }
 
 async function registerToken(contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, token) {
@@ -310,11 +345,12 @@ async function main() {
     const mantleWallet = wallet(mantleNetwork.url);
 
     // set messager service
-    //await connectAll(arbWallet, lineaWallet, goerliWallet, mantleWallet);
+    await connectAll(arbWallet, lineaWallet, goerliWallet, mantleWallet);
     //await registerAllToken(arbWallet, lineaWallet, goerliWallet, mantleWallet);
     //await mintAndApproveAll(arbWallet, lineaWallet, goerliWallet, mantleWallet);
     //await registerRelayer("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "usdt");
     //await registerAllRelayer(arbWallet, lineaWallet, goerliWallet, mantleWallet);
+    console.log("finished!");
 }
 
 main()

@@ -2,10 +2,11 @@
 pragma solidity ^0.8.10;
 
 import "@arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol";
+import "../base/LnAccessController.sol";
 import "../interface/ILowLevelMessager.sol";
 
 // from ethereum to arbitrum messager
-contract Eth2ArbReceiveService is ILowLevelMessageReceiver {
+contract Eth2ArbReceiveService is ILowLevelMessageReceiver, LnAccessController {
     uint256 immutable public REMOTE_CHAINID;
     address public remoteMessagerAlias;
 
@@ -16,17 +17,16 @@ contract Eth2ArbReceiveService is ILowLevelMessageReceiver {
         _;
     }
 
-    constructor(uint256 _remoteChainId) {
+    constructor(address _dao, uint256 _remoteChainId) {
+        _initialize(_dao);
         REMOTE_CHAINID = _remoteChainId;
     }
 
-    // only can be set once
-    function setRemoteMessager(address _remoteMessager) external {
-        require(remoteMessagerAlias == address(0), "remote exist");
+    function setRemoteMessager(address _remoteMessager) onlyOperator external {
         remoteMessagerAlias = AddressAliasHelper.applyL1ToL2Alias(_remoteMessager);
     }
 
-    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         require(_remoteChainId == REMOTE_CHAINID, "invalid remote chainId");
         appPairs[msg.sender] = _remoteBridge;
     }

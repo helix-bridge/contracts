@@ -24,6 +24,7 @@ contract LayerZeroMessager is LnAccessController {
     mapping(bytes32=>address) public remoteAppSenders;
 
     event CallResult(uint16 lzRemoteChainId, bytes srcAddress, bool successed);
+    event CallerUnMatched(uint16 lzRemoteChainId, bytes srcAddress, address remoteAppAddress);
 
     constructor(address _dao, address _endpoint) {
         _initialize(_dao);
@@ -41,21 +42,21 @@ contract LayerZeroMessager is LnAccessController {
         trustedRemotes[_lzRemoteChainId] = keccak256(abi.encodePacked(_remoteMessager, address(this)));
     }
 
-    function registerRemoteReceiver(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteReceiver(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.lzRemoteChainId, msg.sender));
         remoteAppReceivers[key] = _remoteBridge;
     }
 
-    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.lzRemoteChainId, msg.sender));
         remoteAppSenders[key] = _remoteBridge;
     }
 
-    function sendMessage(uint256 _remoteChainId, bytes memory _message, bytes memory _params) external payable {
+    function sendMessage(uint256 _remoteChainId, bytes memory _message, bytes memory _params) onlyWhiteListCaller external  payable {
         address refunder = address(bytes20(_params));
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
@@ -86,7 +87,10 @@ contract LayerZeroMessager is LnAccessController {
         // call
         (address remoteAppAddress, address localAppAddress, bytes memory message) = abi.decode(_payload, (address, address, bytes));
         bytes32 key = keccak256(abi.encodePacked(_srcChainId, localAppAddress));
-        require(remoteAppAddress == remoteAppSenders[key], "invalid remote address");
+        if (remoteAppAddress != remoteAppSenders[key]) {
+            emit CallerUnMatched(_srcChainId, _srcAddress, remoteAppAddress);
+            return;
+        }
         (bool success,) = localAppAddress.call(message);
         // don't revert to prevent message block
         emit CallResult(_srcChainId, _srcAddress, success);

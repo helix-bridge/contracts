@@ -2,10 +2,11 @@
 pragma solidity ^0.8.10;
 
 import "./interface/IZksyncMailbox.sol";
+import "../base/LnAccessController.sol";
 import "../interface/ILowLevelMessager.sol";
 
 // from ethereum to zkSync messager
-contract Eth2ZkSyncReceiveService is ILowLevelMessageReceiver {
+contract Eth2ZkSyncReceiveService is ILowLevelMessageReceiver, LnAccessController {
     uint160 constant offset = uint160(0x1111000000000000000000000000000000001111);
     uint256 immutable public REMOTE_CHAINID;
     IMailbox public mailbox;
@@ -18,17 +19,17 @@ contract Eth2ZkSyncReceiveService is ILowLevelMessageReceiver {
         _;
     }
 
-    constructor(address _mailbox, uint256 _remoteChainId) {
+    constructor(address _dao, address _mailbox, uint256 _remoteChainId) {
+        _initialize(_dao);
         mailbox = IMailbox(_mailbox);
         REMOTE_CHAINID = _remoteChainId;
     }
 
-    // only can be set once
-    function setRemoteMessager(address _remoteMessager) external {
+    function setRemoteMessager(address _remoteMessager) onlyOperator external {
         remoteMessagerAlias = address(uint160(_remoteMessager) + offset);
     }
 
-    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         require(_remoteChainId == REMOTE_CHAINID, "invalid remote chainId");
         appPairs[msg.sender] = _remoteBridge;
     }

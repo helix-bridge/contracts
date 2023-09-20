@@ -10,6 +10,8 @@ contract LnAccessController is Pausable {
     address public dao;
     address public operator;
 
+    mapping(address=>bool) public callerWhiteList;
+
     modifier onlyDao() {
         require(msg.sender == dao, "!dao");
         _;
@@ -20,13 +22,22 @@ contract LnAccessController is Pausable {
         _;
     }
 
+    modifier onlyWhiteListCaller() {
+        require(callerWhiteList[msg.sender], "caller not in white list");
+        _;
+    }
+
     function _initialize(address _dao) internal {
         dao = _dao;
-        operator = msg.sender;
+        operator = _dao;
     }
 
     function setOperator(address _operator) onlyDao external {
         operator = _operator;
+    }
+
+    function authoriseAppCaller(address appAddress, bool enable) onlyOperator external {
+        callerWhiteList[appAddress] = enable;
     }
 
     function transferOwnership(address _dao) onlyDao external {

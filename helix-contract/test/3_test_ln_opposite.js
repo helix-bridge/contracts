@@ -122,10 +122,10 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       // eth -> arb messager service
       console.log("deploy etherum to arbitrum l1->l2 message service");
       const eth2arbSendServiceContract = await ethers.getContractFactory("Eth2ArbSendService");
-      const eth2arbSendService = await eth2arbSendServiceContract.deploy(inbox.address, arbChainId);
+      const eth2arbSendService = await eth2arbSendServiceContract.deploy(dao, inbox.address, arbChainId);
       await eth2arbSendService.deployed();
       const eth2arbRecvServiceContract = await ethers.getContractFactory("MockEth2ArbReceiveService");
-      const eth2arbRecvService = await eth2arbRecvServiceContract.deploy(ethChainId);
+      const eth2arbRecvService = await eth2arbRecvServiceContract.deploy(dao, ethChainId);
       await eth2arbRecvService.deployed();
 
       await eth2arbSendService.setRemoteMessager(eth2arbRecvService.address);
@@ -151,6 +151,12 @@ describe("eth->arb lnv2 positive bridge tests", () => {
       console.log("messager service deploy finished");
 
       console.log("configure message service for token bridge");
+      // authorise
+      await eth2arbSendService.authoriseAppCaller(ethBridge.address, true);
+      await eth2arbRecvService.authoriseAppCaller(arbBridge.address, true);
+      await lzMessagerEth.authoriseAppCaller(ethBridge.address, true);
+      await lzMessagerArb.authoriseAppCaller(arbBridge.address, true);
+
       await ethBridge.setSendService(arbChainId, arbBridge.address, eth2arbSendService.address);
       await ethBridge.setReceiveService(arbChainId, arbBridge.address, lzMessagerEth.address);
       await arbBridge.setSendService(ethChainId, ethBridge.address, lzMessagerArb.address);

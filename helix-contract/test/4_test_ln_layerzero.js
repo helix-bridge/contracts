@@ -152,8 +152,10 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
       // ******************* register token **************
 
       // set bridge infos
-      lnDefaultBridgeEth.setSendService(arbChainId, lnDefaultBridgeArb.address, lzMessagerEth.address);
-      lnDefaultBridgeArb.setReceiveService(ethChainId, lnDefaultBridgeEth.address, lzMessagerArb.address);
+      await lzMessagerEth.authoriseAppCaller(lnDefaultBridgeEth.address, true);
+      await lzMessagerArb.authoriseAppCaller(lnDefaultBridgeArb.address, true);
+      await lnDefaultBridgeEth.setSendService(arbChainId, lnDefaultBridgeArb.address, lzMessagerEth.address);
+      await lnDefaultBridgeArb.setReceiveService(ethChainId, lnDefaultBridgeEth.address, lzMessagerArb.address);
       console.log("deploy bridge finished");
 
       // provider 
@@ -303,7 +305,7 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
               ));
               expect(fillInfo.timestamp).to.equal(relayTimestamp);
               expect(balanceOfUserAfter - balanceOfUser).to.equal(transferAmount);
-              expect(balanceOfSlasherAfter - balanceOfSlasher).to.equal(penalty + totalFee);
+              expect(balanceOfSlasherAfter - balanceOfSlasher).to.equal(penalty + totalFee - protocolFee);
           }
           expect(fillInfo.slasher).to.equal(slasher.address);
           return slashTransaction;

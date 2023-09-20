@@ -61,21 +61,21 @@ contract AxelarMessager is LnAccessController {
         trustedRemotes[_remoteChainName] = _remoteMessager;
     }
 
-    function registerRemoteReceiver(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteReceiver(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.axRemoteChainName, msg.sender));
         remoteAppReceivers[key] = _remoteBridge;
     }
 
-    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.axRemoteChainName, msg.sender));
         remoteAppSenders[key] = _remoteBridge;
     }
 
-    function sendMessage(uint256 _remoteChainId, bytes memory _message, bytes memory _params) external payable {
+    function sendMessage(uint256 _remoteChainId, bytes memory _message, bytes memory _params) onlyWhiteListCaller external payable {
         address refunder = address(bytes20(_params));
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");

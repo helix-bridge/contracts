@@ -55,7 +55,7 @@ contract LnOppositeBridge is Initializable, LnAccessController, LnOppositeBridge
         );
     }
 
-    function _sendMessageToTarget(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) internal override {
+    function _sendMessageToTarget(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) whenNotPaused internal override {
         address sendService = messagers[_remoteChainId].sendService;
         require(sendService != address(0), "invalid messager");
         ILowLevelMessageSender(sendService).sendMessage{value: msg.value}(_remoteChainId, _payload, _extParams);

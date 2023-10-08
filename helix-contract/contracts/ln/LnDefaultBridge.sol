@@ -23,6 +23,14 @@ contract LnDefaultBridge is Initializable, LnAccessController, LnDefaultBridgeSo
         _updateFeeReceiver(dao);
     }
 
+    function unpause() external onlyOperator {
+        _unpause();
+    }
+
+    function pause() external onlyOperator {
+        _pause();
+    }
+
     // the remote endpoint is unique, if we want multi-path to remote endpoint, then the messager should support multi-path
     function setSendService(uint256 _remoteChainId, address _remoteBridge, address _service) external onlyDao {
         messagers[_remoteChainId].sendService = _service;

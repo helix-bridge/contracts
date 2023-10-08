@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
+import "@zeppelin-solidity/contracts/security/Pausable.sol";
 import "./LnBridgeHelper.sol";
 import "../interface/ILnDefaultBridgeTarget.sol";
 
@@ -9,7 +10,7 @@ import "../interface/ILnDefaultBridgeTarget.sol";
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
 ///         Otherwise if timeout the slasher can send a slash request message to target chain, then force transfer from lnProvider's margin to the user.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnDefaultBridgeSource {
+contract LnDefaultBridgeSource is Pausable {
     // provider fee is paid to liquidity node's account
     // the fee is charged by the same token that user transfered
     // providerFee = baseFee + liquidityFeeRate/LIQUIDITY_FEE_RATE_BASE * sendAmount
@@ -165,7 +166,7 @@ contract LnDefaultBridgeSource {
         Snapshot calldata _snapshot,
         uint112 _amount,
         address _receiver
-    ) external payable {
+    ) whenNotPaused external payable {
         require(_amount > 0, "invalid amount");
         LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[
             LnBridgeHelper.getTokenKey(_snapshot.remoteChainId, _snapshot.sourceToken, _snapshot.targetToken)

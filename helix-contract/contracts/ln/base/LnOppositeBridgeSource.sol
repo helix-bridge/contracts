@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
+import "@zeppelin-solidity/contracts/security/Pausable.sol";
 import "./LnBridgeHelper.sol";
 
 /// @title LnBridgeSource
@@ -8,7 +9,7 @@ import "./LnBridgeHelper.sol";
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
 ///         Otherwise if timeout the slasher can paid for relayer and slash the transfer, then request slash from lnProvider's margin.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnOppositeBridgeSource {
+contract LnOppositeBridgeSource is Pausable {
     // the Liquidity Node provider info
     // Liquidity Node need register first
     struct SourceProviderConfigure {
@@ -181,7 +182,7 @@ contract LnOppositeBridgeSource {
         Snapshot calldata _snapshot,
         uint112 _amount,
         address _receiver
-    ) external payable {
+    ) whenNotPaused external payable {
         require(_amount > 0, "invalid amount");
 
         bytes32 providerKey = LnBridgeHelper.getProviderKey(_snapshot.remoteChainId, _snapshot.provider, _snapshot.sourceToken, _snapshot.targetToken);

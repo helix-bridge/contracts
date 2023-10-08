@@ -21,6 +21,14 @@ contract LnOppositeBridge is Initializable, LnAccessController, LnOppositeBridge
         _updateFeeReceiver(_dao);
     }
 
+    function unpause() external onlyOperator {
+        _unpause();
+    }
+
+    function pause() external onlyOperator {
+        _pause();
+    }
+
     function setSendService(uint256 _remoteChainId, address _remoteBridge, address _service) external onlyDao {
         messagers[_remoteChainId].sendService = _service;
         ILowLevelMessageSender(_service).registerRemoteReceiver(_remoteChainId, _remoteBridge);

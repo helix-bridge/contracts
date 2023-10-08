@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.10;
 
-import "@zeppelin-solidity/contracts/security/Pausable.sol";
-
 /// @title LnAccessController
 /// @notice LnAccessController is a contract to control the access permission 
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnAccessController is Pausable {
+contract LnAccessController {
     address public dao;
     address public operator;
 
@@ -42,14 +40,6 @@ contract LnAccessController is Pausable {
 
     function transferOwnership(address _dao) onlyDao external {
         dao = _dao;
-    }
-
-    function unpause() external onlyOperator {
-        _unpause();
-    }
-
-    function pause() external onlyOperator {
-        _pause();
     }
 }
 

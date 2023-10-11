@@ -14,10 +14,55 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 9/18/2023
+ * 10/10/2023
  **/
 
 pragma solidity ^0.8.10;
+
+// File contracts/ln/base/LnAccessController.sol
+// License-Identifier: MIT
+
+/// @title LnAccessController
+/// @notice LnAccessController is a contract to control the access permission 
+/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
+contract LnAccessController {
+    address public dao;
+    address public operator;
+
+    mapping(address=>bool) public callerWhiteList;
+
+    modifier onlyDao() {
+        require(msg.sender == dao, "!dao");
+        _;
+    }
+
+    modifier onlyOperator() {
+        require(msg.sender == operator, "!operator");
+        _;
+    }
+
+    modifier onlyWhiteListCaller() {
+        require(callerWhiteList[msg.sender], "caller not in white list");
+        _;
+    }
+
+    function _initialize(address _dao) internal {
+        dao = _dao;
+        operator = _dao;
+    }
+
+    function setOperator(address _operator) onlyDao external {
+        operator = _operator;
+    }
+
+    function authoriseAppCaller(address appAddress, bool enable) onlyOperator external {
+        callerWhiteList[appAddress] = enable;
+    }
+
+    function transferOwnership(address _dao) onlyDao external {
+        dao = _dao;
+    }
+}
 
 // File contracts/ln/interface/ILowLevelMessager.sol
 // License-Identifier: MIT
@@ -44,8 +89,9 @@ interface ILineaMessageService {
 // License-Identifier: MIT
 
 
+
 // from ethereum to linea messager
-contract Eth2LineaReceiveService is ILowLevelMessageReceiver {
+contract Eth2LineaReceiveService is ILowLevelMessageReceiver, LnAccessController {
     uint256 immutable public REMOTE_CHAINID;
     ILineaMessageService public messageService;
     address public remoteMessager;
@@ -58,18 +104,17 @@ contract Eth2LineaReceiveService is ILowLevelMessageReceiver {
         _;
     }
 
-    constructor(address _messageService, uint256 _remoteChainId) {
+    constructor(address _dao, address _messageService, uint256 _remoteChainId) {
+        _initialize(_dao);
         messageService = ILineaMessageService(_messageService);
         REMOTE_CHAINID = _remoteChainId;
     }
 
-    // only can be set once
-    function setRemoteMessager(address _remoteMessager) external {
-        require(remoteMessager == address(0), "remote exist");
+    function setRemoteMessager(address _remoteMessager) onlyOperator external {
         remoteMessager = _remoteMessager;
     }
 
-    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         require(_remoteChainId == REMOTE_CHAINID, "invalid remote chainId");
         appPairs[msg.sender] = _remoteBridge;
     }

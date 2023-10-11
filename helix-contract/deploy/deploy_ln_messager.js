@@ -19,12 +19,14 @@ const lineaNetwork = {
     axName: "linea",
 };
 
+// zkSync should be deployed first
 const zkSyncNetwork = {
     url: "https://zksync2-testnet.zksync.dev",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     chainId: 280,
     lzChainId: 10165,
-    endpoint: "0x093D2CF57f764f09C3c2Ac58a42A2601B8C79281",
+    //endpoint: "0x093D2CF57f764f09C3c2Ac58a42A2601B8C79281",
+    layerzeroMessager: "0x7e303b0A3F08F9fa5F5629Abb998B8Deba89049B",
 };
 
 const arbitrumNetwork = {
@@ -86,6 +88,7 @@ async function main() {
     const lineaWallet = wallet(lineaNetwork.url);
     const goerliWallet = wallet(goerliNetwork.url);
     const mantleWallet = wallet(mantleNetwork.url);
+    const zkSyncWallet = wallet(zkSyncNetwork.url);
 
     // deploy arb<>eth
     console.log("deploy arb <> eth messager");
@@ -109,21 +112,33 @@ async function main() {
     const lzArbitrum = await deployContract(arbWallet, "LayerZeroMessager", arbitrumNetwork.dao, arbitrumNetwork.endpoint);
     const lzLinea = await deployContract(lineaWallet, "LayerZeroMessager", lineaNetwork.dao, lineaNetwork.endpoint);
     const lzMantle = await deployContract(mantleWallet, "LayerZeroMessager", mantleNetwork.dao, mantleNetwork.endpoint);
+    // zkSync has been deployed
+    const lzZkSync = await ethers.getContractAt("LayerZeroMessager", zkSyncNetwork.layerzeroMessager, zkSyncWallet);
     console.log("confgure layerzero messager");
     await lzGoerli.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
-    await lzArbitrum.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
-    await lzLinea.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
-    await lzMantle.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
+    await lzLinea.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
+    await lzMantle.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
+    await lzZkSync.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
 
     await lzGoerli.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.lzChainId, lzLinea.address);
     await lzArbitrum.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.lzChainId, lzLinea.address);
-    await lzLinea.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
-    await lzMantle.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
+    await lzMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.lzChainId, lzLinea.address);
+    await lzZkSync.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.lzChainId, lzLinea.address);
 
     await lzGoerli.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.lzChainId, lzMantle.address);
     await lzArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.lzChainId, lzMantle.address);
     await lzLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.lzChainId, lzMantle.address);
-    await lzMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.lzChainId, lzLinea.address);
+    await lzZkSync.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.lzChainId, lzMantle.address);
+
+    await lzGoerli.setRemoteMessager(zkSyncNetwork.chainId, zkSyncNetwork.lzChainId, lzZkSync.address);
+    await lzArbitrum.setRemoteMessager(zkSyncNetwork.chainId, zkSyncNetwork.lzChainId, lzZkSync.address);
+    await lzLinea.setRemoteMessager(zkSyncNetwork.chainId, zkSyncNetwork.lzChainId, lzZkSync.address);
+    await lzMantle.setRemoteMessager(zkSyncNetwork.chainId, zkSyncNetwork.lzChainId, lzZkSync.address);
+
+    await lzArbitrum.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
+    await lzLinea.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
+    await lzMantle.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
+    await lzZkSync.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
     // deploy axelar
     console.log("deploy axelar messager");
     const axGoerli = await deployContract(goerliWallet, "AxelarMessager", goerliNetwork.dao, goerliNetwork.axGateway, goerliNetwork.axGasService);

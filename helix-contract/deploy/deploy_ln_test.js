@@ -9,7 +9,7 @@ const initTransferId = "0x000000000000000000000000000000000000000000000000000000
 const networks = {
     "goerli": {
         url: "https://rpc.ankr.com/eth_goerli",
-        defaultBridge: "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
+        defaultBridge: "0x258F81A0B59e0fD84604E3e9fc1b70718927c239",
         oppositeBridge: "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D",
         chainId: 5,
         usdc: "0x1a70127284B774fF4A4dbfe0115114642f0eca65",
@@ -17,7 +17,7 @@ const networks = {
     },
     "arbitrum": {
         url: "https://goerli-rollup.arbitrum.io/rpc",
-        defaultBridge: "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
+        defaultBridge: "0x258F81A0B59e0fD84604E3e9fc1b70718927c239",
         oppositeBridge: "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D",
         chainId: 421613,
         usdc: "0x39dE82E1d9B8F62E11022FC3FC127a82F93fE47E",
@@ -25,7 +25,7 @@ const networks = {
     },
     "linea": {
         url: "https://rpc.goerli.linea.build",
-        defaultBridge: "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
+        defaultBridge: "0x258F81A0B59e0fD84604E3e9fc1b70718927c239",
         oppositeBridge: "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D",
         chainId: 59140,
         usdc: "0xb5E028f980dF5533cB0e8F04530B76637383d993",

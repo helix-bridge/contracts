@@ -6,3 +6,4 @@ yarn flat contracts/ln/messager/Eth2LineaSendService.sol --output $path/Eth2Line
 yarn flat contracts/ln/messager/Eth2LineaReceiveService.sol --output $path/Eth2LineaReceiveService.sol
 yarn flat contracts/ln/messager/LayerZeroMessager.sol --output $path/LayerZeroMessager.sol
 yarn flat contracts/ln/messager/debugMessager.sol --output $path/debugMessager.sol
+yarn flat contracts/ln/test/TestToken.sol --output $path/TestToken.sol

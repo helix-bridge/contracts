@@ -14,10 +14,55 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 9/18/2023
+ * 10/10/2023
  **/
 
 pragma solidity ^0.8.10;
+
+// File contracts/ln/base/LnAccessController.sol
+// License-Identifier: MIT
+
+/// @title LnAccessController
+/// @notice LnAccessController is a contract to control the access permission 
+/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
+contract LnAccessController {
+    address public dao;
+    address public operator;
+
+    mapping(address=>bool) public callerWhiteList;
+
+    modifier onlyDao() {
+        require(msg.sender == dao, "!dao");
+        _;
+    }
+
+    modifier onlyOperator() {
+        require(msg.sender == operator, "!operator");
+        _;
+    }
+
+    modifier onlyWhiteListCaller() {
+        require(callerWhiteList[msg.sender], "caller not in white list");
+        _;
+    }
+
+    function _initialize(address _dao) internal {
+        dao = _dao;
+        operator = _dao;
+    }
+
+    function setOperator(address _operator) onlyDao external {
+        operator = _operator;
+    }
+
+    function authoriseAppCaller(address appAddress, bool enable) onlyOperator external {
+        callerWhiteList[appAddress] = enable;
+    }
+
+    function transferOwnership(address _dao) onlyDao external {
+        dao = _dao;
+    }
+}
 
 // File contracts/ln/interface/ILowLevelMessager.sol
 // License-Identifier: MIT
@@ -30,177 +75,6 @@ interface ILowLevelMessageSender {
 interface ILowLevelMessageReceiver {
     function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
     function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
-}
-
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
-}
-
-// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
-
-
-/**
- * @dev Contract module which allows children to implement an emergency stop
- * mechanism that can be triggered by an authorized account.
- *
- * This module is used through inheritance. It will make available the
- * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
- * simply including this module, only once the modifiers are put in place.
- */
-abstract contract Pausable is Context {
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        _requireNotPaused();
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        _requirePaused();
-        _;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Throws if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        require(!paused(), "Pausable: paused");
-    }
-
-    /**
-     * @dev Throws if the contract is not paused.
-     */
-    function _requirePaused() internal view virtual {
-        require(paused(), "Pausable: not paused");
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
-    }
-}
-
-// File contracts/ln/base/LnAccessController.sol
-// License-Identifier: MIT
-
-/// @title LnAccessController
-/// @notice LnAccessController is a contract to control the access permission 
-/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnAccessController is Pausable {
-    address public dao;
-    address public operator;
-
-    modifier onlyDao() {
-        require(msg.sender == dao, "!dao");
-        _;
-    }
-
-    modifier onlyOperator() {
-        require(msg.sender == operator, "!operator");
-        _;
-    }
-
-    function _initialize(address _dao) internal {
-        dao = _dao;
-        operator = msg.sender;
-    }
-
-    function setOperator(address _operator) onlyDao external {
-        operator = _operator;
-    }
-
-    function transferOwnership(address _dao) onlyDao external {
-        dao = _dao;
-    }
-
-    function unpause() external onlyOperator {
-        _unpause();
-    }
-
-    function pause() external onlyOperator {
-        _pause();
-    }
 }
 
 // File contracts/ln/messager/interface/ILayerZeroEndpoint.sol
@@ -249,6 +123,7 @@ contract LayerZeroMessager is LnAccessController {
     mapping(bytes32=>address) public remoteAppSenders;
 
     event CallResult(uint16 lzRemoteChainId, bytes srcAddress, bool successed);
+    event CallerUnMatched(uint16 lzRemoteChainId, bytes srcAddress, address remoteAppAddress);
 
     constructor(address _dao, address _endpoint) {
         _initialize(_dao);
@@ -266,21 +141,21 @@ contract LayerZeroMessager is LnAccessController {
         trustedRemotes[_lzRemoteChainId] = keccak256(abi.encodePacked(_remoteMessager, address(this)));
     }
 
-    function registerRemoteReceiver(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteReceiver(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.lzRemoteChainId, msg.sender));
         remoteAppReceivers[key] = _remoteBridge;
     }
 
-    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) external {
+    function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.lzRemoteChainId, msg.sender));
         remoteAppSenders[key] = _remoteBridge;
     }
 
-    function sendMessage(uint256 _remoteChainId, bytes memory _message, bytes memory _params) external payable {
+    function sendMessage(uint256 _remoteChainId, bytes memory _message, bytes memory _params) onlyWhiteListCaller external  payable {
         address refunder = address(bytes20(_params));
         RemoteMessager memory remoteMessager = remoteMessagers[_remoteChainId];
         require(remoteMessager.messager != address(0), "remote not configured");
@@ -311,7 +186,10 @@ contract LayerZeroMessager is LnAccessController {
         // call
         (address remoteAppAddress, address localAppAddress, bytes memory message) = abi.decode(_payload, (address, address, bytes));
         bytes32 key = keccak256(abi.encodePacked(_srcChainId, localAppAddress));
-        require(remoteAppAddress == remoteAppSenders[key], "invalid remote address");
+        if (remoteAppAddress != remoteAppSenders[key]) {
+            emit CallerUnMatched(_srcChainId, _srcAddress, remoteAppAddress);
+            return;
+        }
         (bool success,) = localAppAddress.call(message);
         // don't revert to prevent message block
         emit CallResult(_srcChainId, _srcAddress, success);

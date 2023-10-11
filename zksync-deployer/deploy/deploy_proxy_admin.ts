@@ -17,13 +17,19 @@ export default async function (hre: HardhatRuntimeEnvironment) {
 
   // Create deployer object and load the artifact of the contract you want to deploy.
   const deployer = new Deployer(hre, wallet);
-  /*
   const artifact = await deployer.loadArtifact("ProxyAdmin");
   const proxyAdminContract = await deployer.deploy(artifact, []);
 
   // Show the contract info.
   const contractAddress = proxyAdminContract.address;
-  */
-  const contractAddress = await ProxyDeployer.deployProxyAdmin(deployer);
+  //const contractAddress = await ProxyDeployer.deployProxyAdmin(deployer);
   console.log(`deployed to ${contractAddress}`);
+  
+  const verificationId = await hre.run("verify:verify", {
+      address: contractAddress,
+      constructorArguments: [],
+  });
+
+  console.log(`ProxyAdmin Verification ID: ${verificationId}`);
+
 }

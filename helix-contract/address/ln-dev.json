@@ -1,33 +1,59 @@
 {
     "messagers": {
+        "zkSync": {
+            "layerzeroMessager": "0x7e303b0A3F08F9fa5F5629Abb998B8Deba89049B"
+        },
         "goerli": {
-            "Eth2ArbSendService": "0x3A48cB99a052fe0176CA347B8A1d428DCDf21743",
-            "Eth2LineaSendService": "0x64f30477bb6e4964ab8Bc52B737BAA21Bbf5c0F8",
-            "layerzeroMessager": "0x35CC32798979f5BE7258006036d8855d1311BEFb",
-            "axelarMessager": "0x18675889c188Cbd1B631AD93214a70Bc5CAc3F0c",
+            "Eth2ArbSendService": "0xa4eE139bE76d277D997aCf9D58053D8DaF7E050a",
+            "Eth2LineaSendService": "0x9878e74634544d92a043f1826a94465035FA51f4",
+            "layerzeroMessager": "0xca4490875739BEb1c4ec9ee5d6814774114e1973",
+            "axelarMessager": "0x037c7b64c80251Cf5C64Ed8f731c799Dc1856701",
             "debugMessager": "0x2e8D237226041FAFe3F66b6cfc54b064923D454E"
         },
         "arbitrum-goerli": {
-            "Eth2ArbReceiveService": "0xf214024C0bc123F8E109D3dF1D4A4ef9A3b87b61",
-            "layerzeroMessager": "0xd66FFAbf8766afB1957507382191381B570907db",
-            "axelarMessager": "0xB03dD202186d4b98BE607361DC451bE01b6543F9",
+            "Eth2ArbReceiveService": "0x102F8D7Cfe692AA79c17E3958aB00D060Df0B88f",
+            "layerzeroMessager": "0x953bE65E685099277F1f09Ebe10746810dC0593D",
+            "axelarMessager": "0xBc30913CC01A2eC70483681841bbb43D2f77caEd",
             "debugMessager": "0x7f431D5ba484Eb96811C469BE3DcbB23c67ae4a8"
         },
         "linea-goerli": {
-            "Eth2LineaReceiveService": "0x7d86d2aA6342AcF09b3354591d59Eb888543f7c8",
-            "layerzeroMessager": "0x19fDb8B01B3e37B43B291DD24093cA17Ae43863E",
-            "axelarMessager": "0xaF421E2a796984E1eAFF34E3bBD47C9caAd60E82",
+            "Eth2LineaReceiveService": "0x8200b3130416F633A696FB9bb0e689a356625075",
+            "layerzeroMessager": "0xfB09042050868594a54a59EdEAEa96e2765dAd0B",
+            "axelarMessager": "0x14DB1d462ED061b037C7920857Fc66522ed5bf85",
             "debugMessager": "0x25Ce9C92526D002a11aBA105563a713357429A99"
         },
         "mantle-goerli": {
-            "layerzeroMessager": "0xB3D5ffebdf185Ad1EeA8bc90075FDED515Ba3077",
-            "axelarMessager": "0x258512bb76beA435aB353f3bdc187F4D5574289a",
+            "layerzeroMessager": "0xBE4a32f37d11e8227444837DFb3c634d189ccEDc",
+            "axelarMessager": "0xbb593913a4f3E4eE77861f743c697A4cb95837eF",
             "debugMessager": "0x84f7a56483C100ECb12CbB4A31b7873dAE0d8E9B"
         }
     },
-    "ProxyAdmin": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
-    "LnDefaultBridgeLogic": "0x26d6693553f4d2bff7C3aa93596BBb6A91D5c2A4",
-    "LnOppositeBridgeLogic": "0x001878Cd54E82356eE714007701F7981d2dc4943",
-    "LnDefaultBridgeProxy": "0x54cc9716905ba8ebdD01E6364125cA338Cd0054E",
-    "LnOppositeBridgeProxy": "0x79e6f452f1e491a7aF0382FA0a6EF9368691960D"
+    "ProxyAdmin": {
+        "zkSync": "0xd7b3aC0c9E99e9B2EF1C9D2a5ff397867c8c8A3E",
+        "others": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730"
+    },
+    "LnDefaultBridgeLogic": {
+        "zkSync": "0x6213E3bc566f7d7A73Fd7565c97ac5Ffb8624674",
+        "others": "0x310bbebF08cbCC1DB41299E602Ef0319b9D1d979"
+    },
+    "LnDefaultBridgeProxy": {
+        "zkSync": "0xe8d55759c32fb608fD092aB2C0ef8A1F52B254d4",
+        "others": "0x7e101911E5FB461d78FBde3992f76F3Bf8BbA829"
+    },
+    "LnOppositeBridgeLogic": "0x3CFe649a4d5530AA2c716F0ca279b937687684f9",
+    "LnOppositeBridgeProxy": "0x4C538EfA6e3f9Dfb939AA4F0B224577DA665923a",
+    "USDT": {
+        "goerli": "0xa39cffE89567eBfb5c306a07dfb6e5B3ba41F358",
+        "mantle": "0xDb06D904AC5Bdff3b8E6Ac96AFedd3381d94CFDD",
+        "arbitrum": "0x543bf1AC41485dc78039b9351563E4Dd13A288cb",
+        "linea": "0x8f3663930211f3DE17619FEB2eeB44c9c3F44a06",
+        "zkSync": "0xb5372ed3bb2CbA63e7908066ac10ee94d30eA839"
+    },
+    "USDC": {
+        "goerli": "0xe9784E0d9A939dbe966b021DE3cd877284DB1B99",
+        "mantle": "0xD610DE267f7590D5bCCE89489ECd2C1A4AfdF76B",
+        "arbitrum": "0xBAD026e314a77e727dF643B02f63adA573a3757c",
+        "linea": "0xeC89AF5FF618bbF667755BE9d63C69F21F1c00C8",
+        "zkSync": "0xAe60e005C560E869a2bad271e38e3C9D78381aFF"
+    }
 }

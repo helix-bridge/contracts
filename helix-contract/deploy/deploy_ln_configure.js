@@ -1,6 +1,7 @@
 const ethUtil = require('ethereumjs-util');
 const abi = require('ethereumjs-abi');
 const secp256k1 = require('secp256k1');
+const fs = require("fs");
 
 var ProxyDeployer = require("./proxy.js");
 
@@ -9,60 +10,38 @@ const privateKey = process.env.PRIKEY
 const kNativeTokenAddress = "0x0000000000000000000000000000000000000000";
 const relayer = "0xB2a0654C6b2D0975846968D5a3e729F5006c2894";
 
-const lineaNetwork = {
+const lineaGoerliNetwork = {
+    name: "linea-goerli",
     url: "https://rpc.goerli.linea.build",
     chainId: 59140,
-    defaultBridgeProxy: "0x7e101911E5FB461d78FBde3992f76F3Bf8BbA829",
-    oppositeBridgeProxy: "0x4C538EfA6e3f9Dfb939AA4F0B224577DA665923a",
-    name: "lineaGoerli",
-    usdt: "0x8f3663930211f3DE17619FEB2eeB44c9c3F44a06",
-    usdc: "0xeC89AF5FF618bbF667755BE9d63C69F21F1c00C8",
-    eth: "0x0000000000000000000000000000000000000000",
-};
+}
 
-const arbitrumNetwork = {
+const arbitrumGoerliNetwork = {
+    name: "arbitrum-goerli",
     url: "https://goerli-rollup.arbitrum.io/rpc",
     chainId: 421613,
-    defaultBridgeProxy: "0x7e101911E5FB461d78FBde3992f76F3Bf8BbA829",
-    oppositeBridgeProxy: "0x4C538EfA6e3f9Dfb939AA4F0B224577DA665923a",
-    name: "arbitrumGoerli",
-    usdt: "0x543bf1AC41485dc78039b9351563E4Dd13A288cb",
-    usdc: "0xBAD026e314a77e727dF643B02f63adA573a3757c",
     eth: "0x0000000000000000000000000000000000000000",
 };
 
 const goerliNetwork = {
+    name: "goerli",
     url: "https://rpc.ankr.com/eth_goerli",
     chainId: 5,
-    defaultBridgeProxy: "0x7e101911E5FB461d78FBde3992f76F3Bf8BbA829",
-    oppositeBridgeProxy: "0x4C538EfA6e3f9Dfb939AA4F0B224577DA665923a",
-    name: "goerli",
-    usdc: "0xe9784E0d9A939dbe966b021DE3cd877284DB1B99",
-    usdt: "0xa39cffE89567eBfb5c306a07dfb6e5B3ba41F358",
     eth: "0x0000000000000000000000000000000000000000",
     mnt: "0xc1dC2d65A2243c22344E725677A3E3BEBD26E604",
 };
 
-const mantleNetwork = {
+const mantleGoerliNetwork = {
+    name: "mantle-goerli",
     url: "https://rpc.testnet.mantle.xyz",
     chainId: 5001,
-    defaultBridgeProxy: "0x7e101911E5FB461d78FBde3992f76F3Bf8BbA829",
-    oppositeBridgeProxy: "0x4C538EfA6e3f9Dfb939AA4F0B224577DA665923a",
-    name: "mantleGoerli",
-    usdt: "0xDb06D904AC5Bdff3b8E6Ac96AFedd3381d94CFDD",
-    usdc: "0xD610DE267f7590D5bCCE89489ECd2C1A4AfdF76B",
     mnt: "0x0000000000000000000000000000000000000000",
 }
 
-const zkSyncNetwork = {
+const zkSyncGoerliNetwork = {
+    name: "zksync-goerli",
     url: "https://zksync2-testnet.zksync.dev",
     chainId: 280,
-    defaultBridgeProxy: "0xe8d55759c32fb608fD092aB2C0ef8A1F52B254d4",
-    // unused
-    oppositeBridgeProxy: "0xe8d55759c32fb608fD092aB2C0ef8A1F52B254d4",
-    name: "zkSyncGoerli",
-    usdt: "0xb5372ed3bb2CbA63e7908066ac10ee94d30eA839",
-    usdc: "0xAe60e005C560E869a2bad271e38e3C9D78381aFF",
     eth: "0x0000000000000000000000000000000000000000",
 }
 
@@ -102,99 +81,130 @@ function wallet(url) {
     return wallet;
 }
 
-async function connectArbAndEth(arbWallet, goerliWallet) {
-    const arbitrumReceiveService = await ethers.getContractAt("Eth2ArbReceiveService", messagers.arbitrumGoerli.Eth2ArbReceiveService, arbWallet);
-    const ethereumSendService = await ethers.getContractAt("Eth2ArbSendService", messagers.goerli.Eth2ArbSendService, goerliWallet);
+async function connectArbAndEth(configure, arbWallet, goerliWallet) {
+    const eth2arbReceiveService = configure.messagers[arbitrumGoerliNetwork.name].Eth2ArbReceiveService;
+    const eth2arbSendService = configure.messagers[goerliNetwork.name].Eth2ArbSendService;
+    const arbOppositeBridgeProxy = configure.LnOppositeBridgeProxy;
+    const goerliOppositeBridgeProxy = configure.LnOppositeBridgeProxy;
+    const arbDefaultBridgeProxy = configure.LnDefaultBridgeProxy.others;
+    const goerliDefaultBridgeProxy = configure.LnDefaultBridgeProxy.others;
+
+    const arbitrumReceiveService = await ethers.getContractAt("Eth2ArbReceiveService", eth2arbReceiveService, arbWallet);
+    const ethereumSendService = await ethers.getContractAt("Eth2ArbSendService", eth2arbSendService, goerliWallet);
     // arb<>eth
     // arb->eth opposite bridge using l1->l2 messager
     console.log("start to connect arb->eth using l1->l2 messager");
-    const arb2ethSource = await ethers.getContractAt("LnOppositeBridge", arbitrumNetwork.oppositeBridgeProxy, arbWallet);
-    const arb2ethTarget = await ethers.getContractAt("LnOppositeBridge", goerliNetwork.oppositeBridgeProxy, goerliWallet);
+    const arb2ethSource = await ethers.getContractAt("LnOppositeBridge", arbOppositeBridgeProxy, arbWallet);
+    const arb2ethTarget = await ethers.getContractAt("LnOppositeBridge", goerliOppositeBridgeProxy, goerliWallet);
     await arbitrumReceiveService.authoriseAppCaller(arb2ethSource.address, true);
     await ethereumSendService.authoriseAppCaller(arb2ethTarget.address, true);
-    await arb2ethSource.setReceiveService(goerliNetwork.chainId, arb2ethTarget.address, messagers.arbitrumGoerli.Eth2ArbReceiveService);
-    await arb2ethTarget.setSendService(arbitrumNetwork.chainId, arb2ethSource.address, messagers.goerli.Eth2ArbSendService);
+    await arb2ethSource.setReceiveService(goerliNetwork.chainId, arb2ethTarget.address, eth2arbReceiveService);
+    await arb2ethTarget.setSendService(arbitrumGoerliNetwork.chainId, arb2ethSource.address, eth2arbSendService);
     // eth->arb default bridge using l1->l2 messager
     console.log("start to connect eth->arb using l1->l2 messager");
-    const eth2arbSource = await ethers.getContractAt("LnDefaultBridge", goerliNetwork.defaultBridgeProxy, goerliWallet);
-    const eth2arbTarget = await ethers.getContractAt("LnDefaultBridge", arbitrumNetwork.defaultBridgeProxy, arbWallet);
+    const eth2arbSource = await ethers.getContractAt("LnDefaultBridge", arbDefaultBridgeProxy, goerliWallet);
+    const eth2arbTarget = await ethers.getContractAt("LnDefaultBridge", goerliDefaultBridgeProxy, arbWallet);
     await ethereumSendService.authoriseAppCaller(eth2arbSource.address, true);
     await arbitrumReceiveService.authoriseAppCaller(eth2arbTarget.address, true);
-    await eth2arbSource.setSendService(arbitrumNetwork.chainId, eth2arbTarget.address, messagers.goerli.Eth2ArbSendService);
-    await eth2arbTarget.setReceiveService(goerliNetwork.chainId, eth2arbSource.address, messagers.arbitrumGoerli.Eth2ArbReceiveService);
+    await eth2arbSource.setSendService(arbitrumGoerliNetwork.chainId, eth2arbTarget.address, eth2arbSendService);
+    await eth2arbTarget.setReceiveService(goerliNetwork.chainId, eth2arbSource.address, eth2arbReceiveService);
     console.log("finish connect arb<>eth token bridge");
 }
 
+async function connectLineaAndEth(configure, lineaWallet, goerliWallet) {
+    const eth2lineaReceiveService = configure.messagers[lineaGoerliNetwork.name].Eth2LineaReceiveService;
+    const eth2lineaSendService = configure.messagers[goerliNetwork.name].Eth2LineaSendService;
+    const lineaOppositeBridgeProxy = configure.LnOppositeBridgeProxy;
+    const goerliOppositeBridgeProxy = configure.LnOppositeBridgeProxy;
+    const lineaDefaultBridgeProxy = configure.LnDefaultBridgeProxy.others;
+    const goerliDefaultBridgeProxy = configure.LnDefaultBridgeProxy.others;
 
-async function connectLineaAndEth(lineaWallet, goerliWallet) {
-    const lineaReceiveService = await ethers.getContractAt("Eth2LineaReceiveService", messagers.lineaGoerli.Eth2LineaReceiveService, lineaWallet);
-    const ethereumSendService = await ethers.getContractAt("Eth2LineaSendService", messagers.goerli.Eth2LineaSendService, goerliWallet);
+    const lineaReceiveService = await ethers.getContractAt("Eth2LineaReceiveService", eth2lineaReceiveService, lineaWallet);
+    const ethereumSendService = await ethers.getContractAt("Eth2LineaSendService", eth2lineaSendService, goerliWallet);
     // linea<>eth
     // linea->eth opposite bridge using l1->l2 messager
     console.log("start to connect linea->eth using l1->l2 messager");
-    const linea2ethSource = await ethers.getContractAt("LnOppositeBridge", lineaNetwork.oppositeBridgeProxy, lineaWallet);
-    const linea2ethTarget = await ethers.getContractAt("LnOppositeBridge", goerliNetwork.oppositeBridgeProxy, goerliWallet);
+    const linea2ethSource = await ethers.getContractAt("LnOppositeBridge", lineaOppositeBridgeProxy, lineaWallet);
+    const linea2ethTarget = await ethers.getContractAt("LnOppositeBridge", goerliOppositeBridgeProxy, goerliWallet);
     await lineaReceiveService.authoriseAppCaller(linea2ethSource.address, true);
     await ethereumSendService.authoriseAppCaller(linea2ethTarget.address, true);
-    await linea2ethSource.setReceiveService(goerliNetwork.chainId, linea2ethTarget.address, messagers.lineaGoerli.Eth2LineaReceiveService);
-    await linea2ethTarget.setSendService(lineaNetwork.chainId, linea2ethSource.address, messagers.goerli.Eth2LineaSendService);
+    await linea2ethSource.setReceiveService(goerliNetwork.chainId, linea2ethTarget.address, eth2lineaReceiveService);
+    await linea2ethTarget.setSendService(lineaGoerliNetwork.chainId, linea2ethSource.address, eth2lineaSendService);
     // eth->linea default bridge using l1->l2 messager
     console.log("start to connect eth->linea using l1->l2 messager");
-    const eth2lineaSource = await ethers.getContractAt("LnDefaultBridge", goerliNetwork.defaultBridgeProxy, goerliWallet);
-    const eth2lineaTarget = await ethers.getContractAt("LnDefaultBridge", lineaNetwork.defaultBridgeProxy, lineaWallet);
+    const eth2lineaSource = await ethers.getContractAt("LnDefaultBridge", goerliDefaultBridgeProxy, goerliWallet);
+    const eth2lineaTarget = await ethers.getContractAt("LnDefaultBridge", lineaDefaultBridgeProxy, lineaWallet);
     await lineaReceiveService.authoriseAppCaller(eth2lineaTarget.address, true);
     await ethereumSendService.authoriseAppCaller(eth2lineaSource.address, true);
-    await eth2lineaSource.setSendService(lineaNetwork.chainId, eth2lineaTarget.address, messagers.goerli.Eth2LineaSendService);
-    await eth2lineaTarget.setReceiveService(goerliNetwork.chainId, eth2lineaSource.address, messagers.lineaGoerli.Eth2LineaReceiveService);
+    await eth2lineaSource.setSendService(lineaGoerliNetwork.chainId, eth2lineaTarget.address, eth2lineaSendService);
+    await eth2lineaTarget.setReceiveService(goerliNetwork.chainId, eth2lineaSource.address, eth2lineaReceiveService);
     console.log("finish connect linea<>eth token bridge");
 }
 
-async function connectUsingLayerzero(leftWallet, rightWallet, leftNetwork, rightNetwork) {
-    const leftMessager = await ethers.getContractAt("LayerZeroMessager", messagers[leftNetwork.name].layerzeroMessager, leftWallet);
-    const rightMessager = await ethers.getContractAt("LayerZeroMessager", messagers[rightNetwork.name].layerzeroMessager, rightWallet);
+async function connectUsingLayerzero(configure, leftWallet, rightWallet, leftNetwork, rightNetwork) {
+    const leftMessagerAddess = configure.messagers[leftNetwork.name].layerzeroMessager;
+    const rightMessagerAddress = configure.messagers[rightNetwork.name].layerzeroMessager;
+    const leftBridgeProxy = leftNetwork.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
+    const rightBridgeProxy = rightNetwork.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
+    const leftMessager = await ethers.getContractAt("LayerZeroMessager", leftMessagerAddess, leftWallet);
+    const rightMessager = await ethers.getContractAt("LayerZeroMessager", rightMessagerAddress, rightWallet);
     console.log("start to connect network by using layerzero");
-    const left = await ethers.getContractAt("LnDefaultBridge", leftNetwork.defaultBridgeProxy, leftWallet);
-    const right = await ethers.getContractAt("LnDefaultBridge", rightNetwork.defaultBridgeProxy, rightWallet);
+    const left = await ethers.getContractAt("LnDefaultBridge", leftBridgeProxy, leftWallet);
+    const right = await ethers.getContractAt("LnDefaultBridge", rightBridgeProxy, rightWallet);
     await leftMessager.authoriseAppCaller(left.address, true);
     await rightMessager.authoriseAppCaller(right.address, true);
-    await left.setSendService(rightNetwork.chainId, right.address, messagers[leftNetwork.name].layerzeroMessager);
-    await right.setReceiveService(leftNetwork.chainId, left.address, messagers[rightNetwork.name].layerzeroMessager);
-    await left.setReceiveService(rightNetwork.chainId, right.address, messagers[leftNetwork.name].layerzeroMessager);
-    await right.setSendService(leftNetwork.chainId, left.address, messagers[rightNetwork.name].layerzeroMessager);
+    await left.setSendService(rightNetwork.chainId, right.address, leftMessagerAddess);
+    await right.setReceiveService(leftNetwork.chainId, left.address, rightMessagerAddress);
+    await left.setReceiveService(rightNetwork.chainId, right.address, leftMessagerAddess);
+    await right.setSendService(leftNetwork.chainId, left.address, rightMessagerAddress);
 }
 
-async function connectUsingAxelar(leftWallet, rightWallet, leftNetwork, rightNetwork) {
-    const leftMessager = await ethers.getContractAt("AxelarMessager", messagers[leftNetwork.name].axelarMessager, leftWallet);
-    const rightMessager = await ethers.getContractAt("AxelarMessager", messagers[rightNetwork.name].axelarMessager, rightWallet);
+async function connectUsingAxelar(configure, leftWallet, rightWallet, leftNetwork, rightNetwork) {
+    const leftMessagerAddress = configure.messagers[leftNetwork.name].axelarMessager;
+    const rightMessagerAddress = configure.messagers[rightNetwork.name].axelarMessager;
+    const leftBridgeProxy = leftNetwork.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
+    const rightBridgeProxy = rightNetwork.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
+
+    const leftMessager = await ethers.getContractAt("AxelarMessager", leftMessagerAddress, leftWallet);
+    const rightMessager = await ethers.getContractAt("AxelarMessager", rightMessagerAddress, rightWallet);
     console.log("start to connect network by using axelar");
-    const left = await ethers.getContractAt("LnDefaultBridge", leftNetwork.defaultBridgeProxy, leftWallet);
-    const right = await ethers.getContractAt("LnDefaultBridge", rightNetwork.defaultBridgeProxy, rightWallet);
+    const left = await ethers.getContractAt("LnDefaultBridge", leftBridgeProxy, leftWallet);
+    const right = await ethers.getContractAt("LnDefaultBridge", rightBridgeProxy, rightWallet);
     await leftMessager.authoriseAppCaller(left.address, true);
     await rightMessager.authoriseAppCaller(right.address, true);
-    await left.setSendService(rightNetwork.chainId, right.address, messagers[leftNetwork.name].axelarMessager);
-    await right.setReceiveService(leftNetwork.chainId, left.address, messagers[rightNetwork.name].axelarMessager);
-    await left.setReceiveService(rightNetwork.chainId, right.address, messagers[leftNetwork.name].axelarMessager);
-    await right.setSendService(leftNetwork.chainId, left.address, messagers[rightNetwork.name].axelarMessager);
+    await left.setSendService(rightNetwork.chainId, right.address, leftMessagerAddress);
+    await right.setReceiveService(leftNetwork.chainId, left.address, rightMessagerAddress);
+    await left.setReceiveService(rightNetwork.chainId, right.address, leftMessagerAddress);
+    await right.setSendService(leftNetwork.chainId, left.address, rightMessagerAddress);
 }
 
-async function connectAll(arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
-    await connectArbAndEth(arbWallet, goerliWallet);
-    await connectLineaAndEth(lineaWallet, goerliWallet);
-    await connectUsingLayerzero(arbWallet, lineaWallet, arbitrumNetwork, lineaNetwork);
-    await connectUsingLayerzero(arbWallet, mantleWallet, arbitrumNetwork, mantleNetwork);
-    await connectUsingLayerzero(arbWallet, zkSyncWallet, arbitrumNetwork, zkSyncNetwork);
-    await connectUsingLayerzero(lineaWallet, mantleWallet, lineaNetwork, mantleNetwork);
-    await connectUsingLayerzero(lineaWallet, zkSyncWallet, lineaNetwork, zkSyncNetwork);
-    await connectUsingLayerzero(zkSyncWallet, mantleWallet, zkSyncNetwork, mantleNetwork);
-    await connectUsingLayerzero(zkSyncWallet, goerliWallet, zkSyncNetwork, goerliNetwork);
-    await connectUsingAxelar(mantleWallet, goerliWallet, mantleNetwork, goerliNetwork);
+async function connectAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+    // arbitrum L2 message
+    await connectArbAndEth(configure, arbWallet, goerliWallet);
+    // linea L2 message
+    await connectLineaAndEth(configure, lineaWallet, goerliWallet);
+    await connectUsingLayerzero(configure, arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork);
+    await connectUsingLayerzero(configure, arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork);
+    await connectUsingLayerzero(configure, arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork);
+    await connectUsingLayerzero(configure, lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork);
+    await connectUsingLayerzero(configure, lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork);
+    await connectUsingLayerzero(configure, zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork);
+    await connectUsingLayerzero(configure, zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork);
+    await connectUsingAxelar(configure, mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork);
 }
 
-async function registerToken(contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken) {
+async function registerToken(configure, contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken) {
+    
     let srcDecimals = 18;
     let dstDecimals = 18;
-    const srcTokenAddress = srcNetwork[srcToken];
-    const dstTokenAddress = dstNetwork[dstToken];
+    let srcTokenAddress = srcNetwork[srcToken];
+    let dstTokenAddress = dstNetwork[dstToken];
+    if (srcToken !== 'eth' && srcToken !== 'mnt') {
+        srcTokenAddress = configure[srcToken][srcNetwork.name];
+    }
+    if (dstToken !== 'eth' && dstToken !== 'mnt') {
+        dstTokenAddress = configure[dstToken][dstNetwork.name];
+    }
     if (srcTokenAddress != kNativeTokenAddress) {
         const sourceToken = await ethers.getContractAt("Erc20", srcTokenAddress, srcWallet);
         srcDecimals = await sourceToken.decimals();
@@ -211,7 +221,8 @@ async function registerToken(contractName, srcWallet, dstWallet, srcNetwork, dst
         penalty = ethers.utils.parseUnits("0.01", penaltyDecimals);
     }
 
-    const proxyAddress = contractName == "LnOppositeBridge" ? srcNetwork.oppositeBridgeProxy : srcNetwork.defaultBridgeProxy;
+    const defaultAddress = srcNetwork.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
+    const proxyAddress = contractName == "LnOppositeBridge" ? configure.LnOppositeBridgeProxy : defaultAddress;
 
     const source = await ethers.getContractAt(contractName, proxyAddress, srcWallet);
     await source.setTokenInfo(
@@ -225,87 +236,93 @@ async function registerToken(contractName, srcWallet, dstWallet, srcNetwork, dst
     console.log(`finished register token bridge: ${contractName}, ${srcNetwork.chainId}->${dstNetwork.chainId}, ${srcToken}->${dstToken}`);
 }
 
-async function registerAllToken(arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+async function registerAllToken(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
     //arb<>eth
-    await registerToken("LnOppositeBridge", arbWallet, goerliWallet, arbitrumNetwork, goerliNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumNetwork, "usdc", "usdc");
-    await registerToken("LnOppositeBridge", arbWallet, goerliWallet, arbitrumNetwork, goerliNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumNetwork, "usdt", "usdt");
-    await registerToken("LnOppositeBridge", arbWallet, goerliWallet, arbitrumNetwork, goerliNetwork, "eth", "eth");
-    await registerToken("LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumNetwork, "eth", "eth");
+    await registerToken(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
 
     // linea<>eth
-    await registerToken("LnOppositeBridge", lineaWallet, goerliWallet, lineaNetwork, goerliNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "usdc", "usdc");
-    await registerToken("LnOppositeBridge", lineaWallet, goerliWallet, lineaNetwork, goerliNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "usdt", "usdt");
-    await registerToken("LnOppositeBridge", lineaWallet, goerliWallet, lineaNetwork, goerliNetwork, "eth", "eth");
-    await registerToken("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "eth", "eth");
+    await registerToken(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "eth", "eth");
 
     //arb<>linea
-    await registerToken("LnDefaultBridge", arbWallet, lineaWallet, arbitrumNetwork, lineaNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", lineaWallet, arbWallet, lineaNetwork, arbitrumNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", arbWallet, lineaWallet, arbitrumNetwork, lineaNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", lineaWallet, arbWallet, lineaNetwork, arbitrumNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", arbWallet, lineaWallet, arbitrumNetwork, lineaNetwork, "eth", "eth");
-    await registerToken("LnDefaultBridge", lineaWallet, arbWallet, lineaNetwork, arbitrumNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
 
     //arb<>mantle
-    await registerToken("LnDefaultBridge", arbWallet, mantleWallet, arbitrumNetwork, mantleNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", mantleWallet, arbWallet, mantleNetwork, arbitrumNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", arbWallet, mantleWallet, arbitrumNetwork, mantleNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", mantleWallet, arbWallet, mantleNetwork, arbitrumNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, arbWallet, mantleGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, arbWallet, mantleGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
 
     // mantle<>linea
-    await registerToken("LnDefaultBridge", mantleWallet, lineaWallet, mantleNetwork, lineaNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", lineaWallet, mantleWallet, lineaNetwork, mantleNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", mantleWallet, lineaWallet, mantleNetwork, lineaNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", lineaWallet, mantleWallet, lineaNetwork, mantleNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, lineaWallet, mantleGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, lineaWallet, mantleGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
 
     // mantle<>eth
-    await registerToken("LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", mantleWallet, goerliWallet, mantleNetwork, goerliNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", mantleWallet, goerliWallet, mantleNetwork, goerliNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleNetwork, "mnt", "mnt");
-    await registerToken("LnDefaultBridge", mantleWallet, goerliWallet, mantleNetwork, goerliNetwork, "mnt", "mnt");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "mnt", "mnt");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "mnt", "mnt");
 
     // zkSync<>eth
-    await registerToken("LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncNetwork, goerliNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncNetwork, goerliNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncNetwork, goerliNetwork, "eth", "eth");
-    await registerToken("LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
 
     // zkSync<>arb
-    await registerToken("LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncNetwork, arbitrumNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumNetwork, zkSyncNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncNetwork, arbitrumNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumNetwork, zkSyncNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncNetwork, arbitrumNetwork, "eth", "eth");
-    await registerToken("LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumNetwork, zkSyncNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
 
     // zkSync<>linea
-    await registerToken("LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncNetwork, lineaNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", lineaWallet, zkSyncWallet, lineaNetwork, zkSyncNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncNetwork, lineaNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", lineaWallet, zkSyncWallet, lineaNetwork, zkSyncNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncNetwork, lineaNetwork, "eth", "eth");
-    await registerToken("LnDefaultBridge", lineaWallet, zkSyncWallet, lineaNetwork, zkSyncNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "eth", "eth");
+    await registerToken(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
 
     // zkSync<>mantle
-    await registerToken("LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncNetwork, mantleNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", mantleWallet, zkSyncWallet, mantleNetwork, zkSyncNetwork, "usdc", "usdc");
-    await registerToken("LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncNetwork, mantleNetwork, "usdt", "usdt");
-    await registerToken("LnDefaultBridge", mantleWallet, zkSyncWallet, mantleNetwork, zkSyncNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
+    await registerToken(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
 }
 
-async function registerRelayer(contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken) {
-    const srcTokenAddress = srcNetwork[srcToken];
-    const dstTokenAddress = dstNetwork[dstToken];
+async function registerRelayer(configure, contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken) {
+    let srcTokenAddress = srcNetwork[srcToken];
+    let dstTokenAddress = dstNetwork[dstToken];
     let srcDecimals = 18;
     let dstDecimals = 18;
+    if (srcToken !== 'eth' && srcToken !== 'mnt') {
+        srcTokenAddress = configure[srcToken][srcNetwork.name];
+    }
+    if (dstToken !== 'eth' && dstToken !== 'mnt') {
+        dstTokenAddress = configure[dstToken][dstNetwork.name];
+    }
 
     if (srcTokenAddress != kNativeTokenAddress) {
         const sourceToken = await ethers.getContractAt("Erc20", srcTokenAddress, srcWallet);
@@ -320,6 +337,7 @@ async function registerRelayer(contractName, srcWallet, dstWallet, srcNetwork, d
 
     // default bridge
     if (contractName == "LnDefaultBridge") {
+        const defaultAddress = srcNetwork.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
         // set source network
         let margin = ethers.utils.parseUnits("1000000", dstDecimals);
         let value = 0;
@@ -327,7 +345,7 @@ async function registerRelayer(contractName, srcWallet, dstWallet, srcNetwork, d
             margin = ethers.utils.parseUnits("0.1", dstDecimals);
             value = margin;
         }
-        const source = await ethers.getContractAt(contractName, srcNetwork.defaultBridgeProxy, srcWallet);
+        const source = await ethers.getContractAt(contractName, defaultAddress, srcWallet);
         await source.setProviderFee(
             dstNetwork.chainId,
             srcTokenAddress,
@@ -336,7 +354,7 @@ async function registerRelayer(contractName, srcWallet, dstWallet, srcNetwork, d
             liquidityFeeRate
         );
         // set target network
-        const target = await ethers.getContractAt(contractName, dstNetwork.defaultBridgeProxy, dstWallet);
+        const target = await ethers.getContractAt(contractName, defaultAddress, dstWallet);
         await target.depositProviderMargin(
             srcNetwork.chainId,
             srcTokenAddress,
@@ -351,7 +369,7 @@ async function registerRelayer(contractName, srcWallet, dstWallet, srcNetwork, d
             margin = ethers.utils.parseUnits("0.1", dstDecimals);
             value = margin;
         }
-        const source = await ethers.getContractAt(contractName, srcNetwork.oppositeBridgeProxy, srcWallet);
+        const source = await ethers.getContractAt(contractName, configure.LnOppositeBridgeProxy, srcWallet);
         await source.updateProviderFeeAndMargin(
             dstNetwork.chainId,
             srcTokenAddress,
@@ -365,145 +383,157 @@ async function registerRelayer(contractName, srcWallet, dstWallet, srcNetwork, d
     console.log(`finished register relayer: ${contractName}, ${srcNetwork.chainId}->${dstNetwork.chainId}, ${srcToken}->${dstToken}`);
 }
 
-async function registerAllRelayer(arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+async function registerAllRelayer(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
     //arb<>eth
     console.log("start to register arb<>eth relayer");
-    await registerRelayer("LnOppositeBridge", arbWallet, goerliWallet, arbitrumNetwork, goerliNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumNetwork, "usdc", "usdc");
-    await registerRelayer("LnOppositeBridge", arbWallet, goerliWallet, arbitrumNetwork, goerliNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumNetwork, "usdt", "usdt");
-    await registerRelayer("LnOppositeBridge", arbWallet, goerliWallet, arbitrumNetwork, goerliNetwork, "eth", "eth");
-    await registerRelayer("LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
 
     // linea<>eth
     console.log("start to register linea<>eth relayer");
-    await registerRelayer("LnOppositeBridge", lineaWallet, goerliWallet, lineaNetwork, goerliNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "usdc", "usdc");
-    await registerRelayer("LnOppositeBridge", lineaWallet, goerliWallet, lineaNetwork, goerliNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "usdt", "usdt");
-    await registerRelayer("LnOppositeBridge", lineaWallet, goerliWallet, lineaNetwork, goerliNetwork, "eth", "eth");
-    await registerRelayer("LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "eth", "eth");
 
     //arb<>linea
     console.log("start to register linea<>arb relayer");
-    await registerRelayer("LnDefaultBridge", arbWallet, lineaWallet, arbitrumNetwork, lineaNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", lineaWallet, arbWallet, lineaNetwork, arbitrumNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", arbWallet, lineaWallet, arbitrumNetwork, lineaNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", lineaWallet, arbWallet, lineaNetwork, arbitrumNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", arbWallet, lineaWallet, arbitrumNetwork, lineaNetwork, "eth", "eth");
-    await registerRelayer("LnDefaultBridge", lineaWallet, arbWallet, lineaNetwork, arbitrumNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
 
     //arb<>mantle
     console.log("start to register mantle<>arb relayer");
-    await registerRelayer("LnDefaultBridge", arbWallet, mantleWallet, arbitrumNetwork, mantleNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", mantleWallet, arbWallet, mantleNetwork, arbitrumNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", arbWallet, mantleWallet, arbitrumNetwork, mantleNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", mantleWallet, arbWallet, mantleNetwork, arbitrumNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, arbWallet, mantleGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, arbWallet, mantleGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
 
     // mantle<>linea
     console.log("start to register mantle<>linea relayer");
-    await registerRelayer("LnDefaultBridge", mantleWallet, lineaWallet, mantleNetwork, lineaNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", lineaWallet, mantleWallet, lineaNetwork, mantleNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", mantleWallet, lineaWallet, mantleNetwork, lineaNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", lineaWallet, mantleWallet, lineaNetwork, mantleNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, lineaWallet, mantleGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, lineaWallet, mantleGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
 
     // mantle<>eth
     console.log("start to register mantle<>eth relayer");
-    await registerRelayer("LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", mantleWallet, goerliWallet, mantleNetwork, goerliNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", mantleWallet, goerliWallet, mantleNetwork, goerliNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleNetwork, "mnt", "mnt");
-    await registerRelayer("LnDefaultBridge", mantleWallet, goerliWallet, mantleNetwork, goerliNetwork, "mnt", "mnt");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "mnt", "mnt");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "mnt", "mnt");
 
     // arb<>zkSync
-    await registerRelayer("LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumNetwork, zkSyncNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncNetwork, arbitrumNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumNetwork, zkSyncNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncNetwork, arbitrumNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumNetwork, zkSyncNetwork, "eth", "eth");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncNetwork, arbitrumNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
     // eth<>zkSync
-    await registerRelayer("LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncNetwork, goerliNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncNetwork, goerliNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncNetwork, "eth", "eth");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncNetwork, goerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "eth", "eth");
     // mantle<>zkSync                                                                                                 
-    await registerRelayer("LnDefaultBridge", mantleWallet, zkSyncWallet, mantleNetwork, zkSyncNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncNetwork, mantleNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", mantleWallet, zkSyncWallet, mantleNetwork, zkSyncNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncNetwork, mantleNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
     // linea<>zkSync
-    await registerRelayer("LnDefaultBridge", lineaWallet, zkSyncWallet, lineaNetwork, zkSyncNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncNetwork, lineaNetwork, "usdc", "usdc");
-    await registerRelayer("LnDefaultBridge", lineaWallet, zkSyncWallet, lineaNetwork, zkSyncNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncNetwork, lineaNetwork, "usdt", "usdt");
-    await registerRelayer("LnDefaultBridge", lineaWallet, zkSyncWallet, lineaNetwork, zkSyncNetwork, "eth", "eth");
-    await registerRelayer("LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncNetwork, lineaNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "eth", "eth");
 }
 
-async function mintToken(tokenAddress, network, wallet, to) {
-    const token = await ethers.getContractAt("Erc20", network[tokenAddress], wallet);
+async function mintToken(configure, tokenSymbol, network, wallet, to) {
+    const tokenAddress = configure[tokenSymbol][network.name];
+    const token = await ethers.getContractAt("Erc20", tokenAddress, wallet);
     const decimals = await token.decimals();
     const amount = ethers.utils.parseUnits("9000000", decimals);
-    console.log("start to mint token", tokenAddress, amount);
+    console.log("start to mint token", tokenSymbol, amount);
     await token.mint(to, amount);
 }
 
-async function approveToken(tokenAddress, network, wallet) {
-    const token = await ethers.getContractAt("Erc20", network[tokenAddress], wallet);
+async function approveToken(configure, tokenSymbol, network, wallet) {
+    const tokenAddress = configure[tokenSymbol][network.name];
+    const token = await ethers.getContractAt("Erc20", tokenAddress, wallet);
     const decimals = await token.decimals();
-    console.log("start to approve", tokenAddress);
-    await token.approve(network.defaultBridgeProxy, ethers.utils.parseUnits("10000000000000", decimals));
+    console.log("start to approve", tokenSymbol);
+
+    const defaultAddress = network.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
+
+    await token.approve(defaultAddress, ethers.utils.parseUnits("10000000000000", decimals));
     await wait(5000);
-    await token.approve(network.oppositeBridgeProxy, ethers.utils.parseUnits("10000000000000", decimals));
-    await wait(5000);
-    console.log("finished to approve", tokenAddress);
+    if (network.chainId !== 280) {
+        await token.approve(configure.LnOppositeBridgeProxy, ethers.utils.parseUnits("10000000000000", decimals));
+        await wait(5000);
+    }
+    console.log("finished to approve", tokenSymbol);
 }
 
-async function mintAll(relayer, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
-    await mintToken("usdc", goerliNetwork, goerliWallet, relayer);
-    await mintToken("usdt", goerliNetwork, goerliWallet, relayer);
-    await mintToken("usdc", lineaNetwork, lineaWallet, relayer);
-    await mintToken("usdt", lineaNetwork, lineaWallet, relayer);
-    await mintToken("usdc", arbitrumNetwork, arbWallet, relayer);
-    await mintToken("usdt", arbitrumNetwork, arbWallet, relayer);
-    await mintToken("usdc", mantleNetwork, mantleWallet, relayer);
-    await mintToken("usdt", mantleNetwork, mantleWallet, relayer);
-    await mintToken("usdt", zkSyncNetwork, zkSyncWallet, relayer);
-    await mintToken("usdc", zkSyncNetwork, zkSyncWallet, relayer);
+async function mintAll(configure, relayer, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+    await mintToken(configure, "usdc", goerliNetwork, goerliWallet, relayer);
+    await mintToken(configure, "usdt", goerliNetwork, goerliWallet, relayer);
+    await mintToken(configure, "usdc", lineaGoerliNetwork, lineaWallet, relayer);
+    await mintToken(configure, "usdt", lineaGoerliNetwork, lineaWallet, relayer);
+    await mintToken(configure, "usdc", arbitrumGoerliNetwork, arbWallet, relayer);
+    await mintToken(configure, "usdt", arbitrumGoerliNetwork, arbWallet, relayer);
+    await mintToken(configure, "usdc", mantleGoerliNetwork, mantleWallet, relayer);
+    await mintToken(configure, "usdt", mantleGoerliNetwork, mantleWallet, relayer);
+    await mintToken(configure, "usdt", zkSyncGoerliNetwork, zkSyncWallet, relayer);
+    await mintToken(configure, "usdc", zkSyncGoerliNetwork, zkSyncWallet, relayer);
 }
 
-async function approveAll(arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
-    await approveToken("usdc", goerliNetwork, goerliWallet);
-    await approveToken("usdt", goerliNetwork, goerliWallet);
-    await approveToken("mnt", goerliNetwork, goerliWallet);
-    await approveToken("usdc", lineaNetwork, lineaWallet);
-    await approveToken("usdt", lineaNetwork, lineaWallet);
-    await approveToken("usdc", arbitrumNetwork, arbWallet);
-    await approveToken("usdt", arbitrumNetwork, arbWallet);
-    await approveToken("usdc", mantleNetwork, mantleWallet);
-    await approveToken("usdt", mantleNetwork, mantleWallet);
-    await approveToken("usdt", zkSyncNetwork, zkSyncWallet);
-    await approveToken("usdc", zkSyncNetwork, zkSyncWallet);
+async function approveAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+    await approveToken(configure, "usdc", goerliNetwork, goerliWallet);
+    await approveToken(configure, "usdt", goerliNetwork, goerliWallet);
+    await approveToken(configure, "mnt", goerliNetwork, goerliWallet);
+    await approveToken(configure, "usdc", lineaGoerliNetwork, lineaWallet);
+    await approveToken(configure, "usdt", lineaGoerliNetwork, lineaWallet);
+    await approveToken(configure, "usdc", arbitrumGoerliNetwork, arbWallet);
+    await approveToken(configure, "usdt", arbitrumGoerliNetwork, arbWallet);
+    await approveToken(configure, "usdc", mantleGoerliNetwork, mantleWallet);
+    await approveToken(configure, "usdt", mantleGoerliNetwork, mantleWallet);
+    await approveToken(configure, "usdt", zkSyncGoerliNetwork, zkSyncWallet);
+    await approveToken(configure, "usdc", zkSyncGoerliNetwork, zkSyncWallet);
 }
 
 // 2. deploy mapping token factory
 async function main() {
-    const arbWallet = wallet(arbitrumNetwork.url);
-    const lineaWallet = wallet(lineaNetwork.url);
+    const pathConfig = "./address/ln-dev.json";
+    const configure = JSON.parse(
+        fs.readFileSync(pathConfig, "utf8")
+    );
+
+    const arbWallet = wallet(arbitrumGoerliNetwork.url);
+    const lineaWallet = wallet(lineaGoerliNetwork.url);
     const goerliWallet = wallet(goerliNetwork.url);
-    const mantleWallet = wallet(mantleNetwork.url);
-    const zkSyncWallet = wallet(zkSyncNetwork.url);
+    const mantleWallet = wallet(mantleGoerliNetwork.url);
+    const zkSyncWallet = wallet(zkSyncGoerliNetwork.url);
 
     // set messager service
-    //await connectAll(arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
-    await registerAllToken(arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
-    //await mintAll(relayer, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
-    //await approveAll(arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
-    //await registerAllRelayer(arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
+    //await connectAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
+    //await registerAllToken(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
+    //await mintAll(configure, relayer, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
+    //await approveAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
+    //await registerAllRelayer(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
     console.log("finished!");
 }
 

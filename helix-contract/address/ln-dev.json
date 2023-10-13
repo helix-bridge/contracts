@@ -1,6 +1,6 @@
 {
     "messagers": {
-        "zkSync": {
+        "zksync-goerli": {
             "layerzeroMessager": "0x7e303b0A3F08F9fa5F5629Abb998B8Deba89049B"
         },
         "goerli": {
@@ -42,18 +42,19 @@
     },
     "LnOppositeBridgeLogic": "0x3CFe649a4d5530AA2c716F0ca279b937687684f9",
     "LnOppositeBridgeProxy": "0x4C538EfA6e3f9Dfb939AA4F0B224577DA665923a",
-    "USDT": {
+    "deployer": "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
+    "usdt": {
         "goerli": "0xa39cffE89567eBfb5c306a07dfb6e5B3ba41F358",
-        "mantle": "0xDb06D904AC5Bdff3b8E6Ac96AFedd3381d94CFDD",
-        "arbitrum": "0x543bf1AC41485dc78039b9351563E4Dd13A288cb",
-        "linea": "0x8f3663930211f3DE17619FEB2eeB44c9c3F44a06",
-        "zkSync": "0xb5372ed3bb2CbA63e7908066ac10ee94d30eA839"
+        "mantle-goerli": "0xDb06D904AC5Bdff3b8E6Ac96AFedd3381d94CFDD",
+        "arbitrum-goerli": "0x543bf1AC41485dc78039b9351563E4Dd13A288cb",
+        "linea-goerli": "0x8f3663930211f3DE17619FEB2eeB44c9c3F44a06",
+        "zksync-goerli": "0xb5372ed3bb2CbA63e7908066ac10ee94d30eA839"
     },
-    "USDC": {
+    "usdc": {
         "goerli": "0xe9784E0d9A939dbe966b021DE3cd877284DB1B99",
-        "mantle": "0xD610DE267f7590D5bCCE89489ECd2C1A4AfdF76B",
-        "arbitrum": "0xBAD026e314a77e727dF643B02f63adA573a3757c",
-        "linea": "0xeC89AF5FF618bbF667755BE9d63C69F21F1c00C8",
-        "zkSync": "0xAe60e005C560E869a2bad271e38e3C9D78381aFF"
+        "mantle-goerli": "0xD610DE267f7590D5bCCE89489ECd2C1A4AfdF76B",
+        "arbitrum-goerli": "0xBAD026e314a77e727dF643B02f63adA573a3757c",
+        "linea-goerli": "0xeC89AF5FF618bbF667755BE9d63C69F21F1c00C8",
+        "zksync-goerli": "0xAe60e005C560E869a2bad271e38e3C9D78381aFF"
     }
 }

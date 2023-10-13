@@ -1,45 +1,34 @@
 const ethUtil = require('ethereumjs-util');
 const abi = require('ethereumjs-abi');
 const secp256k1 = require('secp256k1');
+const fs = require("fs");
 
 var ProxyDeployer = require("./proxy.js");
 
 const privateKey = process.env.PRIKEY
 
-const lineaNetwork = {
+const lineaGoerliNetwork = {
+    name: "linea-goerli",
     url: "https://rpc.goerli.linea.build",
-    proxyAdmin: "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    defaultLogicAddress: "0x310bbebF08cbCC1DB41299E602Ef0319b9D1d979",
-    oppositeLogicAddress: "0x3CFe649a4d5530AA2c716F0ca279b937687684f9",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
 };
 
-const arbitrumNetwork = {
+const arbitrumGoerliNetwork = {
+    name: "arbitrum-goerli",
     url: "https://goerli-rollup.arbitrum.io/rpc",
-    proxyAdmin: "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    defaultLogicAddress: "0x310bbebF08cbCC1DB41299E602Ef0319b9D1d979",
-    oppositeLogicAddress: "0x3CFe649a4d5530AA2c716F0ca279b937687684f9",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
 };
 
 const goerliNetwork = {
+    name: "goerli",
     url: "https://rpc.ankr.com/eth_goerli",
-    proxyAdmin: "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    defaultLogicAddress: "0x310bbebF08cbCC1DB41299E602Ef0319b9D1d979",
-    oppositeLogicAddress: "0x3CFe649a4d5530AA2c716F0ca279b937687684f9",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
 };
 
-const mantleNetwork = {
+const mantleGoerliNetwork = {
+    name: "mantle-goerli",
     url: "https://rpc.testnet.mantle.xyz",
-    proxyAdmin: "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    defaultLogicAddress: "0x310bbebF08cbCC1DB41299E602Ef0319b9D1d979",
-    oppositeLogicAddress: "0x3CFe649a4d5530AA2c716F0ca279b937687684f9",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
 };
 
 function wallet(url) {
@@ -77,25 +66,35 @@ async function deployLnOppositeBridgeProxy(wallet, salt, dao, proxyAdminAddress,
 }
 
 async function deploy() {
-    const chains = [goerliNetwork, lineaNetwork, arbitrumNetwork, mantleNetwork];
+    // address path
+    const pathConfig = "./address/ln-dev.json";
+    const configure = JSON.parse(
+        fs.readFileSync(pathConfig, "utf8")
+    );
+
+    const chains = [goerliNetwork, lineaGoerliNetwork, arbitrumGoerliNetwork, mantleGoerliNetwork];
     for (const chain of chains) {
         const w = wallet(chain.url);
+        const proxyAdmin = configure.ProxyAdmin.others;
+        const defaultLogicAddress = configure.LnDefaultBridgeLogic.others;
+        const oppositeLogicAddress = configure.LnOppositeBridgeLogic;
+        const deployer = configure.deployer;
         let proxyAddress = await deployLnDefaultBridgeProxy(
             w,
             "ln-default-v1.1.2",
             chain.dao,
-            chain.proxyAdmin,
-            chain.defaultLogicAddress,
-            chain.deployer,
+            proxyAdmin,
+            defaultLogicAddress,
+            deployer,
         );
         console.log("deploy proxy success", proxyAddress);
         proxyAddress = await deployLnOppositeBridgeProxy(
             w,
             "ln-opposite-v1.1.2",
             chain.dao,
-            chain.proxyAdmin,
-            chain.oppositeLogicAddress,
-            chain.deployer,
+            proxyAdmin,
+            oppositeLogicAddress,
+            deployer,
         );
         console.log("deploy proxy success", proxyAddress);
     }

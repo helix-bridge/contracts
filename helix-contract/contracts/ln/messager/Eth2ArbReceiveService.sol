@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.17;
 
 import "@arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol";
 import "../base/LnAccessController.sol";
@@ -22,7 +22,7 @@ contract Eth2ArbReceiveService is ILowLevelMessageReceiver, LnAccessController {
         REMOTE_CHAINID = _remoteChainId;
     }
 
-    function setRemoteMessager(address _remoteMessager) onlyOperator external {
+    function setRemoteMessager(address _remoteMessager) onlyDao external {
         remoteMessagerAlias = AddressAliasHelper.applyL1ToL2Alias(_remoteMessager);
     }
 

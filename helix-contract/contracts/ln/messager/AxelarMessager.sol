@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.17;
 
 import { StringToAddress, AddressToString } from '@axelar-network/axelar-gmp-sdk-solidity/contracts/libs/AddressString.sol';
 import "../interface/ILowLevelMessager.sol";
@@ -56,7 +56,7 @@ contract AxelarMessager is LnAccessController {
         emit CallResult(_sourceChain, _sourceAddress, success);
     }
 
-    function setRemoteMessager(uint256 _appRemoteChainId, string calldata _remoteChainName, address _remoteMessager) onlyOperator external {
+    function setRemoteMessager(uint256 _appRemoteChainId, string calldata _remoteChainName, address _remoteMessager) onlyDao external {
         remoteMessagers[_appRemoteChainId] = RemoteMessager(_remoteChainName, _remoteMessager);
         trustedRemotes[_remoteChainName] = _remoteMessager;
     }

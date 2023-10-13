@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.17;
 
 import "./interface/ILayerZeroEndpoint.sol";
 import "../interface/ILowLevelMessager.sol";
@@ -37,7 +37,7 @@ contract LayerZeroMessager is LnAccessController {
         _;
     }
 
-    function setRemoteMessager(uint256 _appRemoteChainId, uint16 _lzRemoteChainId, address _remoteMessager) onlyOperator external {
+    function setRemoteMessager(uint256 _appRemoteChainId, uint16 _lzRemoteChainId, address _remoteMessager) onlyDao external {
         remoteMessagers[_appRemoteChainId] = RemoteMessager(_lzRemoteChainId, _remoteMessager);
         trustedRemotes[_lzRemoteChainId] = keccak256(abi.encodePacked(_remoteMessager, address(this)));
     }

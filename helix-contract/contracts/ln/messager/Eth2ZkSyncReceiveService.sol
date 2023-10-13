@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.17;
 
 import "./interface/IZksyncMailbox.sol";
 import "../base/LnAccessController.sol";
@@ -25,7 +25,7 @@ contract Eth2ZkSyncReceiveService is ILowLevelMessageReceiver, LnAccessControlle
         REMOTE_CHAINID = _remoteChainId;
     }
 
-    function setRemoteMessager(address _remoteMessager) onlyOperator external {
+    function setRemoteMessager(address _remoteMessager) onlyDao external {
         remoteMessagerAlias = address(uint160(_remoteMessager) + offset);
     }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.17;
 
 /// @title LnAccessController
 /// @notice LnAccessController is a contract to control the access permission 
@@ -34,7 +34,7 @@ contract LnAccessController {
         operator = _operator;
     }
 
-    function authoriseAppCaller(address appAddress, bool enable) onlyOperator external {
+    function authoriseAppCaller(address appAddress, bool enable) onlyDao external {
         callerWhiteList[appAddress] = enable;
     }
 

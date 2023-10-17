@@ -14,6 +14,7 @@ const lineaGoerliNetwork = {
     name: "linea-goerli",
     url: "https://rpc.goerli.linea.build",
     chainId: 59140,
+    eth: "0x0000000000000000000000000000000000000000",
 }
 
 const arbitrumGoerliNetwork = {
@@ -312,7 +313,7 @@ async function registerAllToken(configure, arbWallet, lineaWallet, goerliWallet,
     await registerToken(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
 }
 
-async function registerRelayer(configure, contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken) {
+async function registerRelayer(configure, contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken, increaseMargin) {
     let srcTokenAddress = srcNetwork[srcToken];
     let dstTokenAddress = dstNetwork[dstToken];
     let srcDecimals = 18;
@@ -324,15 +325,18 @@ async function registerRelayer(configure, contractName, srcWallet, dstWallet, sr
         dstTokenAddress = configure[dstToken][dstNetwork.name];
     }
 
+    let baseFeeAmount = "0.001";
     if (srcTokenAddress != kNativeTokenAddress) {
         const sourceToken = await ethers.getContractAt("Erc20", srcTokenAddress, srcWallet);
         srcDecimals = await sourceToken.decimals();
+        baseFeeAmount = "20";
     }
     if (dstTokenAddress != kNativeTokenAddress) {
         const targetToken = await ethers.getContractAt("Erc20", dstTokenAddress, dstWallet);
         dstDecimals = await targetToken.decimals();
+        baseFeeAmount = "20";
     }
-    const baseFee = ethers.utils.parseUnits("20", srcDecimals);
+    let baseFee = ethers.utils.parseUnits(baseFeeAmount, srcDecimals);
     const liquidityFeeRate = 30;
 
     // default bridge
@@ -344,6 +348,10 @@ async function registerRelayer(configure, contractName, srcWallet, dstWallet, sr
         if (dstTokenAddress == kNativeTokenAddress) {
             margin = ethers.utils.parseUnits("0.1", dstDecimals);
             value = margin;
+        }
+        if (!increaseMargin) {
+            margin = 0;
+            value = 0;
         }
         const source = await ethers.getContractAt(contractName, defaultAddress, srcWallet);
         await source.setProviderFee(
@@ -369,6 +377,10 @@ async function registerRelayer(configure, contractName, srcWallet, dstWallet, sr
             margin = ethers.utils.parseUnits("0.1", dstDecimals);
             value = margin;
         }
+        if (!increaseMargin) {
+            margin = 0;
+            value = 0;
+        }
         const source = await ethers.getContractAt(contractName, configure.LnOppositeBridgeProxy, srcWallet);
         await source.updateProviderFeeAndMargin(
             dstNetwork.chainId,
@@ -385,81 +397,82 @@ async function registerRelayer(configure, contractName, srcWallet, dstWallet, sr
 
 async function registerAllRelayer(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
     //arb<>eth
+    const increaseMargin = false;
     console.log("start to register arb<>eth relayer");
-    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "eth", "eth");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "eth", "eth", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "eth", "eth", increaseMargin);
 
     // linea<>eth
     console.log("start to register linea<>eth relayer");
-    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "eth", "eth");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnOppositeBridge", lineaWallet, goerliWallet, lineaGoerliNetwork, goerliNetwork, "eth", "eth", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, lineaWallet, goerliNetwork, lineaGoerliNetwork, "eth", "eth", increaseMargin);
 
     //arb<>linea
     console.log("start to register linea<>arb relayer");
-    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "eth", "eth");
-    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, lineaWallet, arbitrumGoerliNetwork, lineaGoerliNetwork, "eth", "eth", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, arbWallet, lineaGoerliNetwork, arbitrumGoerliNetwork, "eth", "eth", increaseMargin);
 
     //arb<>mantle
     console.log("start to register mantle<>arb relayer");
-    await registerRelayer(configure, "LnDefaultBridge", arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, arbWallet, mantleGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, arbWallet, mantleGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, arbWallet, mantleGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, mantleWallet, arbitrumGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, arbWallet, mantleGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt", increaseMargin);
 
     // mantle<>linea
     console.log("start to register mantle<>linea relayer");
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, lineaWallet, mantleGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, lineaWallet, mantleGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, lineaWallet, mantleGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, lineaWallet, mantleGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, mantleWallet, lineaGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt", increaseMargin);
 
     // mantle<>eth
     console.log("start to register mantle<>eth relayer");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "mnt", "mnt");
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "mnt", "mnt");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, mantleWallet, goerliNetwork, mantleGoerliNetwork, "mnt", "mnt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork, "mnt", "mnt", increaseMargin);
 
     // arb<>zkSync
-    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", arbWallet, zkSyncWallet, arbitrumGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, arbWallet, zkSyncGoerliNetwork, arbitrumGoerliNetwork, "eth", "eth", increaseMargin);
     // eth<>zkSync
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", goerliWallet, zkSyncWallet, goerliNetwork, zkSyncGoerliNetwork, "eth", "eth", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork, "eth", "eth", increaseMargin);
     // mantle<>zkSync                                                                                                 
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt", increaseMargin);
     // linea<>zkSync
-    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc");
-    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt");
-    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth");
-    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "eth", "eth");
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "eth", "eth", increaseMargin);
 }
 
 async function mintToken(configure, tokenSymbol, network, wallet, to) {

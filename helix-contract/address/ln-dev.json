@@ -56,5 +56,8 @@
         "arbitrum-goerli": "0xBAD026e314a77e727dF643B02f63adA573a3757c",
         "linea-goerli": "0xeC89AF5FF618bbF667755BE9d63C69F21F1c00C8",
         "zksync-goerli": "0xAe60e005C560E869a2bad271e38e3C9D78381aFF"
+    },
+    "keyTool": {
+        "goerli": "0xCD45731FFF1b250e9433A1F1F5A609F3A19557A5"
     }
 }

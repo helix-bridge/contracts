@@ -1,3 +1,6 @@
+const { deployContract } = require("solidity-create2-deployer");
+var Create2 = require("./create2.js");
+
 var ProxyDeployer = {
     getInitializerData: function(
         contractInterface,
@@ -23,6 +26,16 @@ var ProxyDeployer = {
         const proxy = await proxyContract.deploy(logicAddress, proxyAdminAddr, calldata)
         await proxy.deployed();
         return proxy;
+    },
+    deployProxyContract2: async function(deployerAddress, salt, proxyAdminAdder, logicFactory, logicAddress, args, wallet) {
+        const calldata = ProxyDeployer.getInitializerData(logicFactory.interface, args, "initialize");
+        const proxyContract = await ethers.getContractFactory("TransparentUpgradeableProxy", wallet);
+        const deployedBytecode = Create2.getDeployedBytecode(
+            proxyContract, 
+            ["address", "address", "bytes"],
+            [logicAddress, proxyAdminAdder, calldata]
+        );
+        return await Create2.deploy(deployerAddress, wallet, deployedBytecode, salt);
     }
 }
 

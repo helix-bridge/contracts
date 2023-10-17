@@ -1,51 +1,29 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.17;
 
-import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import "@zeppelin-solidity/contracts/security/Pausable.sol";
 import "./LnBridgeHelper.sol";
 import "../interface/ILnDefaultBridgeTarget.sol";
 
-/// @title LnPositiveBridgeSource
-/// @notice LnPositiveBridgeSource is a contract to help user transfer token to liquidity node and generate proof,
+/// @title LnDefaultBridgeSource
+/// @notice LnDefaultBridgeSource is a contract to help user transfer token to liquidity node and generate proof,
 ///         then the liquidity node must transfer the same amount of the token to the user on target chain.
 ///         Otherwise if timeout the slasher can send a slash request message to target chain, then force transfer from lnProvider's margin to the user.
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnDefaultBridgeSource is LnBridgeHelper {
-    // the time(seconds) for liquidity provider to delivery message
-    // if timeout, slasher can work.
-    uint256 constant private MIN_SLASH_TIMESTAMP = 30 * 60;
-    // liquidity fee base rate
-    // liquidityFee = liquidityFeeRate / LIQUIDITY_FEE_RATE_BASE * sendAmount
-    uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
-    // max transfer amount one time
-    uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
-    // the registered token info
-    // sourceToken and targetToken is the pair of erc20 token addresses
-    // if sourceToken == address(0), then it's native token
-    // if targetToken == address(0), then remote is native token
-    // * `protocolFee` is the protocol fee charged by system
-    // * `penaltyLnCollateral` is penalty from lnProvider when the transfer slashed, if we adjust this value, it'll not affect the old transfers.
-    struct TokenInfo {
-        address targetToken;
-        uint112 protocolFee;
-        uint112 penaltyLnCollateral;
-        uint8 sourceDecimals;
-        uint8 targetDecimals;
-        bool isRegistered;
-    }
-
+contract LnDefaultBridgeSource is Pausable {
     // provider fee is paid to liquidity node's account
     // the fee is charged by the same token that user transfered
     // providerFee = baseFee + liquidityFeeRate/LIQUIDITY_FEE_RATE_BASE * sendAmount
-    struct LnProviderFee {
+    struct SourceProviderConfigure {
         uint112 baseFee;
-        uint8 liquidityFeeRate;
+        uint16 liquidityFeeRate;
+        uint64 withdrawNonce;
+        bool pause;
     }
     
-    struct LnProviderInfo {
-        LnProviderFee fee;
+    struct SourceProviderInfo {
+        SourceProviderConfigure config;
         // we use this nonce to generate the unique withdraw id
-        uint64 withdrawNonce;
         bytes32 lastTransferId;
     }
     // the Snapshot is the state of the token bridge when user prepare to transfer across chains.
@@ -54,8 +32,10 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     // 2. if totalFee increase, revert
     // 3. if totalFee decrease, success
     struct Snapshot {
+        uint256 remoteChainId;
         address provider;
         address sourceToken;
+        address targetToken;
         bytes32 transferId;
         uint112 totalFee;
         uint64 withdrawNonce;
@@ -66,36 +46,46 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     struct LockInfo {
         uint112 fee;
         uint112 penalty;
-        bool isLocked;
+        // the timestamp when token locked, if zero, the lockinfo not exist
+        uint32 timestamp;
     }
-    // sourceToken => token info
-    mapping(address=>TokenInfo) public tokenInfos;
-    // providerKey => provider info
-    mapping(bytes32=>LnProviderInfo) public lnProviders;
+
+    // hash(remoteChainId, sourceToken, targetToken) => token info
+    mapping(bytes32=>LnBridgeHelper.TokenInfo) public tokenInfos;
+    // hash(remoteChainId, provider, sourceToken, targetToken) => provider info
+    mapping(bytes32=>SourceProviderInfo) public srcProviders;
     // transferId => lock info
     mapping(bytes32=>LockInfo) public lockInfos;
 
     address public protocolFeeReceiver;
 
     event TokenLocked(
+        uint256 remoteChainId,
         bytes32 transferId,
         address provider,
         address sourceToken,
+        address targetToken,
         uint112 amount,
         uint112 fee,
-        uint64 timestamp,
+        uint32  timestamp,
         address receiver);
-    event LnProviderUpdated(address provider, address sourceToken, uint112 baseFee, uint8 liquidityfeeRate);
+    event LnProviderUpdated(uint256 remoteChainId, address provider, address sourceToken, address targetToken, uint112 baseFee, uint8 liquidityfeeRate);
+
+    event WithdrawMarginRequest(uint256 remoteChainId, address sourceToken, address targetToken, uint112 amount);
+    event SlashRequest(uint256 remoteChainId, address sourceToken, address targetToken, bytes32 expectedTransferId);
 
     // protocolFeeReceiver is the protocol fee reciever, we don't use the contract itself as the receiver
-    function _setFeeReceiver(address _feeReceiver) internal {
+    /// @notice should be called by special privileges
+    function _updateFeeReceiver(address _feeReceiver) internal {
         require(_feeReceiver != address(this), "invalid system fee receiver");
         protocolFeeReceiver = _feeReceiver;
     }
 
     // register or update token info, it can be only called by contract owner
     // source token can only map a unique target token on target chain
+    /// @notice should be called by special privileges
     function _setTokenInfo(
+        uint256 _remoteChainId,
         address _sourceToken,
         address _targetToken,
         uint112 _protocolFee,
@@ -103,8 +93,8 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         uint8 _sourceDecimals,
         uint8 _targetDecimals
     ) internal {
-        tokenInfos[_sourceToken] = TokenInfo(
-            _targetToken,
+        bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _sourceToken, _targetToken));
+        tokenInfos[key] = LnBridgeHelper.TokenInfo(
             _protocolFee,
             _penaltyLnCollateral,
             _sourceDecimals,
@@ -113,37 +103,57 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
         );
     }
 
+    function providerPause(uint256 _remoteChainId, address _sourceToken, address _targetToken) external {
+        bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, msg.sender, _sourceToken, _targetToken);
+        srcProviders[providerKey].config.pause = true;
+    }
+
+    function providerUnpause(uint256 _remoteChainId, address _sourceToken, address _targetToken) external {
+        bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, msg.sender, _sourceToken, _targetToken);
+        srcProviders[providerKey].config.pause = false;
+    }
+
     // lnProvider register
     // 1. set fee on source chain
     // 2. deposit margin on target chain
     function setProviderFee(
-        address sourceToken,
-        uint112 baseFee,
-        uint8 liquidityFeeRate
+        uint256 _remoteChainId,
+        address _sourceToken,
+        address _targetToken,
+        uint112 _baseFee,
+        uint8 _liquidityFeeRate
     ) external {
-        TokenInfo memory tokenInfo = tokenInfos[sourceToken];
+        bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _sourceToken, _targetToken));
+        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.isRegistered, "token not registered");
-        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, tokenInfo.targetToken);
-        LnProviderFee memory providerFee = LnProviderFee(baseFee, liquidityFeeRate);
+        bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, msg.sender, _sourceToken, _targetToken);
+
+        require(_liquidityFeeRate < LnBridgeHelper.LIQUIDITY_FEE_RATE_BASE, "liquidity fee too large");
+        SourceProviderConfigure memory providerConfigure = srcProviders[providerKey].config;
+        providerConfigure.baseFee = _baseFee;
+        providerConfigure.liquidityFeeRate = _liquidityFeeRate;
 
         // we only update the field fee of the provider info
         // if the provider has not been registered, then this line will register, otherwise update fee
-        lnProviders[providerKey].fee = providerFee;
+        srcProviders[providerKey].config = providerConfigure;
 
-        emit LnProviderUpdated(msg.sender, sourceToken, baseFee, liquidityFeeRate);
-    }
-
-    function calculateProviderFee(LnProviderFee memory fee, uint112 amount) internal pure returns(uint256) {
-        return uint256(fee.baseFee) + uint256(fee.liquidityFeeRate) * uint256(amount) / LIQUIDITY_FEE_RATE_BASE;
+        emit LnProviderUpdated(_remoteChainId, msg.sender, _sourceToken, _targetToken, _baseFee, _liquidityFeeRate);
     }
 
     // the fee user should paid when transfer.
     // totalFee = providerFee + protocolFee
-    function totalFee(address provider, address sourceToken, uint112 amount) external view returns(uint256) {
-        TokenInfo memory tokenInfo = tokenInfos[sourceToken];
-        bytes32 providerKey = getDefaultProviderKey(provider, sourceToken, tokenInfo.targetToken);
-        LnProviderInfo memory providerInfo = lnProviders[providerKey];
-        uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
+    function totalFee(
+        uint256 _remoteChainId,
+        address _provider,
+        address _sourceToken,
+        address _targetToken,
+        uint112 _amount
+    ) external view returns(uint256) {
+        bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _sourceToken, _targetToken));
+        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[key];
+        bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, _provider, _sourceToken, _targetToken);
+        SourceProviderInfo memory providerInfo = srcProviders[providerKey];
+        uint112 providerFee = LnBridgeHelper.calculateProviderFee(providerInfo.config.baseFee, providerInfo.config.liquidityFeeRate, _amount);
         return providerFee + tokenInfo.protocolFee;
     }
 
@@ -153,64 +163,68 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
     // 1. the state(lastTransferId, fee, withdrawNonce) must match snapshot
     // 2. transferId not exist
     function transferAndLockMargin(
-        Snapshot calldata snapshot,
-        uint112 amount,
-        address receiver
-    ) external payable {
-        require(amount > 0, "invalid amount");
-
-        TokenInfo memory tokenInfo = tokenInfos[snapshot.sourceToken];
+        Snapshot calldata _snapshot,
+        uint112 _amount,
+        address _receiver
+    ) whenNotPaused external payable {
+        require(_amount > 0, "invalid amount");
+        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[
+            LnBridgeHelper.getTokenKey(_snapshot.remoteChainId, _snapshot.sourceToken, _snapshot.targetToken)
+        ];
         require(tokenInfo.isRegistered, "token not registered");
         
-        bytes32 providerKey = getDefaultProviderKey(snapshot.provider, snapshot.sourceToken, tokenInfo.targetToken);
+        bytes32 providerKey = LnBridgeHelper.getProviderKey(_snapshot.remoteChainId, _snapshot.provider, _snapshot.sourceToken, _snapshot.targetToken);
 
-        LnProviderInfo memory providerInfo = lnProviders[providerKey];
-        uint256 providerFee = calculateProviderFee(providerInfo.fee, amount);
+        SourceProviderInfo memory providerInfo = srcProviders[providerKey];
+        require(!providerInfo.config.pause, "provider paused");
+        uint112 providerFee = LnBridgeHelper.calculateProviderFee(providerInfo.config.baseFee, providerInfo.config.liquidityFeeRate, _amount);
 
         // the chain state not match snapshot
-        require(providerInfo.lastTransferId == snapshot.transferId, "snapshot expired:transfer");
-        require(snapshot.withdrawNonce == providerInfo.withdrawNonce, "snapshot expired:withdraw");
-        require(snapshot.totalFee >= providerFee + tokenInfo.protocolFee && providerFee > 0, "fee is invalid");
+        require(providerInfo.lastTransferId == _snapshot.transferId, "snapshot expired:transfer");
+        require(_snapshot.withdrawNonce == providerInfo.config.withdrawNonce, "snapshot expired:withdraw");
+        require(_snapshot.totalFee >= providerFee + tokenInfo.protocolFee && providerFee > 0, "fee is invalid");
         
-        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(amount));
-        uint64 timestamp = uint64(block.timestamp);
+        uint112 targetAmount = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, _amount);
+        require(targetAmount > 0, "invalid target amount");
+        require(block.timestamp < type(uint32).max, "timestamp overflow");
         bytes32 transferId = keccak256(abi.encodePacked(
-            snapshot.transferId,
-            snapshot.provider,
-            snapshot.sourceToken,
-            tokenInfo.targetToken,
-            receiver,
-            timestamp,
+            block.chainid,
+            _snapshot.remoteChainId,
+            _snapshot.transferId,
+            _snapshot.provider,
+            _snapshot.sourceToken,
+            _snapshot.targetToken,
+            _receiver,
             targetAmount
         ));
-        require(!lockInfos[transferId].isLocked, "transferId exist");
+        require(lockInfos[transferId].timestamp == 0, "transferId exist");
         // if the transfer refund, then the fee and penalty should be given to slasher, but the protocol fee is ignored
         // and we use the penalty value configure at the moment transfer confirmed
-        lockInfos[transferId] = LockInfo(snapshot.totalFee, tokenInfo.penaltyLnCollateral, true);
+        lockInfos[transferId] = LockInfo(providerFee, tokenInfo.penaltyLnCollateral, uint32(block.timestamp));
 
         // update the state to prevent other transfers using the same snapshot
-        lnProviders[providerKey].lastTransferId = transferId;
+        srcProviders[providerKey].lastTransferId = transferId;
 
-        if (snapshot.sourceToken == address(0)) {
-            require(amount + snapshot.totalFee == msg.value, "amount unmatched");
-            _safeTransferNative(snapshot.provider, amount + providerFee);
+        if (_snapshot.sourceToken == address(0)) {
+            require(_amount + _snapshot.totalFee == msg.value, "amount unmatched");
+            LnBridgeHelper.safeTransferNative(_snapshot.provider, _amount + providerFee);
             if (tokenInfo.protocolFee > 0) {
-                _safeTransferNative(protocolFeeReceiver, tokenInfo.protocolFee);
+                LnBridgeHelper.safeTransferNative(protocolFeeReceiver, tokenInfo.protocolFee);
             }
-            uint256 refund = snapshot.totalFee - tokenInfo.protocolFee - providerFee;
+            uint256 refund = _snapshot.totalFee - tokenInfo.protocolFee - providerFee;
             if ( refund > 0 ) {
-                _safeTransferNative(msg.sender, refund);
+                LnBridgeHelper.safeTransferNative(msg.sender, refund);
             }
         } else {
-            _safeTransferFrom(
-                snapshot.sourceToken,
+            LnBridgeHelper.safeTransferFrom(
+                _snapshot.sourceToken,
                 msg.sender,
-                snapshot.provider,
-                amount + providerFee
+                _snapshot.provider,
+                _amount + providerFee
             );
             if (tokenInfo.protocolFee > 0) {
-                _safeTransferFrom(
-                    snapshot.sourceToken,
+                LnBridgeHelper.safeTransferFrom(
+                    _snapshot.sourceToken,
                     msg.sender,
                     protocolFeeReceiver,
                     tokenInfo.protocolFee 
@@ -218,109 +232,150 @@ contract LnDefaultBridgeSource is LnBridgeHelper {
             }
         }
         emit TokenLocked(
+            _snapshot.remoteChainId,
             transferId,
-            snapshot.provider,
-            snapshot.sourceToken,
+            _snapshot.provider,
+            _snapshot.sourceToken,
+            _snapshot.targetToken,
             targetAmount,
-            uint112(providerFee),
-            timestamp,
-            receiver);
+            providerFee,
+            uint32(block.timestamp),
+            _receiver);
     }
 
-    function _sourceAmountToTargetAmount(
-        TokenInfo memory tokenInfo,
-        uint256 amount
-    ) internal pure returns(uint112) {
-        uint256 targetAmount = amount * 10**tokenInfo.targetDecimals / 10**tokenInfo.sourceDecimals;
-        require(targetAmount < MAX_TRANSFER_AMOUNT, "overflow amount");
-        return uint112(targetAmount);
-    }
-
-    function _slashAndRemoteRelease(
-        TransferParameter memory params,
-        bytes32 expectedTransferId
+    function _slashAndRemoteReleaseCall(
+        LnBridgeHelper.TransferParameter memory _params,
+        uint256 _remoteChainId,
+        bytes32 _expectedTransferId
     ) internal view returns(bytes memory message) {
-        require(block.timestamp > params.timestamp + MIN_SLASH_TIMESTAMP, "invalid timestamp");
-        TokenInfo memory tokenInfo = tokenInfos[params.sourceToken];
+        bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _params.sourceToken, _params.targetToken));
+        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.isRegistered, "token not registered");
-        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, uint256(params.amount));
+        uint112 targetAmount = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, _params.amount);
 
         bytes32 transferId = keccak256(abi.encodePacked(
-           params.previousTransferId,
-           params.provider,
-           params.sourceToken,
-           params.targetToken,
-           params.receiver,
-           params.timestamp,
+           block.chainid,
+           _remoteChainId,
+           _params.previousTransferId,
+           _params.provider,
+           _params.sourceToken,
+           _params.targetToken,
+           _params.receiver,
            targetAmount
         ));
-        require(expectedTransferId == transferId, "expected transfer id not match");
+        require(_expectedTransferId == transferId, "expected transfer id not match");
         LockInfo memory lockInfo = lockInfos[transferId];
-        require(lockInfo.isLocked, "lock info not match");
-        uint112 targetFee = _sourceAmountToTargetAmount(tokenInfo, lockInfo.fee);
-        uint112 targetPenalty = _sourceAmountToTargetAmount(tokenInfo, lockInfo.penalty);
+        require(lockInfo.timestamp == _params.timestamp, "invalid timestamp");
+        require(block.timestamp > lockInfo.timestamp + LnBridgeHelper.SLASH_EXPIRE_TIME, "invalid timestamp");
+        uint112 targetFee = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, lockInfo.fee);
+        uint112 targetPenalty = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, lockInfo.penalty);
 
-        message = _encodeSlashCall(
-            params,
-            msg.sender,
-            targetFee,
-            targetPenalty
+        message = abi.encodeWithSelector(
+           ILnDefaultBridgeTarget.slash.selector,
+           _params,
+           block.chainid,
+           msg.sender, // slasher
+           targetFee,
+           targetPenalty
         );
     }
 
-    function _withdrawMargin(
-        address sourceToken,
-        uint112 amount
+    function _withdrawMarginCall(
+        uint256 _remoteChainId,
+        address _sourceToken,
+        address _targetToken,
+        uint112 _amount
     ) internal returns(bytes memory message) {
-        TokenInfo memory tokenInfo = tokenInfos[sourceToken];
+        bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _sourceToken, _targetToken));
+        LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.isRegistered, "token not registered");
 
-        bytes32 providerKey = getDefaultProviderKey(msg.sender, sourceToken, tokenInfo.targetToken);
-        LnProviderInfo memory providerInfo = lnProviders[providerKey];
-        lnProviders[providerKey].withdrawNonce = providerInfo.withdrawNonce + 1;
-        uint112 targetAmount = _sourceAmountToTargetAmount(tokenInfo, amount);
-        message = _encodeWithdrawCall(
+        bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, msg.sender, _sourceToken, _targetToken);
+        SourceProviderInfo memory providerInfo = srcProviders[providerKey];
+        srcProviders[providerKey].config.withdrawNonce = providerInfo.config.withdrawNonce + 1;
+        uint112 targetAmount = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, _amount);
+        message = abi.encodeWithSelector(
+            ILnDefaultBridgeTarget.withdraw.selector,
+            block.chainid,
             providerInfo.lastTransferId,
-            providerInfo.withdrawNonce + 1,
-            msg.sender,
-            sourceToken,
-            tokenInfo.targetToken,
+            providerInfo.config.withdrawNonce + 1,
+            msg.sender, //provider,
+            _sourceToken,
+            _targetToken,
             targetAmount
         );
     }
 
-    function _encodeSlashCall(
-        TransferParameter memory params,
-        address slasher,
-        uint112 fee,
-        uint112 penalty
+    function encodeSlashCall(
+        LnBridgeHelper.TransferParameter memory _params,
+        uint256 _localChainId,
+        address _slasher,
+        uint112 _fee,
+        uint112 _penalty
     ) public pure returns(bytes memory message) {
         return abi.encodeWithSelector(
            ILnDefaultBridgeTarget.slash.selector,
-           params,
-           slasher,
-           fee,
-           penalty
+           _params,
+           _localChainId,
+           _slasher,
+           _fee,
+           _penalty
         );
     }
 
-    function _encodeWithdrawCall(
-        bytes32 lastTransferId,
-        uint64 withdrawNonce,
-        address provider,
-        address sourceToken,
-        address targetToken,
-        uint112 amount
+    function encodeWithdrawCall(
+        bytes32 _lastTransferId,
+        uint256 _localChainId,
+        uint64  _withdrawNonce,
+        address _provider,
+        address _sourceToken,
+        address _targetToken,
+        uint112 _amount
     ) public pure returns(bytes memory message) {
         return abi.encodeWithSelector(
             ILnDefaultBridgeTarget.withdraw.selector,
-            lastTransferId,
-            withdrawNonce,
-            provider,
-            sourceToken,
-            targetToken,
-            amount
+            _localChainId,
+            _lastTransferId,
+            _withdrawNonce,
+            _provider,
+            _sourceToken,
+            _targetToken,
+            _amount
         );
+    }
+
+    function _sendMessageToTarget(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) internal virtual {}
+
+    function requestSlashAndRemoteRelease(
+        LnBridgeHelper.TransferParameter calldata _params,
+        uint256 _remoteChainId,
+        bytes32 _expectedTransferId,
+        bytes memory _extParams
+    ) payable external {
+        bytes memory slashCallMessage = _slashAndRemoteReleaseCall(
+           _params,
+           _remoteChainId,
+           _expectedTransferId
+        );
+        _sendMessageToTarget(_remoteChainId, slashCallMessage, _extParams);
+        emit SlashRequest(_remoteChainId, _params.sourceToken, _params.targetToken, _expectedTransferId);
+    }
+
+    function requestWithdrawMargin(
+        uint256 _remoteChainId,
+        address _sourceToken,
+        address _targetToken,
+        uint112 _amount,
+        bytes memory _extParams
+    ) payable external {
+        bytes memory withdrawCallMessage = _withdrawMarginCall(
+            _remoteChainId,
+            _sourceToken,
+            _targetToken,
+            _amount
+        );
+        _sendMessageToTarget(_remoteChainId, withdrawCallMessage, _extParams);
+        emit WithdrawMarginRequest(_remoteChainId, _sourceToken, _targetToken, _amount);
     }
 }
  

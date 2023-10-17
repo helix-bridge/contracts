@@ -14,23 +14,10 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 10/10/2023
+ * 10/17/2023
  **/
 
-pragma solidity ^0.8.10;
-
-// File contracts/ln/interface/ILowLevelMessager.sol
-// License-Identifier: MIT
-
-interface ILowLevelMessageSender {
-    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
-    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
-}
-
-interface ILowLevelMessageReceiver {
-    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
-    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
-}
+pragma solidity ^0.8.17;
 
 // File contracts/ln/base/LnAccessController.sol
 // License-Identifier: MIT
@@ -68,13 +55,26 @@ contract LnAccessController {
         operator = _operator;
     }
 
-    function authoriseAppCaller(address appAddress, bool enable) onlyOperator external {
+    function authoriseAppCaller(address appAddress, bool enable) onlyDao external {
         callerWhiteList[appAddress] = enable;
     }
 
     function transferOwnership(address _dao) onlyDao external {
         dao = _dao;
     }
+}
+
+// File contracts/ln/interface/ILowLevelMessager.sol
+// License-Identifier: MIT
+
+interface ILowLevelMessageSender {
+    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
+    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
+}
+
+interface ILowLevelMessageReceiver {
+    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
+    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
 // File contracts/ln/messager/interface/ILineaMessageService.sol
@@ -104,7 +104,7 @@ contract Eth2LineaSendService is ILowLevelMessageSender, LnAccessController {
         REMOTE_CHAINID = _remoteChainId;
     }
 
-    function setRemoteMessager(address _remoteMessager) onlyOperator external {
+    function setRemoteMessager(address _remoteMessager) onlyDao external {
         remoteMessager = _remoteMessager;
     }
 

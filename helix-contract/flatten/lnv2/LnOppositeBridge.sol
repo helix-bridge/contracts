@@ -14,10 +14,10 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 10/10/2023
+ * 10/17/2023
  **/
 
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.17;
 
 // File contracts/ln/base/LnAccessController.sol
 // License-Identifier: MIT
@@ -55,7 +55,7 @@ contract LnAccessController {
         operator = _operator;
     }
 
-    function authoriseAppCaller(address appAddress, bool enable) onlyOperator external {
+    function authoriseAppCaller(address appAddress, bool enable) onlyDao external {
         callerWhiteList[appAddress] = enable;
     }
 
@@ -732,7 +732,6 @@ contract LnOppositeBridgeSource is Pausable {
 
 // File contracts/ln/interface/ILnOppositeBridgeSource.sol
 // License-Identifier: MIT
-
 
 interface ILnOppositeBridgeSource {
     function slash(

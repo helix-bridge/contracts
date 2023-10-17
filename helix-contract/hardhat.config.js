@@ -162,7 +162,7 @@ subtask("flat:get-flattened-sources", "Returns all contracts and their dependenc
         flattened = flattened.replace(/SPDX-License-Identifier:/gm, "License-Identifier:")
         flattened = flattened.replace(/pragma solidity [\^>=0-9.]*;\n/gm, "")
 
-        flattened = `pragma solidity ^0.8.10;\n\n${flattened}`
+        flattened = `pragma solidity ^0.8.17;\n\n${flattened}`
         flattened = `/**
  * .----------------.  .----------------.  .----------------.  .----------------.  .----------------. 
  * | .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |

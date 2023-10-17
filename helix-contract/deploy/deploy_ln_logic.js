@@ -53,8 +53,8 @@ async function main() {
     const networks = [goerliNetwork, mantleNetwork, arbitrumNetwork, lineaNetwork];
     for (const network of networks) {
         const w = wallet(network.url);
-        //const logicAddress = await deployLnDefaultBridge(w, network.deployer, "ln-default-logic-v1.1.0");
-        const logicAddress = await deployLnOppositeBridge(w, network.deployer, "ln-opposite-logic-v1.1.0");
+        //const logicAddress = await deployLnDefaultBridge(w, network.deployer, "ln-default-logic-v1.0.0");
+        const logicAddress = await deployLnOppositeBridge(w, network.deployer, "ln-opposite-logic-v1.0.0");
         console.log("finish to deploy logic contract, network is: ", network.url);
     }
     return;

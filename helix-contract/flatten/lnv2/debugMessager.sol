@@ -14,10 +14,10 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 10/10/2023
+ * 10/17/2023
  **/
 
-pragma solidity ^0.8.10;
+pragma solidity ^0.8.17;
 
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
@@ -209,7 +209,6 @@ library LnBridgeHelper {
 // File contracts/ln/interface/ILnDefaultBridgeTarget.sol
 // License-Identifier: MIT
 
-
 interface ILnDefaultBridgeTarget {
     function slash(
         LnBridgeHelper.TransferParameter memory params,
@@ -232,7 +231,6 @@ interface ILnDefaultBridgeTarget {
 
 // File contracts/ln/interface/ILnOppositeBridgeSource.sol
 // License-Identifier: MIT
-
 
 interface ILnOppositeBridgeSource {
     function slash(

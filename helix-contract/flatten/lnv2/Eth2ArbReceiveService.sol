@@ -64,14 +64,6 @@ contract LnAccessController {
     }
 }
 
-// File contracts/ln/messager/interface/ILineaMessageService.sol
-// License-Identifier: MIT
-
-interface ILineaMessageService {
-  function sendMessage(address _to, uint256 _fee, bytes calldata _calldata) external payable;
-  function sender() external view returns (address);
-}
-
 // File contracts/ln/interface/ILowLevelMessager.sol
 // License-Identifier: MIT
 
@@ -85,33 +77,60 @@ interface ILowLevelMessageReceiver {
     function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
-// File contracts/ln/messager/Eth2LineaReceiveService.sol
+// File @arbitrum/nitro-contracts/src/libraries/AddressAliasHelper.sol@v1.0.1
+// Copyright 2021-2022, Offchain Labs, Inc.
+// For license information, see https://github.com/nitro/blob/master/LICENSE
+// License-Identifier: BUSL-1.1
+
+
+library AddressAliasHelper {
+    uint160 internal constant OFFSET = uint160(0x1111000000000000000000000000000000001111);
+
+    /// @notice Utility function that converts the address in the L1 that submitted a tx to
+    /// the inbox to the msg.sender viewed in the L2
+    /// @param l1Address the address in the L1 that triggered the tx to L2
+    /// @return l2Address L2 address as viewed in msg.sender
+    function applyL1ToL2Alias(address l1Address) internal pure returns (address l2Address) {
+        unchecked {
+            l2Address = address(uint160(l1Address) + OFFSET);
+        }
+    }
+
+    /// @notice Utility function that converts the msg.sender viewed in the L2 to the
+    /// address in the L1 that submitted a tx to the inbox
+    /// @param l2Address L2 address as viewed in msg.sender
+    /// @return l1Address the address in the L1 that triggered the tx to L2
+    function undoL1ToL2Alias(address l2Address) internal pure returns (address l1Address) {
+        unchecked {
+            l1Address = address(uint160(l2Address) - OFFSET);
+        }
+    }
+}
+
+// File contracts/ln/messager/Eth2ArbReceiveService.sol
 // License-Identifier: MIT
 
 
 
-// from ethereum to linea messager
-contract Eth2LineaReceiveService is ILowLevelMessageReceiver, LnAccessController {
+// from ethereum to arbitrum messager
+contract Eth2ArbReceiveService is ILowLevelMessageReceiver, LnAccessController {
     uint256 immutable public REMOTE_CHAINID;
-    ILineaMessageService public messageService;
-    address public remoteMessager;
+    address public remoteMessagerAlias;
 
     mapping(address=>address) public appPairs;
 
     modifier onlyRemoteBridge() {
-        require(msg.sender == address(messageService), "invalid msg.sender");
-        require(messageService.sender() == remoteMessager, "invalid remote caller");
+        require(msg.sender == remoteMessagerAlias, "invalid remote caller");
         _;
     }
 
-    constructor(address _dao, address _messageService, uint256 _remoteChainId) {
+    constructor(address _dao, uint256 _remoteChainId) {
         _initialize(_dao);
-        messageService = ILineaMessageService(_messageService);
         REMOTE_CHAINID = _remoteChainId;
     }
 
     function setRemoteMessager(address _remoteMessager) onlyDao external {
-        remoteMessager = _remoteMessager;
+        remoteMessagerAlias = AddressAliasHelper.applyL1ToL2Alias(_remoteMessager);
     }
 
     function registerRemoteSender(uint256 _remoteChainId, address _remoteBridge) onlyWhiteListCaller external {

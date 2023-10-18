@@ -14,10 +14,23 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 10/17/2023
+ * 10/18/2023
  **/
 
 pragma solidity ^0.8.17;
+
+// File contracts/ln/interface/ILowLevelMessager.sol
+// License-Identifier: MIT
+
+interface ILowLevelMessageSender {
+    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
+    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
+}
+
+interface ILowLevelMessageReceiver {
+    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
+    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
+}
 
 // File contracts/ln/base/LnAccessController.sol
 // License-Identifier: MIT
@@ -70,19 +83,6 @@ contract LnAccessController {
 interface ILineaMessageService {
   function sendMessage(address _to, uint256 _fee, bytes calldata _calldata) external payable;
   function sender() external view returns (address);
-}
-
-// File contracts/ln/interface/ILowLevelMessager.sol
-// License-Identifier: MIT
-
-interface ILowLevelMessageSender {
-    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
-    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
-}
-
-interface ILowLevelMessageReceiver {
-    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
-    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
 // File contracts/ln/messager/Eth2LineaReceiveService.sol

@@ -14,68 +14,10 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 10/17/2023
+ * 10/18/2023
  **/
 
 pragma solidity ^0.8.17;
-
-// File contracts/ln/interface/ILowLevelMessager.sol
-// License-Identifier: MIT
-
-interface ILowLevelMessageSender {
-    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
-    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
-}
-
-interface ILowLevelMessageReceiver {
-    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
-    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
-}
-
-// File contracts/ln/base/LnAccessController.sol
-// License-Identifier: MIT
-
-/// @title LnAccessController
-/// @notice LnAccessController is a contract to control the access permission 
-/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnAccessController {
-    address public dao;
-    address public operator;
-
-    mapping(address=>bool) public callerWhiteList;
-
-    modifier onlyDao() {
-        require(msg.sender == dao, "!dao");
-        _;
-    }
-
-    modifier onlyOperator() {
-        require(msg.sender == operator, "!operator");
-        _;
-    }
-
-    modifier onlyWhiteListCaller() {
-        require(callerWhiteList[msg.sender], "caller not in white list");
-        _;
-    }
-
-    function _initialize(address _dao) internal {
-        dao = _dao;
-        operator = _dao;
-    }
-
-    function setOperator(address _operator) onlyDao external {
-        operator = _operator;
-    }
-
-    function authoriseAppCaller(address appAddress, bool enable) onlyDao external {
-        callerWhiteList[appAddress] = enable;
-    }
-
-    function transferOwnership(address _dao) onlyDao external {
-        dao = _dao;
-    }
-}
 
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
@@ -795,6 +737,19 @@ contract LnDefaultBridgeSource is Pausable {
     }
 }
 
+// File contracts/ln/interface/ILowLevelMessager.sol
+// License-Identifier: MIT
+
+interface ILowLevelMessageSender {
+    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
+    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
+}
+
+interface ILowLevelMessageReceiver {
+    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
+    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
+}
+
 // File contracts/ln/base/LnDefaultBridgeTarget.sol
 // License-Identifier: MIT
 
@@ -1019,6 +974,51 @@ contract LnDefaultBridgeTarget {
             }
         }
         emit Slash(transferId, _remoteChainId, _params.provider, _params.sourceToken, _params.targetToken, updatedMargin, _slasher);
+    }
+}
+
+// File contracts/ln/base/LnAccessController.sol
+// License-Identifier: MIT
+
+/// @title LnAccessController
+/// @notice LnAccessController is a contract to control the access permission 
+/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
+contract LnAccessController {
+    address public dao;
+    address public operator;
+
+    mapping(address=>bool) public callerWhiteList;
+
+    modifier onlyDao() {
+        require(msg.sender == dao, "!dao");
+        _;
+    }
+
+    modifier onlyOperator() {
+        require(msg.sender == operator, "!operator");
+        _;
+    }
+
+    modifier onlyWhiteListCaller() {
+        require(callerWhiteList[msg.sender], "caller not in white list");
+        _;
+    }
+
+    function _initialize(address _dao) internal {
+        dao = _dao;
+        operator = _dao;
+    }
+
+    function setOperator(address _operator) onlyDao external {
+        operator = _operator;
+    }
+
+    function authoriseAppCaller(address appAddress, bool enable) onlyDao external {
+        callerWhiteList[appAddress] = enable;
+    }
+
+    function transferOwnership(address _dao) onlyDao external {
+        dao = _dao;
     }
 }
 

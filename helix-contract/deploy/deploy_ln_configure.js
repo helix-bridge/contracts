@@ -46,32 +46,6 @@ const zkSyncGoerliNetwork = {
     eth: "0x0000000000000000000000000000000000000000",
 }
 
-const messagers = {
-    goerli: {
-        Eth2ArbSendService: "0xa4eE139bE76d277D997aCf9D58053D8DaF7E050a",
-        Eth2LineaSendService: "0x9878e74634544d92a043f1826a94465035FA51f4",
-        layerzeroMessager: "0xca4490875739BEb1c4ec9ee5d6814774114e1973",
-        axelarMessager: "0x037c7b64c80251Cf5C64Ed8f731c799Dc1856701"
-    },
-    arbitrumGoerli: {
-        Eth2ArbReceiveService: "0x102F8D7Cfe692AA79c17E3958aB00D060Df0B88f",
-        layerzeroMessager: "0x953bE65E685099277F1f09Ebe10746810dC0593D",
-        axelarMessager: "0xBc30913CC01A2eC70483681841bbb43D2f77caEd"
-    },
-    lineaGoerli: {
-        Eth2LineaReceiveService: "0x8200b3130416F633A696FB9bb0e689a356625075",
-        layerzeroMessager: "0xfB09042050868594a54a59EdEAEa96e2765dAd0B",
-        axelarMessager: "0x14DB1d462ED061b037C7920857Fc66522ed5bf85"
-    },
-    mantleGoerli: {
-        layerzeroMessager: "0xBE4a32f37d11e8227444837DFb3c634d189ccEDc",
-        axelarMessager: "0xbb593913a4f3E4eE77861f743c697A4cb95837eF"
-    },
-    zkSyncGoerli: {
-        layerzeroMessager: "0x7e303b0A3F08F9fa5F5629Abb998B8Deba89049B"
-    }
-};
-
 function wait(ms) {
     return new Promise(resolve => setTimeout(() => resolve(), ms));
 };

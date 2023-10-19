@@ -1,0 +1,24 @@
+{
+    "messagers": {
+        "ethereum": {
+            "Eth2ArbSendService": "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119"
+        },
+        "arbitrum": {
+            "Eth2ArbReceiveService": "0xc95D939Da72ECe8Bd794d42EaEd28974CDb0ADa2"
+        }
+    },
+    "ProxyAdmin": {
+        "common": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB"
+    },
+    "LnOppositeBridgeLogic": {
+        "common": "0x90873fa1bbd028F22277567530A22E05f7721D37"
+    },
+    "LnOppositeBridgeProxy": {
+        "common": "0x48d769d5C7ff75703cDd1543A1a2ed9bC9044A23"
+    },
+    "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+    "ring": {
+        "arbitrum": "0x9e523234D36973f9e38642886197D023C88e307e",
+        "ethereum": "0x9469D013805bFfB7D3DEBe5E7839237e535ec483"
+    }
+}

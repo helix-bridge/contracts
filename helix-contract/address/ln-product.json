@@ -16,6 +16,12 @@
     "LnOppositeBridgeProxy": {
         "common": "0x48d769d5C7ff75703cDd1543A1a2ed9bC9044A23"
     },
+    "LnDefaultBridgeLogic": {
+        "common": "0x8af688056c6614acb5A78c62e1f9f49022C0452f"
+    },
+    "LnDefaultBridgeProxy": {
+        "common": "0x94C614DAeFDbf151E1BB53d6A201ae5fF56A9337"
+    },
     "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
     "ring": {
         "arbitrum": "0x9e523234D36973f9e38642886197D023C88e307e",

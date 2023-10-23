@@ -49,6 +49,13 @@ async function getLnProxyBridgeBytecode(w, version, logicFactory, logicAddress, 
     return;
 }
 
+async function getLnDefaultProxyBridgeBytecode(networkUrl, version, logicAddress, proxyAdminAddress) {
+    const w = wallet(networkUrl);
+    const defaultFactory = await ethers.getContractFactory("LnDefaultBridge", w);
+    await getLnProxyBridgeBytecode(w, version, defaultFactory, logicAddress, proxyAdminAddress, [w.address]);
+    return;
+}
+
 async function getLnOppositeProxyBridgeBytecode(networkUrl, version, logicAddress, proxyAdminAddress) {
     const w = wallet(networkUrl);
     const oppositeFactory = await ethers.getContractFactory("LnOppositeBridge", w);
@@ -61,7 +68,8 @@ async function main() {
     //await getHelixProxyAdminBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0');
     //await getOppositeBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0');
     //await getDefaultBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0');
-    await getLnOppositeProxyBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0', '0x90873fa1bbd028F22277567530A22E05f7721D37', '0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB');
+    await getLnDefaultProxyBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0', '0x8af688056c6614acb5A78c62e1f9f49022C0452f', '0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB');
+    //await getLnOppositeProxyBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0', '0x90873fa1bbd028F22277567530A22E05f7721D37', '0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB');
 }
 
 main()

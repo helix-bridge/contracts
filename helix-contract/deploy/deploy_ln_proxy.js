@@ -31,6 +31,18 @@ const mantleGoerliNetwork = {
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
 };
 
+const crabNetwork = {
+    name: "crab",
+    url: "https://crab-rpc.darwinia.network",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+};
+
+const arbitrumSepoliaNetwork = {
+    name: "arbitrum-sepolia",
+    url: "https://sepolia-rollup.arbitrum.io/rpc",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+};
+
 function wallet(url) {
     const provider = new ethers.providers.JsonRpcProvider(url);
     const wallet = new ethers.Wallet(privateKey, provider);
@@ -72,7 +84,7 @@ async function deploy() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    const chains = [goerliNetwork, lineaGoerliNetwork, arbitrumGoerliNetwork, mantleGoerliNetwork];
+    const chains = [goerliNetwork, lineaGoerliNetwork, arbitrumGoerliNetwork, mantleGoerliNetwork, crabNetwork, arbitrumSepoliaNetwork];
     for (const chain of chains) {
         const w = wallet(chain.url);
         const proxyAdmin = configure.ProxyAdmin.others;

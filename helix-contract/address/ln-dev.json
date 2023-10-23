@@ -26,6 +26,12 @@
             "layerzeroMessager": "0xBE4a32f37d11e8227444837DFb3c634d189ccEDc",
             "axelarMessager": "0xbb593913a4f3E4eE77861f743c697A4cb95837eF",
             "debugMessager": "0x84f7a56483C100ECb12CbB4A31b7873dAE0d8E9B"
+        },
+        "crab": {
+            "darwiniaMsglineMessager": "0x0A6359e563d9D771e811028c2498e684e2657054"
+        },
+        "arbitrum-sepolia": {
+            "darwiniaMsglineMessager": "0x66D86a686e50C98BaC236105eFAFb99Ee7605dc5"
         }
     },
     "ProxyAdmin": {
@@ -55,7 +61,9 @@
         "mantle-goerli": "0xD610DE267f7590D5bCCE89489ECd2C1A4AfdF76B",
         "arbitrum-goerli": "0xBAD026e314a77e727dF643B02f63adA573a3757c",
         "linea-goerli": "0xeC89AF5FF618bbF667755BE9d63C69F21F1c00C8",
-        "zksync-goerli": "0xAe60e005C560E869a2bad271e38e3C9D78381aFF"
+        "zksync-goerli": "0xAe60e005C560E869a2bad271e38e3C9D78381aFF",
+        "crab": "0x4bA86B5D0F8D2DCB3FC23757cAA6EA71157F74E9",
+        "arbitrum-sepolia": "0x8A87497488073307E1a17e8A12475a94Afcb413f"
     },
     "keyTool": {
         "goerli": "0xCD45731FFF1b250e9433A1F1F5A609F3A19557A5"

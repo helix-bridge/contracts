@@ -68,6 +68,28 @@ const lineaNetwork = {
     ],
 };
 
+const crabNetwork = {
+    url: "https://crab-rpc.darwinia.network",
+    tokens: [
+        {
+            name: "Helix Test Token USDC",
+            symbol: "USDC",
+            decimals: 18
+        }
+    ]
+};
+
+const arbitrumSepoliaNetwork = {
+    url: "https://sepolia-rollup.arbitrum.io/rpc",
+    tokens: [
+        {
+            name: "Helix Test Token USDC",
+            symbol: "USDC",
+            decimals: 18
+        }
+    ]
+};
+
 function wallet(url) {
     const provider = new ethers.providers.JsonRpcProvider(url);
     const wallet = new ethers.Wallet(privateKey, provider);
@@ -76,7 +98,7 @@ function wallet(url) {
 
 // 2. deploy mapping token factory
 async function main() {
-    const networks = [goerliNetwork, mantleNetwork, arbitrumNetwork, lineaNetwork];
+    const networks = [goerliNetwork, mantleNetwork, arbitrumNetwork, lineaNetwork, crabNetwork, arbitrumSepoliaNetwork];
     for (const network of networks) {
         const w = wallet(network.url);
         

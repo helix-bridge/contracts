@@ -62,7 +62,25 @@ const mantleNetwork = {
     axGateway: "0xe432150cce91c13a887f7D836923d5597adD8E31",
     axGasService: "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     axName: "mantle",
-}
+};
+
+const crabNetwork = {
+    url: "https://crab-rpc.darwinia.network",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+    chainId: 44,
+    msglineChainId: 44,
+    msglineAddress: "0x0057460B22649fF60d987139687BF6cc46F164B2",
+};
+
+const arbitrumSepoliaNetwork = {
+    url: "https://sepolia-rollup.arbitrum.io/rpc",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+    chainId: 421614,
+    msglineChainId: 421614,
+    msglineAddress: "0x0057460B22649fF60d987139687BF6cc46F164B2",
+};
+
+
 
 function wait(ms) {
     return new Promise(resolve => setTimeout(() => resolve(), ms));
@@ -89,6 +107,8 @@ async function main() {
     const goerliWallet = wallet(goerliNetwork.url);
     const mantleWallet = wallet(mantleNetwork.url);
     const zkSyncWallet = wallet(zkSyncNetwork.url);
+    const crabWallet = wallet(crabNetwork.url);
+    const arbSepoliaWallet = wallet(arbitrumSepoliaNetwork.url);
 
     // deploy arb<>eth
     console.log("deploy arb <> eth messager");
@@ -160,6 +180,12 @@ async function main() {
     await axArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
     await axLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
     await axMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
+
+    // deploy crab<>arbitrum sepolia
+    const msglineCrab = await deployContract(crabWallet, "DarwiniaMsglineMessager", crabNetwork.dao, arbitrumSepoliaNetwork.msglineAddress);
+    const msglineArbSepolia = await deployContract(arbSepoliaWallet, "DarwiniaMsglineMessager", arbitrumSepoliaNetwork.dao, crabNetwork.msglineAddress);
+    await msglineCrab.setRemoteMessager(arbitrumSepoliaNetwork.chainId, arbitrumSepoliaNetwork.msglineChainId, msglineArbSepolia.address);
+    await msglineArbSepolia.setRemoteMessager(crabNetwork.chainId, crabNetwork.msglineChainId, msglineCrab.address);
 
     /*
     // deploy debug messager

@@ -4,7 +4,11 @@
             "Eth2ArbSendService": "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119"
         },
         "arbitrum": {
-            "Eth2ArbReceiveService": "0xc95D939Da72ECe8Bd794d42EaEd28974CDb0ADa2"
+            "Eth2ArbReceiveService": "0xc95D939Da72ECe8Bd794d42EaEd28974CDb0ADa2",
+            "layerzeroMessager": "0x509354A4ebf98aCC7a65d2264694A65a2938cac9"
+        },
+        "mantle": {
+            "layerzeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
         }
     },
     "ProxyAdmin": {
@@ -26,5 +30,13 @@
     "ring": {
         "arbitrum": "0x9e523234D36973f9e38642886197D023C88e307e",
         "ethereum": "0x9469D013805bFfB7D3DEBe5E7839237e535ec483"
+    },
+    "usdt": {
+        "arbitrum": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "mantle": "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE"
+    },
+    "usdc": {
+        "arbitrum": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+        "mantle": "0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9"
     }
 }

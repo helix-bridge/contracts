@@ -35,6 +35,7 @@ async function main() {
     //await deployCreate2Deployer('https://rpc.testnet.mantle.xyz', 'v1.0.0');
     //await deployCreate2Deployer('https://rpc.goerli.linea.build', 'v1.0.0');
     //await deployCreate2Deployer('https://arb1.arbitrum.io/rpc', 'v1.0.0');
+    await deployCreate2Deployer('https://rpc.mantle.xyz', 'v1.0.0');
 }
 
 main()

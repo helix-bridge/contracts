@@ -69,7 +69,7 @@ const crabNetwork = {
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     chainId: 44,
     msglineChainId: 44,
-    msglineAddress: "0x0057460B22649fF60d987139687BF6cc46F164B2",
+    msglineAddress: "0x000C61ca18583C9504691f43Ea43C2c638772487",
 };
 
 const arbitrumSepoliaNetwork = {
@@ -77,7 +77,7 @@ const arbitrumSepoliaNetwork = {
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     chainId: 421614,
     msglineChainId: 421614,
-    msglineAddress: "0x0057460B22649fF60d987139687BF6cc46F164B2",
+    msglineAddress: "0x000C61ca18583C9504691f43Ea43C2c638772487",
 };
 
 

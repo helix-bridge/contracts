@@ -28,10 +28,10 @@
             "debugMessager": "0x84f7a56483C100ECb12CbB4A31b7873dAE0d8E9B"
         },
         "crab": {
-            "darwiniaMsglineMessager": "0x0A6359e563d9D771e811028c2498e684e2657054"
+            "darwiniaMsglineMessager": "0xe6C6B5Ff91720ECda6B27bce2fBa490a25B2a015"
         },
         "arbitrum-sepolia": {
-            "darwiniaMsglineMessager": "0x66D86a686e50C98BaC236105eFAFb99Ee7605dc5"
+            "darwiniaMsglineMessager": "0x0c2D2918136E8341d630E12Cb8e9C60b453658B0"
         }
     },
     "ProxyAdmin": {

@@ -60,13 +60,7 @@ contract DarwiniaMsglineMessager is Application, LnAccessController {
         bytes32 key = keccak256(abi.encodePacked(remoteMessager.msglineRemoteChainId, msg.sender));
         address remoteAppAddress = remoteAppReceivers[key];
         require(remoteAppAddress != address(0), "app pair not registered");
-        bytes memory msglinePayload = abi.encodeWithSelector(
-            DarwiniaMsglineMessager.receiveMessage.selector,
-            block.chainid,
-            msg.sender,
-            remoteAppAddress,
-            _message
-        );
+        bytes memory msglinePayload = messagePayload(msg.sender, remoteAppAddress, _message);
         msgline.send{ value: msg.value }(
             remoteMessager.msglineRemoteChainId,
             remoteMessager.messager,
@@ -89,6 +83,16 @@ contract DarwiniaMsglineMessager is Application, LnAccessController {
         (bool success,) = _localAppAddress.call(_message);
         // don't revert to prevent message block
         emit CallResult(_srcAppChainId, success);
+    }
+
+    function messagePayload(address _from, address _to, bytes memory _message) public view returns(bytes memory) {
+        return abi.encodeWithSelector(
+            DarwiniaMsglineMessager.receiveMessage.selector,
+            block.chainid,
+            _from,
+            _to,
+            _message
+        );
     }
 }
 

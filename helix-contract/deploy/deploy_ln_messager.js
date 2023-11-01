@@ -64,6 +64,20 @@ const mantleNetwork = {
     axName: "mantle",
 }
 
+const scrollNetwork = {
+    url: "https://sepolia-rpc.scroll.io/",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+    chainId: 534351,
+    scrollMessager: "0xBa50f5340FB9F3Bd074bD638c9BE13eCB36E603d",
+}
+
+const sepoliaNetwork = {
+    url: "https://rpc2.sepolia.org",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+    chainId: 11155111,
+    scrollMessager: "0x50c7d3e7f7c656493D1D76aaa1a836CedfCBB16A",
+}
+
 function wait(ms) {
     return new Promise(resolve => setTimeout(() => resolve(), ms));
 };
@@ -89,7 +103,10 @@ async function main() {
     const goerliWallet = wallet(goerliNetwork.url);
     const mantleWallet = wallet(mantleNetwork.url);
     const zkSyncWallet = wallet(zkSyncNetwork.url);
+    const scrollWallet = wallet(scrollNetwork.url);
+    const sepoliaWallet = wallet(sepoliaNetwork.url);
 
+    /*
     // deploy arb<>eth
     console.log("deploy arb <> eth messager");
     const Eth2ArbReceiveService = await deployContract(arbWallet, "Eth2ArbReceiveService", arbitrumNetwork.dao, goerliNetwork.chainId);
@@ -160,7 +177,17 @@ async function main() {
     await axArbitrum.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
     await axLinea.setRemoteMessager(mantleNetwork.chainId, mantleNetwork.axName, axMantle.address);
     await axMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
+    */
 
+    // deploy scroll
+    console.log("deploy scroll <> eth messager");
+    const Eth2ScrollReceiveService = await deployContract(scrollWallet, "Eth2ScrollReceiveService", scrollNetwork.dao, scrollNetwork.scrollMessager, sepoliaNetwork.chainId);
+    const Eth2ScrollSendService = await deployContract(sepoliaWallet, "Eth2ScrollSendService", sepoliaNetwork.dao, sepoliaNetwork.scrollMessager, scrollNetwork.chainId);
+    await wait(10000);
+    await Eth2ScrollReceiveService.setRemoteMessager(Eth2ScrollSendService.address);
+    await Eth2ScrollSendService.setRemoteMessager(Eth2ScrollReceiveService.address);
+    await wait(10000);
+    
     /*
     // deploy debug messager
     await deployContract(goerliWallet, "DebugMessager");

@@ -15,6 +15,9 @@
         },
         "mantle": {
             "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
+        },
+        "scroll": {
+            "LayerZeroMessager": "0x463d1730a8527ca58d48ef70c7460b9920346567"
         }
     },
     "ProxyAdmin": {
@@ -44,7 +47,8 @@
     "usdt": {
         "arbitrum": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
         "mantle": "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE",
-        "zkSync": "0x493257fD37EDB34451f62EDf8D2a0C418852bA4C"
+        "zkSync": "0x493257fD37EDB34451f62EDf8D2a0C418852bA4C",
+        "scroll": "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df"
     },
     "usdc": {
         "arbitrum": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",

@@ -26,6 +26,9 @@
             "layerzeroMessager": "0xBE4a32f37d11e8227444837DFb3c634d189ccEDc",
             "axelarMessager": "0xbb593913a4f3E4eE77861f743c697A4cb95837eF",
             "debugMessager": "0x84f7a56483C100ECb12CbB4A31b7873dAE0d8E9B"
+        },
+        "base-goerli": {
+            "layerzeroMessager": "0x463D1730a8527CA58d48EF70C7460B9920346567"
         }
     },
     "ProxyAdmin": {
@@ -48,7 +51,8 @@
         "mantle-goerli": "0xDb06D904AC5Bdff3b8E6Ac96AFedd3381d94CFDD",
         "arbitrum-goerli": "0x543bf1AC41485dc78039b9351563E4Dd13A288cb",
         "linea-goerli": "0x8f3663930211f3DE17619FEB2eeB44c9c3F44a06",
-        "zksync-goerli": "0xb5372ed3bb2CbA63e7908066ac10ee94d30eA839"
+        "zksync-goerli": "0xb5372ed3bb2CbA63e7908066ac10ee94d30eA839",
+        "base-goerli": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB"
     },
     "usdc": {
         "goerli": "0xe9784E0d9A939dbe966b021DE3cd877284DB1B99",

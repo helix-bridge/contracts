@@ -10,6 +10,9 @@
             "axelarMessager": "0x037c7b64c80251Cf5C64Ed8f731c799Dc1856701",
             "debugMessager": "0x2e8D237226041FAFe3F66b6cfc54b064923D454E"
         },
+        "sepolia": {
+            "Eth2ScrollSendService": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
+        },
         "arbitrum-goerli": {
             "Eth2ArbReceiveService": "0x102F8D7Cfe692AA79c17E3958aB00D060Df0B88f",
             "layerzeroMessager": "0x953bE65E685099277F1f09Ebe10746810dC0593D",
@@ -29,6 +32,15 @@
         },
         "base-goerli": {
             "layerzeroMessager": "0x463D1730a8527CA58d48EF70C7460B9920346567"
+        },
+        "crab": {
+            "darwiniaMsglineMessager": "0x1701cEFBb824a107Ce51b3dF87349806A370F7d1"
+        },
+        "arbitrum-sepolia": {
+            "darwiniaMsglineMessager": "0xCddD3e43dA1e9485d4FcD3782DFba04aADCfC9B2"
+        },
+        "scroll-sepolia": {
+            "Eth2ScrollReceiveService": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4"
         }
     },
     "ProxyAdmin": {
@@ -52,14 +64,20 @@
         "arbitrum-goerli": "0x543bf1AC41485dc78039b9351563E4Dd13A288cb",
         "linea-goerli": "0x8f3663930211f3DE17619FEB2eeB44c9c3F44a06",
         "zksync-goerli": "0xb5372ed3bb2CbA63e7908066ac10ee94d30eA839",
-        "base-goerli": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB"
+        "base-goerli": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB",
+        "sepolia": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB",
+        "scroll-sepolia": "0x9C80EdD342b5D179c3a87946fC1F0963BfcaAa09"
     },
     "usdc": {
         "goerli": "0xe9784E0d9A939dbe966b021DE3cd877284DB1B99",
         "mantle-goerli": "0xD610DE267f7590D5bCCE89489ECd2C1A4AfdF76B",
         "arbitrum-goerli": "0xBAD026e314a77e727dF643B02f63adA573a3757c",
         "linea-goerli": "0xeC89AF5FF618bbF667755BE9d63C69F21F1c00C8",
-        "zksync-goerli": "0xAe60e005C560E869a2bad271e38e3C9D78381aFF"
+        "zksync-goerli": "0xAe60e005C560E869a2bad271e38e3C9D78381aFF",
+        "crab": "0x4bA86B5D0F8D2DCB3FC23757cAA6EA71157F74E9",
+        "arbitrum-sepolia": "0x8A87497488073307E1a17e8A12475a94Afcb413f",
+        "sepolia": "0x0ac58Df0cc3542beC4cDa71B16D06C3cCc39f405",
+        "scroll-sepolia": "0x8A87497488073307E1a17e8A12475a94Afcb413f"
     },
     "keyTool": {
         "goerli": "0xCD45731FFF1b250e9433A1F1F5A609F3A19557A5"

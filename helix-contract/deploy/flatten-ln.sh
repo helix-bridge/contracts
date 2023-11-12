@@ -9,5 +9,7 @@ yarn flat contracts/ln/messager/Eth2LineaReceiveService.sol --output $path/Eth2L
 yarn flat contracts/ln/messager/Eth2ArbSendService.sol --output $path/Eth2ArbSendService.sol
 yarn flat contracts/ln/messager/Eth2ArbReceiveService.sol --output $path/Eth2ArbReceiveService.sol
 yarn flat contracts/ln/messager/LayerZeroMessager.sol --output $path/LayerZeroMessager.sol
+yarn flat contracts/ln/messager/Eth2ScrollSendService.sol --output $path/Eth2ScrollSendService.sol
+yarn flat contracts/ln/messager/Eth2ScrollReceiveService.sol --output $path/Eth2ScrollReceiveService.sol
 yarn flat contracts/ln/messager/debugMessager.sol --output $path/debugMessager.sol
 yarn flat contracts/ln/test/TestToken.sol --output $path/TestToken.sol

@@ -68,7 +68,6 @@ const lineaNetwork = {
     ],
 };
 
-<<<<<<< HEAD
 const crabNetwork = {
     url: "https://crab-rpc.darwinia.network",
     tokens: [

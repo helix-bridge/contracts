@@ -4,11 +4,25 @@
             "Eth2ArbSendService": "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119"
         },
         "arbitrum": {
-            "Eth2ArbReceiveService": "0xc95D939Da72ECe8Bd794d42EaEd28974CDb0ADa2"
+            "Eth2ArbReceiveService": "0xc95D939Da72ECe8Bd794d42EaEd28974CDb0ADa2",
+            "LayerZeroMessager": "0x509354A4ebf98aCC7a65d2264694A65a2938cac9"
+        },
+        "polygon": {
+            "LayerZeroMessager": "0x463D1730a8527CA58d48EF70C7460B9920346567"
+        },
+        "zkSync": {
+            "LayerZeroMessager": "0x96892F3EaD26515592Da38432cFABad991BBd69d"
+        },
+        "mantle": {
+            "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
+        },
+        "scroll": {
+            "LayerZeroMessager": "0x463d1730a8527ca58d48ef70c7460b9920346567"
         }
     },
     "ProxyAdmin": {
-        "common": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB"
+        "common": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+        "zkSync": "0xA0d8a3C04580a8503ed3Ff30deBb22B83EE615F4"
     },
     "LnOppositeBridgeLogic": {
         "common": "0x90873fa1bbd028F22277567530A22E05f7721D37"
@@ -17,14 +31,27 @@
         "common": "0x48d769d5C7ff75703cDd1543A1a2ed9bC9044A23"
     },
     "LnDefaultBridgeLogic": {
-        "common": "0x8af688056c6614acb5A78c62e1f9f49022C0452f"
+        "common": "0x8af688056c6614acb5A78c62e1f9f49022C0452f",
+        "zkSync": "0xefD0DE72e407A55E9b624A91E6d5D6A0CE8490D1"
     },
     "LnDefaultBridgeProxy": {
-        "common": "0x94C614DAeFDbf151E1BB53d6A201ae5fF56A9337"
+        "common": "0x94C614DAeFDbf151E1BB53d6A201ae5fF56A9337",
+        "zkSync": "0x767Bc046c989f5e63683fB530f939DD34b91ceAC"
     },
     "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
     "ring": {
         "arbitrum": "0x9e523234D36973f9e38642886197D023C88e307e",
-        "ethereum": "0x9469D013805bFfB7D3DEBe5E7839237e535ec483"
+        "ethereum": "0x9469D013805bFfB7D3DEBe5E7839237e535ec483",
+        "polygon": "0x9C1C23E60B72Bc88a043bf64aFdb16A02540Ae8f"
+    },
+    "usdt": {
+        "arbitrum": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "mantle": "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE",
+        "zkSync": "0x493257fD37EDB34451f62EDf8D2a0C418852bA4C",
+        "scroll": "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df"
+    },
+    "usdc": {
+        "arbitrum": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
+        "mantle": "0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9"
     }
 }

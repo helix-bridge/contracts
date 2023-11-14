@@ -40,6 +40,17 @@ const crabNetwork = {
 const arbitrumSepoliaNetwork = {
     name: "arbitrum-sepolia",
     url: "https://sepolia-rollup.arbitrum.io/rpc",
+}
+
+const sepoliaNetwork = {
+    name: "sepolia",
+    url: "https://rpc-sepolia.rockx.com",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+};
+
+const scrollSepoliaNetwork = {
+    name: "scroll-sepolia",
+    url: "https://sepolia-rpc.scroll.io/",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
 };
 
@@ -84,7 +95,7 @@ async function deploy() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    const chains = [goerliNetwork, lineaGoerliNetwork, arbitrumGoerliNetwork, mantleGoerliNetwork, crabNetwork, arbitrumSepoliaNetwork];
+    const chains = [goerliNetwork, lineaGoerliNetwork, arbitrumGoerliNetwork, mantleGoerliNetwork, sepoliaNetwork, scrollSepoliaNetwork];
     for (const chain of chains) {
         const w = wallet(chain.url);
         const proxyAdmin = configure.ProxyAdmin.others;

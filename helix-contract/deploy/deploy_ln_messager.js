@@ -62,7 +62,25 @@ const mantleNetwork = {
     axGateway: "0xe432150cce91c13a887f7D836923d5597adD8E31",
     axGasService: "0xbE406F0189A0B4cf3A05C286473D23791Dd44Cc6",
     axName: "mantle",
-}
+};
+
+const crabNetwork = {
+    url: "https://crab-rpc.darwinia.network",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+    chainId: 44,
+    msglineChainId: 44,
+    msglineAddress: "0x000C61ca18583C9504691f43Ea43C2c638772487",
+};
+
+const arbitrumSepoliaNetwork = {
+    url: "https://sepolia-rollup.arbitrum.io/rpc",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+    chainId: 421614,
+    msglineChainId: 421614,
+    msglineAddress: "0x000C61ca18583C9504691f43Ea43C2c638772487",
+};
+
+
 
 const scrollNetwork = {
     url: "https://sepolia-rpc.scroll.io/",
@@ -103,6 +121,8 @@ async function main() {
     const goerliWallet = wallet(goerliNetwork.url);
     const mantleWallet = wallet(mantleNetwork.url);
     const zkSyncWallet = wallet(zkSyncNetwork.url);
+    const crabWallet = wallet(crabNetwork.url);
+    const arbSepoliaWallet = wallet(arbitrumSepoliaNetwork.url);
     const scrollWallet = wallet(scrollNetwork.url);
     const sepoliaWallet = wallet(sepoliaNetwork.url);
 
@@ -179,6 +199,12 @@ async function main() {
     await axMantle.setRemoteMessager(lineaNetwork.chainId, lineaNetwork.axName, axLinea.address);
     */
 
+    // deploy crab<>arbitrum sepolia
+    const msglineCrab = await deployContract(crabWallet, "DarwiniaMsglineMessager", crabNetwork.dao, arbitrumSepoliaNetwork.msglineAddress);
+    const msglineArbSepolia = await deployContract(arbSepoliaWallet, "DarwiniaMsglineMessager", arbitrumSepoliaNetwork.dao, crabNetwork.msglineAddress);
+    await msglineCrab.setRemoteMessager(arbitrumSepoliaNetwork.chainId, arbitrumSepoliaNetwork.msglineChainId, msglineArbSepolia.address);
+    await msglineArbSepolia.setRemoteMessager(crabNetwork.chainId, crabNetwork.msglineChainId, msglineCrab.address);
+
     // deploy scroll
     console.log("deploy scroll <> eth messager");
     const Eth2ScrollReceiveService = await deployContract(scrollWallet, "Eth2ScrollReceiveService", scrollNetwork.dao, scrollNetwork.scrollMessager, sepoliaNetwork.chainId);
@@ -187,7 +213,6 @@ async function main() {
     await Eth2ScrollReceiveService.setRemoteMessager(Eth2ScrollSendService.address);
     await Eth2ScrollSendService.setRemoteMessager(Eth2ScrollReceiveService.address);
     await wait(10000);
-    
     /*
     // deploy debug messager
     await deployContract(goerliWallet, "DebugMessager");

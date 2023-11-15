@@ -26,6 +26,16 @@ const lineaNetwork = {
     deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
 };
 
+const crabNetwork = {
+    url: "https://crab-rpc.darwinia.network",
+    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
+};
+
+const arbitrumSepolia = {
+    url: "https://sepolia-rollup.arbitrum.io/rpc",
+    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
+};
+
 const sepoliaNetwork = {
     url: "https://rpc-sepolia.rockx.com",
     deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
@@ -63,8 +73,8 @@ async function main() {
     const networks = [goerliNetwork, mantleNetwork, arbitrumNetwork, lineaNetwork, sepoliaNetwork, scrollSepoliaNetwork];
     for (const network of networks) {
         const w = wallet(network.url);
-        //const logicAddress = await deployLnDefaultBridge(w, network.deployer, "ln-default-logic-v1.0.0");
-        const logicAddress = await deployLnOppositeBridge(w, network.deployer, "ln-opposite-logic-v1.0.0");
+        const logicAddress = await deployLnDefaultBridge(w, network.deployer, "ln-default-logic-v1.0.0");
+        //const logicAddress = await deployLnOppositeBridge(w, network.deployer, "ln-opposite-logic-v1.0.0");
         console.log("finish to deploy logic contract, network is: ", network.url);
     }
     return;

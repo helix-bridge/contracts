@@ -31,6 +31,17 @@ const mantleGoerliNetwork = {
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
 };
 
+const crabNetwork = {
+    name: "crab",
+    url: "https://crab-rpc.darwinia.network",
+    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+};
+
+const arbitrumSepoliaNetwork = {
+    name: "arbitrum-sepolia",
+    url: "https://sepolia-rollup.arbitrum.io/rpc",
+}
+
 const sepoliaNetwork = {
     name: "sepolia",
     url: "https://rpc-sepolia.rockx.com",

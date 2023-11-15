@@ -33,14 +33,8 @@
         "base-goerli": {
             "layerzeroMessager": "0x463D1730a8527CA58d48EF70C7460B9920346567"
         },
-        "crab": {
-            "darwiniaMsglineMessager": "0x1701cEFBb824a107Ce51b3dF87349806A370F7d1"
-        },
         "arbitrum-sepolia": {
             "darwiniaMsglineMessager": "0xCddD3e43dA1e9485d4FcD3782DFba04aADCfC9B2"
-        },
-        "scroll-sepolia": {
-            "Eth2ScrollReceiveService": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4"
         }
     },
     "ProxyAdmin": {

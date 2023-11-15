@@ -44,7 +44,21 @@ const zkSyncGoerliNetwork = {
     url: "https://zksync2-testnet.zksync.dev",
     chainId: 280,
     eth: "0x0000000000000000000000000000000000000000",
-}
+};
+
+const crabNetwork = {
+    name: "crab",
+    url: "https://crab-rpc.darwinia.network",
+    chainId: 44,
+    crab: "0x0000000000000000000000000000000000000000",
+};
+
+const arbitrumSepoliaNetwork = {
+    name: "arbitrum-sepolia",
+    url: "https://sepolia-rollup.arbitrum.io/rpc",
+    chainId: 421614,
+    eth: "0x0000000000000000000000000000000000000000",
+};
 
 function wait(ms) {
     return new Promise(resolve => setTimeout(() => resolve(), ms));
@@ -153,7 +167,26 @@ async function connectUsingAxelar(configure, leftWallet, rightWallet, leftNetwor
     await right.setSendService(leftNetwork.chainId, left.address, rightMessagerAddress);
 }
 
-async function connectAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+async function connectUsingDarwiniaMsgport(configure, leftWallet, rightWallet, leftNetwork, rightNetwork) {
+    const leftMessagerAddress = configure.messagers[leftNetwork.name].darwiniaMsglineMessager;
+    const rightMessagerAddress = configure.messagers[rightNetwork.name].darwiniaMsglineMessager;
+    const leftBridgeProxy = leftNetwork.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
+    const rightBridgeProxy = rightNetwork.chainId === 280 ? configure.LnDefaultBridgeProxy.zkSync : configure.LnDefaultBridgeProxy.others;
+
+    const leftMessager = await ethers.getContractAt("DarwiniaMsglineMessager", leftMessagerAddress, leftWallet);
+    const rightMessager = await ethers.getContractAt("DarwiniaMsglineMessager", rightMessagerAddress, rightWallet);
+    console.log("start to connect network by using darwinia message port");
+    const left = await ethers.getContractAt("LnDefaultBridge", leftBridgeProxy, leftWallet);
+    const right = await ethers.getContractAt("LnDefaultBridge", rightBridgeProxy, rightWallet);
+    await leftMessager.authoriseAppCaller(left.address, true);
+    await rightMessager.authoriseAppCaller(right.address, true);
+    await left.setSendService(rightNetwork.chainId, right.address, leftMessagerAddress);
+    await right.setReceiveService(leftNetwork.chainId, left.address, rightMessagerAddress);
+    await left.setReceiveService(rightNetwork.chainId, right.address, leftMessagerAddress);
+    await right.setSendService(leftNetwork.chainId, left.address, rightMessagerAddress);
+}
+
+async function connectAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet) {
     // arbitrum L2 message
     await connectArbAndEth(configure, arbWallet, goerliWallet);
     // linea L2 message
@@ -166,6 +199,7 @@ async function connectAll(configure, arbWallet, lineaWallet, goerliWallet, mantl
     await connectUsingLayerzero(configure, zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork);
     await connectUsingLayerzero(configure, zkSyncWallet, goerliWallet, zkSyncGoerliNetwork, goerliNetwork);
     await connectUsingAxelar(configure, mantleWallet, goerliWallet, mantleGoerliNetwork, goerliNetwork);
+    await connectUsingDarwiniaMsgport(configure, crabWallet, arbSepoliaWallet, crabNetwork, arbitrumSepoliaNetwork);
 }
 
 async function registerToken(configure, contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken) {
@@ -211,7 +245,7 @@ async function registerToken(configure, contractName, srcWallet, dstWallet, srcN
     console.log(`finished register token bridge: ${contractName}, ${srcNetwork.chainId}->${dstNetwork.chainId}, ${srcToken}->${dstToken}`);
 }
 
-async function registerAllToken(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+async function registerAllToken(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet) {
     //arb<>eth
     await registerToken(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdc", "usdc");
     await registerToken(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc");
@@ -285,6 +319,10 @@ async function registerAllToken(configure, arbWallet, lineaWallet, goerliWallet,
     await registerToken(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdc", "usdc");
     await registerToken(configure, "LnDefaultBridge", zkSyncWallet, mantleWallet, zkSyncGoerliNetwork, mantleGoerliNetwork, "usdt", "usdt");
     await registerToken(configure, "LnDefaultBridge", mantleWallet, zkSyncWallet, mantleGoerliNetwork, zkSyncGoerliNetwork, "usdt", "usdt");
+
+    // crab<>arbitrum sepoliea
+    await registerToken(configure, "LnDefaultBridge", crabWallet, arbSepoliaWallet, crabNetwork, arbitrumSepoliaNetwork, "usdc", "usdc");
+    await registerToken(configure, "LnDefaultBridge", arbSepoliaWallet, crabWallet, arbitrumSepoliaNetwork, crabNetwork, "usdc", "usdc");
 }
 
 async function registerRelayer(configure, contractName, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken, increaseMargin) {
@@ -369,9 +407,9 @@ async function registerRelayer(configure, contractName, srcWallet, dstWallet, sr
     console.log(`finished register relayer: ${contractName}, ${srcNetwork.chainId}->${dstNetwork.chainId}, ${srcToken}->${dstToken}`);
 }
 
-async function registerAllRelayer(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+async function registerAllRelayer(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet) {
+    const increaseMargin = true;
     //arb<>eth
-    const increaseMargin = false;
     console.log("start to register arb<>eth relayer");
     await registerRelayer(configure, "LnOppositeBridge", arbWallet, goerliWallet, arbitrumGoerliNetwork, goerliNetwork, "usdc", "usdc", increaseMargin);
     await registerRelayer(configure, "LnDefaultBridge", goerliWallet, arbWallet, goerliNetwork, arbitrumGoerliNetwork, "usdc", "usdc", increaseMargin);
@@ -447,6 +485,10 @@ async function registerAllRelayer(configure, arbWallet, lineaWallet, goerliWalle
     await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "usdt", "usdt", increaseMargin);
     await registerRelayer(configure, "LnDefaultBridge", lineaWallet, zkSyncWallet, lineaGoerliNetwork, zkSyncGoerliNetwork, "eth", "eth", increaseMargin);
     await registerRelayer(configure, "LnDefaultBridge", zkSyncWallet, lineaWallet, zkSyncGoerliNetwork, lineaGoerliNetwork, "eth", "eth", increaseMargin);
+
+    // crab<>arbitrum sepolia
+    await registerRelayer(configure, "LnDefaultBridge", crabWallet, arbSepoliaWallet, crabNetwork, arbitrumSepoliaNetwork, "usdc", "usdc", increaseMargin);
+    await registerRelayer(configure, "LnDefaultBridge", arbSepoliaWallet, crabWallet, arbitrumSepoliaNetwork, crabNetwork, "usdc", "usdc", increaseMargin);
 }
 
 async function mintToken(configure, tokenSymbol, network, wallet, to) {
@@ -475,7 +517,7 @@ async function approveToken(configure, tokenSymbol, network, wallet) {
     console.log("finished to approve", tokenSymbol);
 }
 
-async function mintAll(configure, relayer, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+async function mintAll(configure, relayer, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet) {
     await mintToken(configure, "usdc", goerliNetwork, goerliWallet, relayer);
     await mintToken(configure, "usdt", goerliNetwork, goerliWallet, relayer);
     await mintToken(configure, "usdc", lineaGoerliNetwork, lineaWallet, relayer);
@@ -486,9 +528,11 @@ async function mintAll(configure, relayer, arbWallet, lineaWallet, goerliWallet,
     await mintToken(configure, "usdt", mantleGoerliNetwork, mantleWallet, relayer);
     await mintToken(configure, "usdt", zkSyncGoerliNetwork, zkSyncWallet, relayer);
     await mintToken(configure, "usdc", zkSyncGoerliNetwork, zkSyncWallet, relayer);
+    await mintToken(configure, "usdc", crabNetwork, crabWallet, relayer);
+    await mintToken(configure, "usdc", arbitrumSepoliaNetwork, arbSepoliaWallet, relayer);
 }
 
-async function approveAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet) {
+async function approveAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet) {
     await approveToken(configure, "usdc", goerliNetwork, goerliWallet);
     await approveToken(configure, "usdt", goerliNetwork, goerliWallet);
     await approveToken(configure, "mnt", goerliNetwork, goerliWallet);
@@ -500,6 +544,8 @@ async function approveAll(configure, arbWallet, lineaWallet, goerliWallet, mantl
     await approveToken(configure, "usdt", mantleGoerliNetwork, mantleWallet);
     await approveToken(configure, "usdt", zkSyncGoerliNetwork, zkSyncWallet);
     await approveToken(configure, "usdc", zkSyncGoerliNetwork, zkSyncWallet);
+    await approveToken(configure, "usdc", crabNetwork, crabWallet);
+    await approveToken(configure, "usdc", arbitrumSepoliaNetwork, arbSepoliaWallet);
 }
 
 // 2. deploy mapping token factory
@@ -514,13 +560,15 @@ async function main() {
     const goerliWallet = wallet(goerliNetwork.url);
     const mantleWallet = wallet(mantleGoerliNetwork.url);
     const zkSyncWallet = wallet(zkSyncGoerliNetwork.url);
+    const crabWallet = wallet(crabNetwork.url);
+    const arbSepoliaWallet = wallet(arbitrumSepoliaNetwork.url);
 
     // set messager service
-    //await connectAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
-    //await registerAllToken(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
-    //await mintAll(configure, relayer, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
-    //await approveAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
-    //await registerAllRelayer(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet);
+    //await connectAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet);
+    //await registerAllToken(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet);
+    //await mintAll(configure, relayer, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet);
+    //await approveAll(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet);
+    await registerAllRelayer(configure, arbWallet, lineaWallet, goerliWallet, mantleWallet, zkSyncWallet, crabWallet, arbSepoliaWallet);
     console.log("finished!");
 }
 

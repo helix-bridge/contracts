@@ -21,7 +21,11 @@
             "LayerZeroMessager": "0x463d1730a8527ca58d48ef70c7460b9920346567"
         },
         "darwinia": {
-            "DarwiniaMsglineMessager": "0x6035Eb7783d7Aab8d0a57a7b154f5DD5D5477Ff2"
+            "DarwiniaMsglineMessager": "0x6035Eb7783d7Aab8d0a57a7b154f5DD5D5477Ff2",
+            "DarwiniaSub2SubMessager": "0x9dF64c435F02fb46bd8eB3757D3dF42dDA912bDe"
+        },
+        "crab": {
+            "DarwiniaSub2SubMessager": "0x9dF64c435F02fb46bd8eB3757D3dF42dDA912bDe"
         }
     },
     "ProxyAdmin": {
@@ -47,7 +51,12 @@
         "arbitrum": "0x9e523234D36973f9e38642886197D023C88e307e",
         "ethereum": "0x9469D013805bFfB7D3DEBe5E7839237e535ec483",
         "polygon": "0x9C1C23E60B72Bc88a043bf64aFdb16A02540Ae8f",
-        "darwinia": "0x0000000000000000000000000000000000000000"
+        "darwinia": "0x0000000000000000000000000000000000000000",
+        "crab": "0x273131F7CB50ac002BDd08cA721988731F7e1092"
+    },
+    "crab": {
+        "crab": "0x0000000000000000000000000000000000000000",
+        "darwinia": "0x656567Eb75b765FC320783cc6EDd86bD854b2305"
     },
     "usdt": {
         "arbitrum": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",

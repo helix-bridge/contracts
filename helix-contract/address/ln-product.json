@@ -26,6 +26,12 @@
         },
         "crab": {
             "DarwiniaSub2SubMessager": "0x9dF64c435F02fb46bd8eB3757D3dF42dDA912bDe"
+        },
+        "bsc": {
+            "LayerZeroMessager": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
+        },
+        "base": {
+            "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
         }
     },
     "ProxyAdmin": {
@@ -62,12 +68,15 @@
         "arbitrum": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
         "mantle": "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE",
         "zkSync": "0x493257fD37EDB34451f62EDf8D2a0C418852bA4C",
-        "scroll": "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df"
+        "scroll": "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df",
+        "bsc": "0x55d398326f99059fF775485246999027B3197955"
     },
     "usdc": {
         "arbitrum": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",
         "mantle": "0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9",
         "zkSync": "0x3355df6D4c9C3035724Fd0e3914dE96A5a83aaf4",
-        "scroll": "0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4"
+        "scroll": "0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4",
+        "bsc": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+        "base": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     }
 }

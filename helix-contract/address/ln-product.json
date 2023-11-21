@@ -35,6 +35,9 @@
         },
         "op": {
             "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
+        },
+        "linea": {
+            "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
         }
     },
     "ProxyAdmin": {
@@ -73,7 +76,8 @@
         "zkSync": "0x493257fD37EDB34451f62EDf8D2a0C418852bA4C",
         "scroll": "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df",
         "bsc": "0x55d398326f99059fF775485246999027B3197955",
-        "op": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58"
+        "op": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+        "linea": "0xA219439258ca9da29E9Cc4cE5596924745e12B93"
     },
     "usdc": {
         "arbitrum": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",

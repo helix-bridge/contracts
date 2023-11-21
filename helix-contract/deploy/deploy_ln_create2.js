@@ -21,7 +21,7 @@ async function deployCreate2Deployer(networkUrl, version) {
         from: w.address,
         to: "0x914d7Fec6aaC8cd542e72Bca78B30650d45643d7",
         data: `${salt}${bytecode.slice(2)}`,
-        gasPrice: 100000000,
+        gasPrice: 10000000,
     };
     const tx = await w.sendTransaction(unsignedTransaction);
     console.log(`deploy create2 tx: ${tx.hash}, salt: ${salt}`);
@@ -35,7 +35,11 @@ async function main() {
     //await deployCreate2Deployer('https://rpc.testnet.mantle.xyz', 'v1.0.0');
     //await deployCreate2Deployer('https://rpc.goerli.linea.build', 'v1.0.0');
     //await deployCreate2Deployer('https://arb1.arbitrum.io/rpc', 'v1.0.0');
-    await deployCreate2Deployer('https://rpc.mantle.xyz', 'v1.0.0');
+    //await deployCreate2Deployer('https://rpc.mantle.xyz', 'v1.0.0');
+    //await deployCreate2Deployer('https://crab-rpc.darwinia.network', 'v1.0.0');
+    //await deployCreate2Deployer('https://binance.llamarpc.com', 'v1.0.0');
+    //await deployCreate2Deployer('https://mainnet.base.org', 'v1.0.0');
+    await deployCreate2Deployer('https://optimism.llamarpc.com', 'v1.0.0');
 }
 
 main()

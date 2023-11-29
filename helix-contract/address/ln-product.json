@@ -38,6 +38,12 @@
         },
         "linea": {
             "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
+        },
+        "polygon-zkEvm": {
+            "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
+        },
+        "gnosis": {
+            "LayerZeroMessager": "0x3F7DF5866591e7E48D18C8EbeAE61Bc343a63283"
         }
     },
     "ProxyAdmin": {
@@ -77,7 +83,10 @@
         "scroll": "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df",
         "bsc": "0x55d398326f99059fF775485246999027B3197955",
         "op": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
-        "linea": "0xA219439258ca9da29E9Cc4cE5596924745e12B93"
+        "linea": "0xA219439258ca9da29E9Cc4cE5596924745e12B93",
+        "polygon": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+        "polygon-zkEvm": "0x1E4a5963aBFD975d8c9021ce480b42188849D41d",
+        "gonisis": "0x4ECaBa5870353805a9F068101A40E0f32ed605C6"
     },
     "usdc": {
         "arbitrum": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8",

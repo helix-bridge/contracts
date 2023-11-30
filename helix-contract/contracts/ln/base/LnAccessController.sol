@@ -7,6 +7,7 @@ pragma solidity ^0.8.17;
 contract LnAccessController {
     address public dao;
     address public operator;
+    address public pendingDao;
 
     mapping(address=>bool) public callerWhiteList;
 
@@ -39,7 +40,14 @@ contract LnAccessController {
     }
 
     function transferOwnership(address _dao) onlyDao external {
-        dao = _dao;
+        pendingDao = _dao;
+    }
+
+    function acceptOwnership() external {
+        address newDao = msg.sender;
+        require(pendingDao == newDao, "!pendingDao");
+        delete pendingDao;
+        dao = newDao;
     }
 }
 

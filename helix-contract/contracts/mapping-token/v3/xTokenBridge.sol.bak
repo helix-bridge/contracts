@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.17;
+
+import "./base/xTokenBacking.sol";
+import "./base/xTokenIssuing.sol";
+import "./interfaces/IMessager.sol";
+import "../../utils/AccessController.sol";
+import "../../utils/DailyLimit.sol";
+
+contract xTokenMessageLineMessager is Application {
+    struct RemoteBridgeInfo {
+        address messager;
+        address tokenBridge;
+    }
+
+    string public version;
+    uint256 public protocolFee;
+    // remoteChainId => info
+    mapping(uint256 => RemoteBridgeInfo) bridges;
+
+    // common method
+    modifier calledByMessager() {
+        uint256 _remoteChainId = _fromChainId();
+        RemoteBridgeInfo memory bridgeInfo = bridges[_remoteChainId];
+        require(msg.sender == bridgeInfo.messager, "invalid msg sender");
+        require(_xmsgSender() == bridgeInfo.tokenBridge, "invalid source msg sender");
+        _;
+    }
+
+    function withdrawProtocolFee(address _receiver, uint256 _amount) external onlyDao {
+        require(_amount <= protocolFee, "not enough fee");
+        TokenTransferHelper.safeTransferNative(_receiver, _amount);
+    }
+
+    function totalFee(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) external returns(uint256) {
+        RemoteBridgeInfo memory bridgeInfo = bridges[_remoteChainId];
+        require(bridgeInfo.messager != address(0), "bridge not configured");
+        return IMessager(bridgeInfo.messager).fee(_remoteChainId, bridgeInfo.tokenBridge, _payload, _extParams) + protocolFee;
+    }
+
+    function _sendMessage(
+        uint256 _remoteChainId,
+        bytes memory _payload,
+        uint256 feePrepaid,
+        bytes memory _extParams
+    ) internal whenNotPaused override returns(bytes32 messageId, uint256 fee) {
+        RemoteBridgeInfo memory bridgeInfo = bridges[_remoteChainId];
+        require(bridgeInfo.messager != address(0), "bridge not configured");
+        fee = IMessager(bridgeInfo.messager).fee(_remoteChainId, bridgeInfo.tokenBridge, _payload, _extParams);
+        IMessager(bridgeInfo.messager).send{value: feePrepaid - fee - protocolFee}(
+            _remoteChainId,
+            bridgeInfo.tokenBridge,
+            _payload,
+            _extParams
+        );
+        messageId = IMessager(bridgeInfo.messager).sentMessageId();
+    }
+
+    function _assertMessageIsDelivered(uint256 _remoteChainId, bytes32 _transferId) internal override {
+        RemoteBridgeInfo memory bridgeInfo = bridges[_remoteChainId];
+        require(bridgeInfo.messager != address(0), "bridge not configured");
+        require(IMessager(bridgeInfo.messager).dones(_transferId), "message not delivered");
+    }
+
+    function _messageId() internal returns(bytes32) {
+        return IMessager(msg.sender).recvMessageId();
+    }
+
+    function _version() internal returns(string memory) {
+        return version;
+    }
+
+    // settings
+    function updateBackingGuard(address _guard) external onlyDao {
+        _updateBackingGuard(_guard);
+    }
+
+    function updateIssuingGuard(address _guard) external onlyDao {
+        _updateIssuingGuard(_guard);
+    }
+
+    function registerOriginalToken(
+        uint256 _remoteChainId,
+        address _originalToken,
+        address _xToken
+    ) external onlyDao {
+        _registerOriginalToken(_remoteChainId, _originalToken, _xToken);
+    }
+
+    function registerxToken(
+        uint256 _originalChainId,
+        address _originalToken,
+        string memory _originalChainName,
+        string memory _name,
+        string memory _symbol,
+        uint8 _decimals,
+        uint256 _dailyLimit
+    ) external onlyDao {
+        address xToken = _registerxToken(
+            _originalChainId,
+            _originalToken,
+            _originalChainName,
+            _name,
+            _symbol,
+            _decimals
+        );
+        _setDailyLimit(xToken, _dailyLimit);
+    }
+
+    function updatexToken(
+        uint256 _originalChainId,
+        address _originalToken,
+        address _xToken
+    ) external onlyDao {
+        _updatexToken(_originalChainId, _originalToken, _xToken);
+    }
+
+    function setDailyLimit(address _token, uint256 _dailyLimit) external onlyDao {
+        _setDailyLimit(_token, _dailyLimit);
+    }
+
+    // in backing contract, it only know the original token info
+    // in issuing contract, it know the mapping relationship of original token and it's mapping token xToken
+    // we use original token info in messages
+
+    // method for backing
+    // receive unlock original token message from remote issuing contract
+    function unlockFromRemote(
+        address _originalToken,
+        address _recipient,
+        uint256 _amount
+    ) external calledByMessager whenNotPaused {
+        bytes32 transferId = _messageId();
+        _unlockFromRemote(_fromChainId(), transferId, _originalToken, _recipient, _amount);
+    }
+
+    // when lock and issuing failed
+    // receive unlock(refund) message from remote issuing contract
+    // this will refund original token to original sender
+    function handleUnlockForIssuingFailureFromRemote(
+        address _originalToken,
+        address _originalSender,
+        uint256 _amount
+    ) external calledByMessager whenNotPaused {
+        bytes32 transferId = _messageId();
+        _handleUnlockForIssuingFailureFromRemote(_fromChainId(), transferId, _originalToken, _originalSender, _amount);
+    }
+
+    // method for issuing
+    // receive issuing xToken message from remote backing contract
+    function issuexToken(
+        address _originalToken,
+        address _recipient,
+        uint256 _amount
+    ) external calledByMessager whenNotPaused {
+        bytes32 transferId = _messageId();
+        _issuexToken(_fromChainId(), transferId, _originalToken, _recipient, _amount);
+    }
+
+    // when burn and unlock failed
+    // receive reIssue(refund) message from remote backing contract
+    // this will refund xToken to original sender
+    function handleIssuingForUnlockFailureFromRemote(
+        address _originalToken,
+        address _originalSender,
+        uint256 _amount
+    ) external calledByMessager whenNotPaused {
+        bytes32 transferId = _messageId();
+        _handleIssuingForUnlockFailureFromRemote(_fromChainId(), transferId, _originalToken, _originalSender, _amount);
+    }
+}
+

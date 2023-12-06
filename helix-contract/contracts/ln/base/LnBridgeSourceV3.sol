@@ -108,6 +108,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
     event PenaltyReserveUpdated(address provider, address sourceToken, uint112 updatedPanaltyReserve);
     event LiquidityWithdrawn(bytes32 transferId, address provider, uint112 amount);
     event TransferSlashed(bytes32 transferId, address provider, address slasher, uint112 slashAmount);
+    event LnProviderPaused(address provider, uint256 remoteChainId, address sourceToken, address targetToken,  bool paused);
 
     modifier allowRemoteCall(uint256 _remoteChainId) {
         _verifyRemote(_remoteChainId);
@@ -274,6 +275,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
     ) external {
         bytes32 providerKey = getProviderKey(_remoteChainId, msg.sender, _sourceToken, _targetToken);
         srcProviders[providerKey].pause = true;
+        emit LnProviderPaused(msg.sender, _remoteChainId, _sourceToken, _targetToken, true);
     }
 
     function providerUnpause(
@@ -283,6 +285,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
     ) external {
         bytes32 providerKey = getProviderKey(_remoteChainId, msg.sender, _sourceToken, _targetToken);
         srcProviders[providerKey].pause = false;
+        emit LnProviderPaused(msg.sender, _remoteChainId, _sourceToken, _targetToken, false);
     }
 
     function totalFee(
@@ -414,6 +417,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
             // pause this provider if slashed
             bytes32 providerKey = getProviderKey(_remoteChainId, _lnProvider, tokenInfo.sourceToken, tokenInfo.targetToken);
             srcProviders[providerKey].pause = true;
+            emit LnProviderPaused(_lnProvider, _remoteChainId, tokenInfo.sourceToken, tokenInfo.targetToken, true);
         } else {
             // this means the slasher help the provider relay message and get no reward
             // redeposit penalty(the fee and penalty) for lnProvider
@@ -446,7 +450,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
         TransferParams memory _params,
         uint64 _nonce,
         uint112 _remoteAmount
-    ) internal view returns(bytes32) {
+    ) public view returns(bytes32) {
         return keccak256(abi.encodePacked(
             _nonce,
             block.chainid,

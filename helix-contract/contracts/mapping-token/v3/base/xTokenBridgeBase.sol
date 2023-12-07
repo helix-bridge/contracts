@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "@zeppelin-solidity/contracts/security/Pausable.sol";
 import "../../../interfaces/IMessager.sol";
 import "../../../utils/AccessController.sol";
 import "../../../utils/DailyLimit.sol";
 import "../../../utils/TokenTransferHelper.sol";
 
-contract xTokenBridgeBase is Pausable, AccessController, DailyLimit {
+contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLimit {
     struct MessagerService {
         address sendService;
         address receiveService;
@@ -15,6 +16,7 @@ contract xTokenBridgeBase is Pausable, AccessController, DailyLimit {
 
     string public version;
     uint256 public protocolFee;
+    uint256 public protocolFeeReserved;
     address public guard;
     // remoteChainId => info
     mapping(uint256 => MessagerService) public messagers;
@@ -28,6 +30,19 @@ contract xTokenBridgeBase is Pausable, AccessController, DailyLimit {
 
     receive() external payable {}
 
+    function initialize(address _dao, string calldata _version) public initializer {
+        _initialize(_dao);
+        version = _version;
+    }
+
+    function unpause() external onlyOperator {
+        _unpause();
+    }
+
+    function pause() external onlyOperator {
+        _pause();
+    }
+
     function setSendService(uint256 _remoteChainId, address _remoteBridge, address _service) external onlyDao {
         messagers[_remoteChainId].sendService = _service;
         ILowLevelMessageSender(_service).registerRemoteReceiver(_remoteChainId, _remoteBridge);
@@ -39,7 +54,8 @@ contract xTokenBridgeBase is Pausable, AccessController, DailyLimit {
     }
 
     function withdrawProtocolFee(address _receiver, uint256 _amount) external onlyDao {
-        require(_amount <= protocolFee, "not enough fee");
+        require(_amount <= protocolFeeReserved, "not enough fee");
+        protocolFeeReserved -= _amount;
         TokenTransferHelper.safeTransferNative(_receiver, _amount);
     }
 
@@ -51,6 +67,7 @@ contract xTokenBridgeBase is Pausable, AccessController, DailyLimit {
     ) internal whenNotPaused returns(bytes32 messageId) {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.sendService != address(0), "bridge not configured");
+        protocolFeeReserved += protocolFee;
         ILowLevelMessageSender(service.sendService).sendMessage{value: feePrepaid - protocolFee}(
             _remoteChainId,
             _payload,

@@ -31,13 +31,19 @@ contract xTokenBacking is xTokenBridgeBase {
     event RemoteIssuingFailure(bytes32 refundId, bytes32 transferId, address mappingToken, address originalSender, uint256 amount, uint256 fee);
     event TokenUnlockedForFailed(bytes32 transferId, uint256 remoteChainId, address token, address recipient, uint256 amount);
 
+    function setwToken(address _wtoken) external onlyDao {
+        wToken = _wtoken;
+    }
+
     function registerOriginalToken(
         uint256 _remoteChainId,
         address _originalToken,
-        address _xToken
+        address _xToken,
+        uint256 _dailyLimit
     ) external onlyDao {
         bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _originalToken));
         originalToken2xTokens[key] = _xToken;
+        _setDailyLimit(_originalToken, _dailyLimit);
     }
 
     function lockAndRemoteIssuing(
@@ -65,17 +71,29 @@ contract xTokenBacking is xTokenBridgeBase {
                 _amount
             );
         }
-        bytes memory issueMappingToken = abi.encodeWithSelector(
+        bytes memory issuxToken = encodeIssuexToken(
+            _originalToken,
+            _recipient,
+            _amount
+        );
+        bytes32 transferId = _sendMessage(_remoteChainId, issuxToken, prepaid, _extParams);
+        bytes32 lockMessageHash = keccak256(abi.encodePacked(transferId, _remoteChainId, _originalToken, msg.sender, _amount));
+        lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
+        emit TokenLocked(transferId, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, prepaid);
+    }
+
+    function encodeIssuexToken(
+        address _originalToken,
+        address _recipient,
+        uint256 _amount
+    ) public view returns(bytes memory) {
+        return abi.encodeWithSelector(
             IxTokenIssuing.issuexToken.selector,
             block.chainid,
             _originalToken,
             _recipient,
             _amount
         );
-        bytes32 transferId = _sendMessage(_remoteChainId, issueMappingToken, prepaid, _extParams);
-        bytes32 lockMessageHash = keccak256(abi.encodePacked(transferId, _remoteChainId, _originalToken, msg.sender, _amount));
-        lockedMessages[transferId] = LockedInfo(lockMessageHash, false);
-        emit TokenLocked(transferId, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, prepaid);
     }
 
     // in backing contract, it only know the original token info
@@ -90,6 +108,8 @@ contract xTokenBacking is xTokenBridgeBase {
         address _recipient,
         uint256 _amount
     ) external calledByMessager(_remoteChainId) whenNotPaused {
+        expendDailyLimit(_originalToken, _amount);
+
         bytes32 transferId = _latestRecvMessageId(_remoteChainId);
         require(unlockedTransferIds[transferId] == false, "message has been accepted");
         unlockedTransferIds[transferId] = true;
@@ -147,9 +167,7 @@ contract xTokenBacking is xTokenBridgeBase {
         // must not exist in successful issue list
         require(unlockedTransferIds[_transferId] == false, "success message can't refund for failed");
         _assertMessageIsDelivered(_remoteChainId, _transferId);
-        bytes memory unlockForFailed = abi.encodeWithSelector(
-            IxTokenIssuing.handleIssuingForUnlockFailureFromRemote.selector,
-            block.chainid,
+        bytes memory unlockForFailed = encodeIssuingForUnlockFailureFromRemote(
             _transferId,
             _originalToken,
             _originalSender,
@@ -157,6 +175,22 @@ contract xTokenBacking is xTokenBridgeBase {
         );
         bytes32 refundId = _sendMessage(_remoteChainId, unlockForFailed, msg.value, _extParams);
         emit RemoteIssuingFailure(refundId, _transferId, _originalToken, _originalSender, _amount, msg.value);
+    }
+
+    function encodeIssuingForUnlockFailureFromRemote(
+        bytes32 _transferId,
+        address _originalToken,
+        address _originalSender,
+        uint256 _amount
+    ) public view returns(bytes memory) {
+        return abi.encodeWithSelector(
+            IxTokenIssuing.handleIssuingForUnlockFailureFromRemote.selector,
+            block.chainid,
+            _transferId,
+            _originalToken,
+            _originalSender,
+            _amount
+        );
     }
 
     // when lock and issuing failed
@@ -171,7 +205,7 @@ contract xTokenBacking is xTokenBridgeBase {
     ) external calledByMessager(_remoteChainId) whenNotPaused {
         LockedInfo memory lockedMessage = lockedMessages[_transferId];
         require(lockedMessage.hasRefundForFailed == false, "the locked message has been refund");
-        bytes32 messageHash = keccak256(abi.encodePacked(_remoteChainId, _transferId, _originalToken, _originSender, _amount));
+        bytes32 messageHash = keccak256(abi.encodePacked(_transferId, _remoteChainId, _originalToken, _originSender, _amount));
         require(lockedMessage.hash == messageHash, "message is not matched");
         lockedMessages[_transferId].hasRefundForFailed = true;
         if (_originalToken == address(0)) {

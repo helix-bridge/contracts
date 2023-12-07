@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "../utils/AccessController.sol";
 import "../interfaces/IMessageLine.sol";
 
-contract DarwiniaMsglineMessager is Application, AccessController {
+contract MsglineMessager is Application, AccessController {
     IMessageLine public immutable msgline;
 
     struct RemoteMessager {
@@ -25,7 +25,7 @@ contract DarwiniaMsglineMessager is Application, AccessController {
     event CallResult(uint256 srcAppChainId, bool result);
 
     modifier onlyWhiteList() {
-        require(whiteList[msg.sender], "invalid msg.sender");
+        require(whiteList[msg.sender], "msg.sender not in whitelist");
         _;
     }
 
@@ -84,6 +84,7 @@ contract DarwiniaMsglineMessager is Application, AccessController {
         require(srcChainId == remoteMessager.msglineRemoteChainId, "invalid remote chainid");
         require(remoteMessager.messager == _xmsgSender(), "invalid remote messager");
         bytes32 key = keccak256(abi.encodePacked(srcChainId, _localAppAddress));
+
         // check remote appSender
         if (_remoteAppAddress != remoteAppSenders[key]) {
             emit CallerUnMatched(_srcAppChainId, _remoteAppAddress);
@@ -108,7 +109,7 @@ contract DarwiniaMsglineMessager is Application, AccessController {
 
     function messagePayload(address _from, address _to, bytes memory _message) public view returns(bytes memory) {
         return abi.encodeWithSelector(
-            DarwiniaMsglineMessager.receiveMessage.selector,
+            MsglineMessager.receiveMessage.selector,
             block.chainid,
             _from,
             _to,

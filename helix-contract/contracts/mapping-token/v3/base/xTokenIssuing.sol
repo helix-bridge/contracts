@@ -19,19 +19,22 @@ contract xTokenIssuing is xTokenBridgeBase {
     }
 
     // transferId => BurnInfo
-    mapping(bytes32 => BurnInfo) burnMessages;
+    mapping(bytes32 => BurnInfo) public burnMessages;
     // transferId => bool
     mapping(bytes32 => bool) public issueTransferIds;
 
     // original Token => xToken mapping is saved in Issuing Contract
     // salt => xToken address
-    mapping(bytes32 => address) xTokens;
+    mapping(bytes32 => address) public xTokens;
     // xToken => Origin Token Info
-    mapping(address => OriginalTokenInfo) originalTokens;
+    mapping(address => OriginalTokenInfo) public originalTokens;
 
     event IssuingERC20Created(uint256 originalChainId, address originalToken, address xToken);
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
     event RemoteUnlockForIssuingFailureRequested(bytes32 refundId, bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
+    event xTokenIssued(bytes32 transferId, uint256 remoteChainId, address originalToken, address xToken, address recipient, uint256 amount);
+    event BurnAndRemoteUnlocked(bytes32 transferId, uint256 remoteChainId, address sender, address recipient, address originalToken, address xToken, uint256 amount, uint256 fee);
+    event TokenRemintForFailed(bytes32 transferId, uint256 originalChainId, address originalToken, address xToken, address originalSender, uint256 amount);
 
     function registerxToken(
         uint256 _originalChainId,
@@ -42,7 +45,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         uint8 _decimals,
         uint256 _dailyLimit
     ) external onlyDao returns (address xToken) {
-        bytes32 salt = keccak256(abi.encodePacked(_originalChainId, _originalToken, version));
+        bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         require(xTokens[salt] == address(0), "contract has been deployed");
         bytes memory bytecode = type(xTokenErc20).creationCode;
         bytes memory bytecodeWithInitdata = abi.encodePacked(
@@ -67,7 +70,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         address _originalToken,
         address _xToken
     ) external onlyDao {
-        bytes32 salt = keccak256(abi.encodePacked(_originalChainId, _originalToken, version));
+        bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         address oldxToken = xTokens[salt];
         if (oldxToken != address(0)) {
             require(xTokenErc20(oldxToken).totalSupply() == 0, "can't delete old xToken");
@@ -86,10 +89,11 @@ contract xTokenIssuing is xTokenBridgeBase {
         uint256 _amount
     ) external calledByMessager(_remoteChainId) whenNotPaused {
         bytes32 transferId = _latestRecvMessageId(_remoteChainId);
-        bytes32 salt = keccak256(abi.encodePacked(_remoteChainId, _originalToken, version));
+        bytes32 salt = xTokenSalt(_remoteChainId, _originalToken);
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
         require(_amount > 0, "can not receive amount zero");
+        expendDailyLimit(xToken, _amount);
 
         require(issueTransferIds[transferId] == false, "message has been accepted");
         issueTransferIds[transferId] = true;
@@ -103,7 +107,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         } else {
             xTokenErc20(xToken).mint(_recipient, _amount);
         }
-        // emit event
+        emit xTokenIssued(transferId, _remoteChainId, _originalToken, xToken, _recipient, _amount);
     }
 
     function burnAndRemoteUnlock(
@@ -118,8 +122,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
         xTokenErc20(_xToken).burn(address(this), _amount);
 
-        bytes memory remoteUnlockCall = abi.encodeWithSelector(
-            IxTokenBacking.unlockFromRemote.selector,
+        bytes memory remoteUnlockCall = encodeUnlockFromRemote(
             originalInfo.token,
             _recipient,
             _amount
@@ -127,9 +130,23 @@ contract xTokenIssuing is xTokenBridgeBase {
         bytes32 transferId = _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
 
         require(burnMessages[transferId].hash == bytes32(0), "message exist");
-        bytes32 messageHash = keccak256(abi.encodePacked(transferId, _xToken, msg.sender, _amount));
+        bytes32 messageHash = keccak256(abi.encodePacked(transferId, originalInfo.chainId, _xToken, msg.sender, _amount));
         burnMessages[transferId] = BurnInfo(messageHash, false);
-        //emit BurnAndRemoteUnlocked(transferId, msg.sender, _recipient, _xToken, _amount, fee);
+        emit BurnAndRemoteUnlocked(transferId, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _xToken, _amount, msg.value);
+    }
+
+    function encodeUnlockFromRemote(
+        address _originalToken,
+        address _recipient,
+        uint256 _amount
+    ) public view returns(bytes memory) {
+        return abi.encodeWithSelector(
+            IxTokenBacking.unlockFromRemote.selector,
+            block.chainid,
+            _originalToken,
+            _recipient,
+            _amount
+        );
     }
 
     function requestRemoteUnlockForIssuingFailure(
@@ -142,8 +159,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     ) external payable {
         require(issueTransferIds[_transferId] == false, "success message can't refund for failed");
         _assertMessageIsDelivered(_originalChainId, _transferId);
-        bytes memory handleUnlockForFailed = abi.encodeWithSelector(
-            IxTokenBacking.handleUnlockForIssuingFailureFromRemote.selector,
+        bytes memory handleUnlockForFailed = encodeUnlockForIssuingFailureFromRemote(
             _transferId,
             _originalToken,
             _originalSender,
@@ -151,6 +167,22 @@ contract xTokenIssuing is xTokenBridgeBase {
         );
         bytes32 refundId = _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
         emit RemoteUnlockForIssuingFailureRequested(refundId, _transferId, _originalToken, _originalSender, _amount, msg.value);
+    }
+
+    function encodeUnlockForIssuingFailureFromRemote(
+        bytes32 _transferId,
+        address _originalToken,
+        address _originalSender,
+        uint256 _amount
+    ) public view returns(bytes memory) {
+        return abi.encodeWithSelector(
+            IxTokenBacking.handleUnlockForIssuingFailureFromRemote.selector,
+            block.chainid,
+            _transferId,
+            _originalToken,
+            _originalSender,
+            _amount
+        );
     }
 
     // when burn and unlock failed
@@ -165,16 +197,24 @@ contract xTokenIssuing is xTokenBridgeBase {
     ) external calledByMessager(_originalChainId) whenNotPaused {
         BurnInfo memory burnInfo = burnMessages[_transferId];
         require(burnInfo.hasRefundForFailed == false, "Backing:the burn message has been refund");
-        bytes32 messageHash = keccak256(abi.encodePacked(_transferId, _originalChainId, _originalSender, _originalToken, _amount));
-        require(burnInfo.hash == messageHash, "message is not matched");
-        burnMessages[_transferId].hasRefundForFailed = true;
 
-        bytes32 salt = keccak256(abi.encodePacked(_originalChainId, _originalToken, version));
+        bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
 
+        bytes32 messageHash = keccak256(abi.encodePacked(_transferId, _originalChainId, xToken, _originalSender, _amount));
+        require(burnInfo.hash == messageHash, "message is not matched");
+        burnMessages[_transferId].hasRefundForFailed = true;
+
         xTokenErc20(xToken).mint(_originalSender, _amount);
-        //emit TokenRemintForFailed(_transferId, xToken, _originalSender, _amount);
+        emit TokenRemintForFailed(_transferId, _originalChainId, _originalToken, xToken, _originalSender, _amount);
+    }
+
+    function xTokenSalt(
+        uint256 _originalChainId,
+        address _originalToken
+    ) public view returns(bytes32) {
+        return keccak256(abi.encodePacked(_originalChainId, _originalToken, version));
     }
 } 
 

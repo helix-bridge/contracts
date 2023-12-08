@@ -43,6 +43,10 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         _pause();
     }
 
+    function setProtocolFee(uint256 _protocolFee) external onlyOperator {
+        protocolFee = _protocolFee;
+    }
+
     function setSendService(uint256 _remoteChainId, address _remoteBridge, address _service) external onlyDao {
         messagers[_remoteChainId].sendService = _service;
         ILowLevelMessageSender(_service).registerRemoteReceiver(_remoteChainId, _remoteBridge);

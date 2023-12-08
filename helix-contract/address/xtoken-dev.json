@@ -1,0 +1,22 @@
+{
+    "messagers": {
+        "crab": {
+            "msglineMessager": "0x8FC1319581fcb95e86461216B2Cad86DC78D5681"
+        },
+        "sepolia": {
+            "msglineMessager": "0x35A314e53e2fdDfeCA7b743042AaCfB1ABAF0aDe"
+        }
+    },
+    "backingProxy": {
+        "crab": "0xd082Af5a732dB55F0fe016c100C40c26FB267bf3"
+    },
+    "backingLogic": {
+        "crab": "0x4b9a3b5a9929dc2F9766739dd4457e2941f6A0c9"
+    },
+    "issuingProxy": {
+        "sepolia": "0x97c0a7162317786E1030b7D023c2B8525Fc28497"
+    },
+    "issuingLogic": {
+        "sepolia": "0x09Fe8eA52CD9F3bFF11E84378cfc99441910AD3f"
+    }
+}

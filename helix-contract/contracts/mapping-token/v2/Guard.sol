@@ -17,7 +17,7 @@ contract Guard is GuardRegistry, Pausable {
     address public depositor;
     address public operator;
 
-    event TokenDeposit(uint256 id, address token, address recipient, uint256 amount);
+    event TokenDeposit(uint256 id, uint256 timestamp, address token, address recipient, uint256 amount);
     event TokenClaimed(uint256 id);
 
     constructor(address[] memory _guards, uint256 _threshold, uint256 _maxUnclaimableTime, address _depositor) {
@@ -68,7 +68,7 @@ contract Guard is GuardRegistry, Pausable {
         uint256 amount
     ) public onlyDepositor whenNotPaused {
         depositors[id] = hash(abi.encodePacked(block.timestamp, token, recipient, amount));
-        emit TokenDeposit(id, token, recipient, amount);
+        emit TokenDeposit(id, block.timestamp, token, recipient, amount);
     }
 
     function claimById(

@@ -14,7 +14,7 @@ library TokenTransferHelper {
             receiver,
             amount
         ));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transfer token failed");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "helix:transfer token failed");
     }
 
     function safeTransferFrom(
@@ -29,7 +29,7 @@ library TokenTransferHelper {
             receiver,
             amount
         ));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "lnBridgeHelper:transferFrom token failed");
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "helix:transferFrom token failed");
     }
 
     function safeTransferNative(
@@ -37,7 +37,7 @@ library TokenTransferHelper {
         uint256 amount
     ) internal {
         (bool success,) = payable(receiver).call{value: amount}("");
-        require(success, "lnBridgeHelper:transfer native token failed");
+        require(success, "helix:transfer native token failed");
     }
 }
 

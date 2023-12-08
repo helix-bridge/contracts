@@ -78,6 +78,22 @@ describe("xtoken tests", () => {
       await weth.deployed();
       await backing.setwToken(weth.address);
 
+      let guards = [];
+      for (let i = 0; i < 3; i++) {
+          const wallet = ethers.Wallet.createRandom();
+          guards.push(wallet);
+      }
+      guards = guards.sort((x, y) => {
+          return x.address.toLowerCase().localeCompare(y.address.toLowerCase())
+      });
+
+      const guardBackingContract = await ethers.getContractFactory("Guard");
+      const backingGuard = await guardBackingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60, backing.address);
+      await backingGuard.deployed();
+      const guardIssuingContract = await ethers.getContractFactory("Guard");
+      const issuingGuard = await guardIssuingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60, issuing.address);
+      await issuingGuard.deployed();
+
       async function registerToken(
           originalTokenAddress,
           originalChainName,
@@ -128,6 +144,7 @@ describe("xtoken tests", () => {
           recipient,
           amount,
           fee,
+          usingGuard,
           result
       ) {
           const xTokenAddress = xTokens[originalAddress];
@@ -153,7 +170,7 @@ describe("xtoken tests", () => {
 
           expect(lockInfo.hash).not.to.equal("0x0000000000000000000000000000000000000000000000000000000000000000");
           expect(lockInfo.hasRefundForFailed).to.equal(false);
-          if (result == true) {
+          if (result == true && !usingGuard) {
               expect(balanceRecipientAfter - balanceRecipientBefore).to.equal(amount);
               expect(balanceBackingAfter - balanceBackingBefore).to.equal(amount);
           } else {
@@ -167,11 +184,13 @@ describe("xtoken tests", () => {
           recipient,
           amount,
           fee,
+          usingGuard,
           result
       ) {
           const xTokenAddress = xTokens[originalAddress];
 
-          const balanceRecipientBefore = await balanceOf(xTokenAddress, recipient);
+          const balanceUserBefore = await balanceOf(xTokenAddress, owner.address);
+          const balanceRecipientBefore = await balanceOf(originalAddress, recipient);
           const balanceBackingBefore = await balanceOf(originalAddress, backing.address);
 
           const transaction = await issuing.burnAndRemoteUnlock(
@@ -184,20 +203,27 @@ describe("xtoken tests", () => {
           const receipt = await transaction.wait();
           console.log("burnAndRemoteUnlock gasUsed: ", receipt.cumulativeGasUsed);
 
-          const balanceRecipientAfter = await balanceOf(xTokenAddress, recipient);
+          const balanceRecipientAfter = await balanceOf(originalAddress, recipient);
           const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
+          const balanceUserAfter = await balanceOf(xTokenAddress, owner.address);
 
           const messageId = await issuingMessager.latestSentMessageId();
           const burnInfo = await issuing.burnMessages(messageId);
           expect(burnInfo.hash).not.to.equal("0x0000000000000000000000000000000000000000000000000000000000000000");
           expect(burnInfo.hasRefundForFailed).to.equal(false);
+          expect(balanceUserBefore.sub(balanceUserAfter)).to.equal(amount);
 
-          if (result) {
-              expect(balanceRecipientBefore - balanceRecipientAfter).to.equal(amount);
-              expect(balanceBackingBefore - balanceBackingAfter).to.equal(amount);
+          if (result && !usingGuard) {
+              expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(amount);
+              expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);
           } else {
-              expect(balanceRecipientBefore - balanceRecipientAfter).to.equal(amount);
-              expect(balanceBackingBefore - balanceBackingAfter).to.equal(0);
+              // if successfully unlock native token by guard
+              if (nativeTokenAddress == originalAddress && result && usingGuard) {
+                  expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);
+              } else {
+                  expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(0);
+              }
+              expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(0);
           }
       }
 
@@ -272,6 +298,47 @@ describe("xtoken tests", () => {
           }
       }
 
+      async function guardClaim(
+          guard,
+          depositer,
+          id,
+          timestamp,
+          wallets,
+          token,
+          recipient,
+          amount
+      ) {
+          // encode value
+          const structHash =
+              ethUtil.keccak256(
+                  abi.rawEncode(
+                      ['bytes4', 'bytes'],
+                      [abi.methodID('claim', [ 'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
+                          abi.rawEncode(['uint256', 'uint256', 'address', 'address', 'uint256'],
+                              [id, timestamp, token, recipient, amount])
+                      ]
+                  )
+              );
+          const dataHash = await guard.encodeDataHash(structHash);
+          const signatures = wallets.map((wallet) => {
+              const address = wallet.address;
+              const privateKey = ethers.utils.arrayify(wallet.privateKey);
+              const signatureECDSA = secp256k1.ecdsaSign(ethers.utils.arrayify(dataHash), privateKey);
+              const ethRecID = signatureECDSA.recid + 27;
+              const signature = Uint8Array.from(
+                  signatureECDSA.signature.join().split(',').concat(ethRecID)
+              );
+              return ethers.utils.hexlify(signature);
+          });
+          const balanceBackingBefore = await balanceOf(token, depositer);
+          const balanceRecipientBefore = await balanceOf(token, recipient);
+          await guard.claim(id, timestamp, token, recipient, amount, signatures);
+          const balanceBackingAfter = await balanceOf(token, depositer);
+          const balanceRecipientAfter = await balanceOf(token, recipient);
+          expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);
+          expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(amount);
+      }
+
       await registerToken(
           nativeTokenAddress,
           "ethereum",
@@ -286,6 +353,7 @@ describe("xtoken tests", () => {
           owner.address,
           100,
           "0.9",
+          false,
           true
       )).to.be.revertedWith("fee is not enough");
 
@@ -295,14 +363,16 @@ describe("xtoken tests", () => {
           owner.address,
           500,
           "1.1",
+          false,
           true
       );
       // success burn and remote unlock
       await burnAndRemoteUnlock(
           nativeTokenAddress,
-          owner.address,
+          user.address,
           100,
           "1.1",
+          false,
           true
       );
 
@@ -330,6 +400,7 @@ describe("xtoken tests", () => {
           owner.address,
           501,
           "1.1",
+          false,
           false
       );
       // refund (when isssuing failed)
@@ -373,16 +444,17 @@ describe("xtoken tests", () => {
       await mockBackingMsgline.setRecvFailed();
       await burnAndRemoteUnlock(
           nativeTokenAddress,
-          owner.address,
+          user.address,
           100,
           "1.1",
+          false,
           false
       );
       // invalid args
       await requestRemoteIssuingForUnlockFailure(
           await backingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          owner.address,
+          user.address,
           101,
           "1.1",
           false
@@ -405,6 +477,61 @@ describe("xtoken tests", () => {
           "1.1",
           false
       );
+
+      // using guard
+      await backing.updateGuard(backingGuard.address);
+      await issuing.updateGuard(issuingGuard.address);
+
+      // lock -> issuing using guard
+      await lockAndRemoteIssuing(
+          nativeTokenAddress,
+          owner.address,
+          10,
+          "1.1",
+          true,//using guard
+          true
+      );
+      await guardClaim(
+          issuingGuard,
+          issuing.address,
+          await issuingMessager.latestRecvMessageId(),
+          await getBlockTimestamp(),
+          [guards[0], guards[1]],
+          xTokens[nativeTokenAddress],
+          owner.address,
+          10
+      );
+      // burn -> unlock using guard (native token)
+      await burnAndRemoteUnlock(
+          nativeTokenAddress,
+          user.address,
+          20,
+          "1.1",
+          true, //using guard
+          true
+      );
+      await guardClaim(
+          backingGuard,
+          backing.address,
+          await backingMessager.latestRecvMessageId(),
+          await getBlockTimestamp(),
+          [guards[0], guards[1]],
+          // native token must be claimed by wtoken
+          weth.address,
+          user.address,
+          20
+      );
+      // claim twice
+      await expect(guardClaim(
+          backingGuard,
+          backing.address,
+          await backingMessager.latestRecvMessageId(),
+          await getBlockTimestamp(),
+          [guards[0], guards[1]],
+          weth.address,
+          user.address,
+          20
+      )).to.be.revertedWith("Guard: Invalid id to claim");
   });
 });
 

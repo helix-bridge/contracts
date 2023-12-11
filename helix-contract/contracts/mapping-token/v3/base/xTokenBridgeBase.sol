@@ -8,20 +8,26 @@ import "../../../utils/AccessController.sol";
 import "../../../utils/DailyLimit.sol";
 import "../../../utils/TokenTransferHelper.sol";
 
+// The Base contract for xToken protocol
+// Backing or Issuing contract will inherit the contract.
+// This contract define the access authorization, the message channel
 contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLimit {
     struct MessagerService {
         address sendService;
         address receiveService;
     }
 
+    // the version is to issue different xTokens for different version of bridge.
     string public version;
+    // the protocol fee for each time user send transaction
     uint256 public protocolFee;
+    // the reserved protocol fee in the contract
     uint256 public protocolFeeReserved;
     address public guard;
     // remoteChainId => info
     mapping(uint256 => MessagerService) public messagers;
 
-    // common method
+    // must be called by message service configured
     modifier calledByMessager(uint256 _remoteChainId) {
         address receiveService = messagers[_remoteChainId].receiveService;
         require(receiveService == msg.sender, "invalid messager");
@@ -66,13 +72,14 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     function _sendMessage(
         uint256 _remoteChainId,
         bytes memory _payload,
-        uint256 feePrepaid,
+        uint256 _feePrepaid,
         bytes memory _extParams
     ) internal whenNotPaused returns(bytes32 messageId) {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.sendService != address(0), "bridge not configured");
-        protocolFeeReserved += protocolFee;
-        ILowLevelMessageSender(service.sendService).sendMessage{value: feePrepaid - protocolFee}(
+        uint256 _protocolFee = protocolFee;
+        protocolFeeReserved += _protocolFee;
+        ILowLevelMessageSender(service.sendService).sendMessage{value: _feePrepaid - _protocolFee}(
             _remoteChainId,
             _payload,
             _extParams
@@ -80,12 +87,16 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         messageId = IMessageId(service.sendService).latestSentMessageId();
     }
 
+    // check a special message is delivered by message service
+    // the delivered message can't be received any more
     function _assertMessageIsDelivered(uint256 _remoteChainId, bytes32 _transferId) view internal {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.receiveService != address(0), "bridge not configured");
         require(IMessageId(service.receiveService).messageDelivered(_transferId), "message not delivered");
     }
 
+    // the latest received message id
+    // when this method is called in the receive method, it's the current received message's id
     function _latestRecvMessageId(uint256 _remoteChainId) view internal returns(bytes32) {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.receiveService != address(0), "invalid remoteChainId");

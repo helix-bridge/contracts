@@ -11,8 +11,8 @@ const crabNetwork = {
     name: "crab",
     url: "https://crab-rpc.darwinia.network",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    messager: "0x8FC1319581fcb95e86461216B2Cad86DC78D5681",
-    backing: "0xd082Af5a732dB55F0fe016c100C40c26FB267bf3",
+    messager: "0xCAb1f69C671f1548fd3dE5d63852E9B9181a0D0E",
+    backing: "0xb137BDf1Ad5392027832f54a4409685Ef52Aa9dA",
     chainid: 44
 };
 
@@ -20,8 +20,8 @@ const sepoliaNetwork = {
     name: "sepolia",
     url: "https://rpc-sepolia.rockx.com",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    messager: "0x35A314e53e2fdDfeCA7b743042AaCfB1ABAF0aDe",
-    issuing: "0x97c0a7162317786E1030b7D023c2B8525Fc28497",
+    messager: "0x527B67a61C6E1344C359Af2e241aAFeb0c3a9DE9",
+    issuing: "0x44A001aF6AcD2d5f5cB82FCB14Af3d497D56faB4",
     chainid: 11155111
 };
 

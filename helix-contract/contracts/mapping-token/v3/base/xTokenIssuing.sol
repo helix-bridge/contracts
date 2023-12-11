@@ -149,6 +149,9 @@ contract xTokenIssuing is xTokenBridgeBase {
         );
     }
 
+    // send unlock message when issuing failed
+    // 1. message has been delivered
+    // 2. xtoken not issued
     function requestRemoteUnlockForIssuingFailure(
         bytes32 _transferId,
         uint256 _originalChainId,
@@ -188,6 +191,8 @@ contract xTokenIssuing is xTokenBridgeBase {
     // when burn and unlock failed
     // receive reIssue(refund) message from remote backing contract
     // this will refund xToken to original sender
+    // 1. the transfer not refund before
+    // 2. the burn information(hash) matched
     function handleIssuingForUnlockFailureFromRemote(
         uint256 _originalChainId,
         bytes32 _transferId,

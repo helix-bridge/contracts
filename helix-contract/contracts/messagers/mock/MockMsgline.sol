@@ -4,6 +4,7 @@ pragma solidity >=0.8.17;
 contract MockMessageLine {
     mapping(bytes32 => bool) public dones;
     bool public failedFlag;
+    bool public neverDelivered;
 
     uint256 public sendNonce;
     uint256 public recvNonce;
@@ -18,6 +19,10 @@ contract MockMessageLine {
         failedFlag = true;
     }
 
+    function setNeverDelivered() external {
+        neverDelivered = true;
+    }
+
     function send(
         uint256 toChainId,
         address toDapp,
@@ -26,16 +31,21 @@ contract MockMessageLine {
     ) external payable {
         require(msg.value >= 1 ether, "fee is not enough");
         sendNonce += 1;
-        MockMessageLine(remote).recv(block.chainid, msg.sender, toDapp, message);
+        MockMessageLine(remote).recv(sendNonce, block.chainid, msg.sender, toDapp, message);
     }
 
     function recv(
+        uint256 sendNonce,
         uint256 sourceChainId,
         address sourceSender,
         address toDapp,
         bytes calldata message
     ) public {
-        recvNonce += 1;
+        if (neverDelivered) {
+            neverDelivered = false;
+            return;
+        }
+        recvNonce = sendNonce;
         dones[bytes32(recvNonce)] = true;
         if (failedFlag) {
             failedFlag = false;

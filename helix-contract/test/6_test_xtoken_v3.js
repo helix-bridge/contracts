@@ -534,6 +534,48 @@ describe("xtoken tests", () => {
           user.address,
           20
       )).to.be.revertedWith("Guard: Invalid id to claim");
+
+      // test message slashed
+      await mockIssuingMsgline.setNeverDelivered();
+      // this message will be never delivered
+      await lockAndRemoteIssuing(
+          nativeTokenAddress,
+          owner.address,
+          10,
+          "1.1",
+          true,
+          false
+      );
+      // can't request refund
+      await expect(requestRemoteUnlockForIssuingFailure(
+          await backingMessager.latestSentMessageId(),
+          nativeTokenAddress,
+          owner.address,
+          10,
+          "1.1",
+          false
+      )).to.be.revertedWith("message not delivered");
+      // start expire
+      await issuingMessager.slashMessage(backingMessager.latestSentMessageId());
+      // still can't refund
+      await expect(requestRemoteUnlockForIssuingFailure(
+          await backingMessager.latestSentMessageId(),
+          nativeTokenAddress,
+          owner.address,
+          10,
+          "1.1",
+          false
+      )).to.be.revertedWith("message not delivered");
+      // time expired, and refund successed
+      await network.provider.send("evm_increaseTime", [Number(await issuingMessager.SLASH_EXPIRE_TIME())]);
+      requestRemoteUnlockForIssuingFailure(
+          await backingMessager.latestSentMessageId(),
+          nativeTokenAddress,
+          owner.address,
+          10,
+          "1.1",
+          true
+      );
   });
 });
 

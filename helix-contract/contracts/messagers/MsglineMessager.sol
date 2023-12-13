@@ -5,6 +5,9 @@ import "../utils/AccessController.sol";
 import "../interfaces/IMessageLine.sol";
 
 contract MsglineMessager is Application, AccessController {
+    // expire time = 1 hour
+    uint256 constant public SLASH_EXPIRE_TIME = 3600;
+
     IMessageLine public immutable msgline;
 
     struct RemoteMessager {
@@ -20,6 +23,9 @@ contract MsglineMessager is Application, AccessController {
     // hash(msglineRemoteChainId, localAppAddress) => remoteAppAddress
     mapping(bytes32=>address) public remoteAppReceivers;
     mapping(bytes32=>address) public remoteAppSenders;
+
+    // transferId => timestamp
+    mapping(bytes32=>uint256) public slashTransferIds;
 
     event CallerUnMatched(uint256 srcAppChainId, bytes32 transferId, address srcAppAddress);
     event CallResult(uint256 srcAppChainId, bytes32 transferId, bool result);
@@ -84,6 +90,10 @@ contract MsglineMessager is Application, AccessController {
         bytes32 key = keccak256(abi.encodePacked(srcChainId, _localAppAddress));
         bytes32 transferId = latestRecvMessageId();
 
+        if (_messageSlashed(transferId)) {
+            return;
+        }
+
         // check remote appSender
         if (_remoteAppAddress != remoteAppSenders[key]) {
             emit CallerUnMatched(_srcAppChainId, transferId, _remoteAppAddress);
@@ -94,6 +104,15 @@ contract MsglineMessager is Application, AccessController {
         emit CallResult(_srcAppChainId, transferId, success);
     }
 
+    function slashMessage(bytes32 transferId) external {
+        slashTransferIds[transferId] = block.timestamp;
+    }
+
+    function _messageSlashed(bytes32 transferId) internal view returns(bool) {
+        uint256 slashTimestamp = slashTransferIds[transferId];
+        return slashTimestamp > 0 && slashTimestamp + SLASH_EXPIRE_TIME < block.timestamp;
+    }
+
     function latestSentMessageId() external view returns(bytes32) {
         return msgline.sentMessageId();
     }
@@ -102,8 +121,8 @@ contract MsglineMessager is Application, AccessController {
         return msgline.recvMessageId();
     }
 
-    function messageDelivered(bytes32 messageId) external view returns(bool) {
-        return msgline.dones(messageId);
+    function messageDeliveredOrSlashed(bytes32 transferId) external view returns(bool) {
+        return msgline.dones(transferId) || _messageSlashed(transferId);
     }
 
     function messagePayload(address _from, address _to, bytes memory _message) public view returns(bytes memory) {

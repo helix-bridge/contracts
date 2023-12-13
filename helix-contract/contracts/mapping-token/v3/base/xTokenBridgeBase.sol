@@ -92,7 +92,7 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     function _assertMessageIsDelivered(uint256 _remoteChainId, bytes32 _transferId) view internal {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.receiveService != address(0), "bridge not configured");
-        require(IMessageId(service.receiveService).messageDelivered(_transferId), "message not delivered");
+        require(IMessageId(service.receiveService).messageDeliveredOrSlashed(_transferId), "message not delivered");
     }
 
     // the latest received message id

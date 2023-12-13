@@ -14,5 +14,5 @@ interface ILowLevelMessageReceiver {
 interface IMessageId {
     function latestSentMessageId() external view returns(bytes32);
     function latestRecvMessageId() external view returns(bytes32);
-    function messageDelivered(bytes32 messageId) external view returns(bool);
+    function messageDeliveredOrSlashed(bytes32 messageId) external view returns(bool);
 }

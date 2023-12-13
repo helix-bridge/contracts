@@ -411,8 +411,9 @@ describe("darwinia<>bsc mapping token tests", () => {
       });
       console.log(wallets[0].address, wallets[1].address, wallets[2].address);
       const guardContract = await ethers.getContractFactory("Guard");
-      const guard = await guardContract.deploy([wallets[0].address, wallets[1].address, wallets[2].address], 3, 60, owner.address);
+      const guard = await guardContract.deploy([wallets[0].address, wallets[1].address, wallets[2].address], 3, 60);
       await guard.deployed();
+      await guard.setDepositor(owner.address, true);
 
       await originalToken.approve(guard.address, 1000);
       await guard.deposit(1, originalToken.address, wallets[1].address, 100);
@@ -425,15 +426,16 @@ describe("darwinia<>bsc mapping token tests", () => {
           ethUtil.keccak256(
               abi.rawEncode(
                   ['bytes4', 'bytes'],
-                  [abi.methodID('claim', [ 'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
-                  abi.rawEncode(['uint256', 'uint256', 'address', 'address', 'uint256'],
-                      [1, timestamp01, originalToken.address, wallets[1].address, 100])
+                  [abi.methodID('claim', [ 'address', 'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
+                  abi.rawEncode(['address', 'uint256', 'uint256', 'address', 'address', 'uint256'],
+                      [owner.address, 1, timestamp01, originalToken.address, wallets[1].address, 100])
                   ]
               )
           );
 
       // cannot claim without signatures
       await expect(guard.claimByTimeout(
+          owner.address,
           2,
           timestamp01,
           originalToken.address,
@@ -443,6 +445,7 @@ describe("darwinia<>bsc mapping token tests", () => {
 
       await network.provider.send("evm_increaseTime", [3600]);
       await expect(guard.claimByTimeout(
+          owner.address,
           2,
           timestamp01,
           originalToken.address,
@@ -450,6 +453,7 @@ describe("darwinia<>bsc mapping token tests", () => {
           100,
           false)).to.be.revertedWith("Guard: Invalid id to claim");
       await expect(guard.claimByTimeout(
+          owner.address,
           1,
           timestamp01,
           originalToken.address,
@@ -457,6 +461,7 @@ describe("darwinia<>bsc mapping token tests", () => {
           101,
           false)).to.be.revertedWith("Guard: Invalid id to claim");
       await expect(guard.claimByTimeout(
+          owner.address,
           1,
           timestamp01,
           originalToken.address,
@@ -475,18 +480,19 @@ describe("darwinia<>bsc mapping token tests", () => {
           );
           return ethers.utils.hexlify(signature);
       });
-      await guard.claim(1, timestamp01, originalToken.address, wallets[1].address, 100, signatures);
+      await guard.claim(owner.address, 1, timestamp01, originalToken.address, wallets[1].address, 100, signatures);
       expect(await originalToken.balanceOf(wallets[1].address)).to.equal(100);
       // can't claim twice
-      await expect(guard.claim(1, timestamp01, originalToken.address, wallets[1].address, 100, signatures)).to.be.revertedWith("Guard: Invalid id to claim");
+      await expect(guard.claim(owner.address, 1, timestamp01, originalToken.address, wallets[1].address, 100, signatures)).to.be.revertedWith("Guard: Invalid id to claim");
       await expect(guard.claimByTimeout(
+          owner.address, 
           1,
           timestamp01,
           originalToken.address,
           wallets[1].address,
           100,
           true)).to.be.revertedWith("Guard: Invalid id to claim");
-      await expect(guard.claim(2, timestamp02, originalToken.address, wallets[2].address, 200, signatures)).to.be.revertedWith("Guard: Invalid guard provided");
+      await expect(guard.claim(owner.address, 2, timestamp02, originalToken.address, wallets[2].address, 200, signatures)).to.be.revertedWith("Guard: Invalid guard provided");
   });
 
   it("test_gas", async function () {
@@ -524,8 +530,9 @@ describe("darwinia<>bsc mapping token tests", () => {
       mtf.setMappingNativeWrappedToken(mappingTokenAddress);
 
       const guardContract = await ethers.getContractFactory("Guard");
-      const guard = await guardContract.deploy([owner.address], 1, 60, mtf.address);
+      const guard = await guardContract.deploy([owner.address], 1, 60);
       await guard.deployed();
+      await guard.setDepositor(mtf.address, true);
 
       await mtf.updateGuard(guard.address);
 

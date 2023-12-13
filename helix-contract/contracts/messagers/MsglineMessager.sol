@@ -105,6 +105,7 @@ contract MsglineMessager is Application, AccessController {
     }
 
     function slashMessage(bytes32 transferId) external {
+        require(slashTransferIds[transferId] == 0, "!slash");
         slashTransferIds[transferId] = block.timestamp;
     }
 

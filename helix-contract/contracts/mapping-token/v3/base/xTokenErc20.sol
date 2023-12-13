@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@zeppelin-solidity/contracts/access/Ownable.sol";
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
 
-contract xTokenErc20 is IERC20, Ownable {
+contract xTokenErc20 is IERC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -17,11 +16,37 @@ contract xTokenErc20 is IERC20, Ownable {
     string public symbol;
     uint8 public decimals;
 
+    address public owner;
+    address public pendingOwner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    modifier onlyOwner() {
+        require(owner == msg.sender, "Ownable: caller is not the owner");
+        _;
+    }
+
     constructor(string memory _name, string memory _symbol, uint8 _decimals) {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
-        _transferOwnership(_msgSender());
+        _transferOwnership(msg.sender);
+    }
+
+    function _transferOwnership(address newOwner) internal {
+        address oldOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+
+    function transferOwnership(address newOwner) public onlyOwner {
+        pendingOwner = newOwner;
+    }
+
+    function acceptOwnership() external {
+        require(pendingOwner == msg.sender, "invalid pending owner");
+        _transferOwnership(pendingOwner);
+        pendingOwner = address(0);
     }
 
     function totalSupply() public view override returns (uint256) {
@@ -37,8 +62,8 @@ contract xTokenErc20 is IERC20, Ownable {
         return true;
     }
 
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address account, address spender) public view virtual override returns (uint256) {
+        return _allowances[account][spender];
     }
 
     function approve(address spender, uint256 amount) public virtual override returns (bool) {
@@ -79,7 +104,7 @@ contract xTokenErc20 is IERC20, Ownable {
     }
 
     function burn(address account, uint256 amount) external {
-        if (account != msg.sender && owner() != msg.sender && _allowances[account][msg.sender] != type(uint256).max) {
+        if (account != msg.sender && owner != msg.sender && _allowances[account][msg.sender] != type(uint256).max) {
             _approve(account, msg.sender, _allowances[account][msg.sender].sub(amount, "ERC20: decreased allowance below zero"));
         }
         _burn(account, amount);
@@ -105,12 +130,12 @@ contract xTokenErc20 is IERC20, Ownable {
         emit Transfer(account, address(0), amount);
     }
 
-    function _approve(address owner, address spender, uint256 amount) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
+    function _approve(address account, address spender, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        _allowances[account][spender] = amount;
+        emit Approval(account, spender, amount);
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }

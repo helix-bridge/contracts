@@ -175,6 +175,8 @@ contract xTokenBacking is xTokenBridgeBase {
     ) external payable {
         // must not exist in successful issue list
         require(unlockedTransferIds[_transferId] == false, "success message can't refund for failed");
+        // if the msg is pending, xToken can expire the message
+        // on arbitrum, the low gasLimit may cause this case
         _assertMessageIsDelivered(_remoteChainId, _transferId);
         bytes memory unlockForFailed = encodeIssuingForUnlockFailureFromRemote(
             _transferId,

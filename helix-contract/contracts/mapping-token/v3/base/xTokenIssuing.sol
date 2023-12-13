@@ -73,12 +73,20 @@ contract xTokenIssuing is xTokenBridgeBase {
         bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         address oldxToken = xTokens[salt];
         if (oldxToken != address(0)) {
-            require(xTokenErc20(oldxToken).totalSupply() == 0, "can't delete old xToken");
             delete originalTokens[oldxToken];
         }
         xTokens[salt] = _xToken;
         originalTokens[_xToken] = OriginalTokenInfo(_originalChainId, _originalToken);
         emit IssuingERC20Updated(_originalChainId, _originalToken, _xToken, oldxToken);
+    }
+
+    // transfer xToken ownership
+    function transferxTokenOwnership(address _xToken, address _newOwner) external onlyDao {
+        xTokenErc20(_xToken).transferOwnership(_newOwner);
+    }
+
+    function acceptxTokenOwnership(address _xToken) external onlyDao {
+        xTokenErc20(_xToken).acceptOwnership();
     }
 
     // receive issuing xToken message from remote backing contract

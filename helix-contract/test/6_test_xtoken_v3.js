@@ -88,11 +88,13 @@ describe("xtoken tests", () => {
       });
 
       const guardBackingContract = await ethers.getContractFactory("Guard");
-      const backingGuard = await guardBackingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60, backing.address);
+      const backingGuard = await guardBackingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60);
       await backingGuard.deployed();
+      await backingGuard.setDepositor(backing.address, true);
       const guardIssuingContract = await ethers.getContractFactory("Guard");
-      const issuingGuard = await guardIssuingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60, issuing.address);
+      const issuingGuard = await guardIssuingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60);
       await issuingGuard.deployed();
+      await issuingGuard.setDepositor(issuing.address, true);
 
       async function registerToken(
           originalTokenAddress,
@@ -313,9 +315,9 @@ describe("xtoken tests", () => {
               ethUtil.keccak256(
                   abi.rawEncode(
                       ['bytes4', 'bytes'],
-                      [abi.methodID('claim', [ 'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
-                          abi.rawEncode(['uint256', 'uint256', 'address', 'address', 'uint256'],
-                              [id, timestamp, token, recipient, amount])
+                      [abi.methodID('claim', ['address',  'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
+                          abi.rawEncode(['address', 'uint256', 'uint256', 'address', 'address', 'uint256'],
+                              [depositer, id, timestamp, token, recipient, amount])
                       ]
                   )
               );
@@ -332,7 +334,7 @@ describe("xtoken tests", () => {
           });
           const balanceBackingBefore = await balanceOf(token, depositer);
           const balanceRecipientBefore = await balanceOf(token, recipient);
-          await guard.claim(id, timestamp, token, recipient, amount, signatures);
+          await guard.claim(depositer, id, timestamp, token, recipient, amount, signatures);
           const balanceBackingAfter = await balanceOf(token, depositer);
           const balanceRecipientAfter = await balanceOf(token, recipient);
           expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);

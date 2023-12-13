@@ -29,6 +29,7 @@ contract MsglineMessager is Application, AccessController {
 
     event CallerUnMatched(uint256 srcAppChainId, bytes32 transferId, address srcAppAddress);
     event CallResult(uint256 srcAppChainId, bytes32 transferId, bool result);
+    event MessageStartSlash(bytes32 transferId, uint256 expiredTimestamp);
 
     modifier onlyWhiteList() {
         require(whiteList[msg.sender], "msg.sender not in whitelist");
@@ -104,14 +105,16 @@ contract MsglineMessager is Application, AccessController {
         emit CallResult(_srcAppChainId, transferId, success);
     }
 
-    function slashMessage(bytes32 transferId) external {
-        require(slashTransferIds[transferId] == 0, "!slash");
-        slashTransferIds[transferId] = block.timestamp;
+    function slashMessage(bytes32 _transferId) external {
+        require(slashTransferIds[_transferId] == 0, "!slash");
+        uint256 expiredTimestamp = block.timestamp + SLASH_EXPIRE_TIME;
+        slashTransferIds[_transferId] = expiredTimestamp;
+        emit MessageStartSlash(_transferId, expiredTimestamp);
     }
 
-    function _messageSlashed(bytes32 transferId) internal view returns(bool) {
-        uint256 slashTimestamp = slashTransferIds[transferId];
-        return slashTimestamp > 0 && slashTimestamp + SLASH_EXPIRE_TIME < block.timestamp;
+    function _messageSlashed(bytes32 _transferId) internal view returns(bool) {
+        uint256 slashTimestamp = slashTransferIds[_transferId];
+        return slashTimestamp > 0 && slashTimestamp < block.timestamp;
     }
 
     function latestSentMessageId() external view returns(bytes32) {
@@ -122,8 +125,8 @@ contract MsglineMessager is Application, AccessController {
         return msgline.recvMessageId();
     }
 
-    function messageDeliveredOrSlashed(bytes32 transferId) external view returns(bool) {
-        return msgline.dones(transferId) || _messageSlashed(transferId);
+    function messageDeliveredOrSlashed(bytes32 _transferId) external view returns(bool) {
+        return msgline.dones(_transferId) || _messageSlashed(_transferId);
     }
 
     function messagePayload(address _from, address _to, bytes memory _message) public view returns(bytes memory) {

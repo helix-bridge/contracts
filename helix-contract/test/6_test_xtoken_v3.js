@@ -87,11 +87,11 @@ describe("xtoken tests", () => {
           return x.address.toLowerCase().localeCompare(y.address.toLowerCase())
       });
 
-      const guardBackingContract = await ethers.getContractFactory("Guard");
+      const guardBackingContract = await ethers.getContractFactory("GuardV3");
       const backingGuard = await guardBackingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60);
       await backingGuard.deployed();
       await backingGuard.setDepositor(backing.address, true);
-      const guardIssuingContract = await ethers.getContractFactory("Guard");
+      const guardIssuingContract = await ethers.getContractFactory("GuardV3");
       const issuingGuard = await guardIssuingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60);
       await issuingGuard.deployed();
       await issuingGuard.setDepositor(issuing.address, true);

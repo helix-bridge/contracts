@@ -105,6 +105,7 @@ contract MsglineMessager is Application, AccessController {
         emit CallResult(_srcAppChainId, transferId, success);
     }
 
+    // We need to assume that transferId is unpredictable
     function slashMessage(bytes32 _transferId) external {
         require(slashTransferIds[_transferId] == 0, "!slash");
         uint256 expiredTimestamp = block.timestamp + SLASH_EXPIRE_TIME;

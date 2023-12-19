@@ -5,9 +5,6 @@ import "../utils/AccessController.sol";
 import "../interfaces/IMessageLine.sol";
 
 contract MsglineMessager is Application, AccessController {
-    // expire time = 1 hour
-    uint256 constant public SLASH_EXPIRE_TIME = 3600;
-
     IMessageLine public immutable msgline;
 
     struct RemoteMessager {
@@ -24,12 +21,8 @@ contract MsglineMessager is Application, AccessController {
     mapping(bytes32=>address) public remoteAppReceivers;
     mapping(bytes32=>address) public remoteAppSenders;
 
-    // transferId => timestamp
-    mapping(bytes32=>uint256) public slashTransferIds;
-
     event CallerUnMatched(uint256 srcAppChainId, bytes32 transferId, address srcAppAddress);
     event CallResult(uint256 srcAppChainId, bytes32 transferId, bool result);
-    event MessageStartSlash(bytes32 transferId, uint256 expiredTimestamp);
 
     modifier onlyWhiteList() {
         require(whiteList[msg.sender], "msg.sender not in whitelist");
@@ -91,10 +84,6 @@ contract MsglineMessager is Application, AccessController {
         bytes32 key = keccak256(abi.encodePacked(srcChainId, _localAppAddress));
         bytes32 transferId = latestRecvMessageId();
 
-        if (_messageSlashed(transferId)) {
-            return;
-        }
-
         // check remote appSender
         if (_remoteAppAddress != remoteAppSenders[key]) {
             emit CallerUnMatched(_srcAppChainId, transferId, _remoteAppAddress);
@@ -105,29 +94,12 @@ contract MsglineMessager is Application, AccessController {
         emit CallResult(_srcAppChainId, transferId, success);
     }
 
-    // We need to assume that transferId is unpredictable
-    function slashMessage(bytes32 _transferId) external {
-        require(slashTransferIds[_transferId] == 0, "!slash");
-        uint256 expiredTimestamp = block.timestamp + SLASH_EXPIRE_TIME;
-        slashTransferIds[_transferId] = expiredTimestamp;
-        emit MessageStartSlash(_transferId, expiredTimestamp);
-    }
-
-    function _messageSlashed(bytes32 _transferId) internal view returns(bool) {
-        uint256 slashTimestamp = slashTransferIds[_transferId];
-        return slashTimestamp > 0 && slashTimestamp < block.timestamp;
-    }
-
     function latestSentMessageId() external view returns(bytes32) {
         return msgline.sentMessageId();
     }
 
     function latestRecvMessageId() public view returns(bytes32) {
         return msgline.recvMessageId();
-    }
-
-    function messageDeliveredOrSlashed(bytes32 _transferId) external view returns(bool) {
-        return msgline.dones(_transferId) || _messageSlashed(_transferId);
     }
 
     function messagePayload(address _from, address _to, bytes memory _message) public view returns(bytes memory) {

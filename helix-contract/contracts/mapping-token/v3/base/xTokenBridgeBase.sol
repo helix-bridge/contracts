@@ -12,9 +12,17 @@ import "../../../utils/TokenTransferHelper.sol";
 // Backing or Issuing contract will inherit the contract.
 // This contract define the access authorization, the message channel
 contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLimit {
+    uint256 constant public TRANSFER_UNFILLED = 0x00;
+    uint256 constant public TRANSFER_DELIVERED = 0x01;
+    uint256 constant public TRANSFER_REFUNDED = 0x02;
     struct MessagerService {
         address sendService;
         address receiveService;
+    }
+
+    struct RequestInfo {
+        bool isRequested;
+        bool hasRefundForFailed;
     }
 
     // the version is to issue different xTokens for different version of bridge.
@@ -26,6 +34,14 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     address public guard;
     // remoteChainId => info
     mapping(uint256 => MessagerService) public messagers;
+
+    // transferId => RequestInfo
+    mapping(bytes32 => RequestInfo) public requestInfos;
+
+    // transferId => result
+    // 1. 0x01: filled by receive message
+    // 2. 0x02: filled by refund operation
+    mapping(bytes32 => uint256) public filledTransfers;
 
     // must be called by message service configured
     modifier calledByMessager(uint256 _remoteChainId) {
@@ -87,20 +103,27 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         messageId = IMessageId(service.sendService).latestSentMessageId();
     }
 
-    // check a special message is delivered by message service
-    // the delivered message can't be received any more
-    function _assertMessageIsDelivered(uint256 _remoteChainId, bytes32 _transferId) view internal {
-        MessagerService memory service = messagers[_remoteChainId];
-        require(service.receiveService != address(0), "bridge not configured");
-        require(IMessageId(service.receiveService).messageDeliveredOrSlashed(_transferId), "message not delivered");
+    function _requestTransfer(bytes32 _transferId) internal {
+        require(requestInfos[_transferId].isRequested == false, "request exist");
+        requestInfos[_transferId].isRequested = true;
     }
 
-    // the latest received message id
-    // when this method is called in the receive method, it's the current received message's id
-    function _latestRecvMessageId(uint256 _remoteChainId) view internal returns(bytes32) {
-        MessagerService memory service = messagers[_remoteChainId];
-        require(service.receiveService != address(0), "invalid remoteChainId");
-        return IMessageId(service.receiveService).latestRecvMessageId();
+    function _handleRefund(bytes32 _transferId) internal {
+        RequestInfo memory requestInfo = requestInfos[_transferId];
+        require(requestInfo.isRequested == true, "request not exist");
+        require(requestInfo.hasRefundForFailed == false, "request has been refund");
+        requestInfos[_transferId].hasRefundForFailed = true;
+    }
+
+    function getTransferId(
+        uint256 _nonce,
+        uint256 _targetChainId,
+        address _originalToken,
+        address _originalSender,
+        address _recipient,
+        uint256 _amount
+    ) public pure returns(bytes32) {
+        return keccak256(abi.encodePacked(_nonce, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
     }
 
     // settings

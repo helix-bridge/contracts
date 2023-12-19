@@ -18,11 +18,12 @@ describe("xtoken tests", () => {
   });
 
   it("test_msglinebased_xtoken_flow", async function () {
-      const [owner, relayer, user, slasher] = await ethers.getSigners();
+      const [owner, user01, user02] = await ethers.getSigners();
       const dao = owner.address;
       const backingChainId = 31337;
       const issuingChainId = 31337;
       const nativeTokenAddress = "0x0000000000000000000000000000000000000000";
+      let globalNonce = 10001;
 
       const xTokens = {};
 
@@ -96,6 +97,11 @@ describe("xtoken tests", () => {
       await issuingGuard.deployed();
       await issuingGuard.setDepositor(issuing.address, true);
 
+      function generateNonce() {
+          globalNonce += 1;
+          return globalNonce;
+      }
+
       async function registerToken(
           originalTokenAddress,
           originalChainName,
@@ -128,7 +134,7 @@ describe("xtoken tests", () => {
           console.log("register original token finished, address:", xTokenAddress);
           xTokens[originalTokenAddress] = xTokenAddress;
           const xToken = await ethers.getContractAt("Erc20", xTokenAddress);
-          await xToken.approve(issuing.address, ethers.utils.parseEther("1000000000"));
+          await xToken.connect(user02).approve(issuing.address, ethers.utils.parseEther("1000000000"));
           return xTokenAddress;
       }
 
@@ -143,22 +149,24 @@ describe("xtoken tests", () => {
 
       async function lockAndRemoteIssuing(
           originalAddress,
-          recipient,
           amount,
           fee,
           usingGuard,
           result
       ) {
+          const recipient = user02.address;
+          const nonce = generateNonce();
           const xTokenAddress = xTokens[originalAddress];
 
           const balanceRecipientBefore = await balanceOf(xTokenAddress, recipient);
           const balanceBackingBefore = await balanceOf(originalAddress, backing.address);
 
-          const transaction = await backing.lockAndRemoteIssuing(
+          const transaction = await backing.connect(user01).lockAndRemoteIssuing(
               issuingChainId,
               originalAddress,
               recipient,
               amount,
+              nonce,
               0,
               {value: ethers.utils.parseEther(fee)}
           )
@@ -167,11 +175,10 @@ describe("xtoken tests", () => {
 
           const balanceRecipientAfter = await balanceOf(xTokenAddress, recipient);
           const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
-          const messageId = await backingMessager.latestSentMessageId();
-          const lockInfo = await backing.lockedMessages(messageId);
-
-          expect(lockInfo.hash).not.to.equal("0x0000000000000000000000000000000000000000000000000000000000000000");
-          expect(lockInfo.hasRefundForFailed).to.equal(false);
+          const transferId = await backing.getTransferId(nonce, issuingChainId, originalAddress, user01.address, recipient, amount);
+          const requestInfo = await backing.requestInfos(transferId);
+          expect(requestInfo.isRequested).to.equal(true);
+          expect(requestInfo.hasRefundForFailed).to.equal(false);
           if (result == true && !usingGuard) {
               expect(balanceRecipientAfter - balanceRecipientBefore).to.equal(amount);
               expect(balanceBackingAfter - balanceBackingBefore).to.equal(amount);
@@ -179,26 +186,29 @@ describe("xtoken tests", () => {
               expect(balanceRecipientAfter - balanceRecipientBefore).to.equal(0);
               expect(balanceBackingAfter - balanceBackingBefore).to.equal(amount);
           }
+          return nonce;
       }
 
       async function burnAndRemoteUnlock(
           originalAddress,
-          recipient,
           amount,
           fee,
           usingGuard,
           result
       ) {
+          const recipient = user01.address;
+          const nonce = generateNonce();
           const xTokenAddress = xTokens[originalAddress];
 
-          const balanceUserBefore = await balanceOf(xTokenAddress, owner.address);
+          const balanceUserBefore = await balanceOf(xTokenAddress, user02.address);
           const balanceRecipientBefore = await balanceOf(originalAddress, recipient);
           const balanceBackingBefore = await balanceOf(originalAddress, backing.address);
 
-          const transaction = await issuing.burnAndRemoteUnlock(
+          const transaction = await issuing.connect(user02).burnAndRemoteUnlock(
               xTokenAddress,
               recipient,
               amount,
+              nonce,
               0,
               {value: ethers.utils.parseEther(fee)}
           );
@@ -207,12 +217,12 @@ describe("xtoken tests", () => {
 
           const balanceRecipientAfter = await balanceOf(originalAddress, recipient);
           const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
-          const balanceUserAfter = await balanceOf(xTokenAddress, owner.address);
+          const balanceUserAfter = await balanceOf(xTokenAddress, user02.address);
 
-          const messageId = await issuingMessager.latestSentMessageId();
-          const burnInfo = await issuing.burnMessages(messageId);
-          expect(burnInfo.hash).not.to.equal("0x0000000000000000000000000000000000000000000000000000000000000000");
-          expect(burnInfo.hasRefundForFailed).to.equal(false);
+          const transferId = await backing.getTransferId(nonce, backingChainId, originalAddress, user02.address, recipient, amount);
+          const requestInfo = await issuing.requestInfos(transferId);
+          expect(requestInfo.isRequested).to.equal(true);
+          expect(requestInfo.hasRefundForFailed).to.equal(false);
           expect(balanceUserBefore.sub(balanceUserAfter)).to.equal(amount);
 
           if (result && !usingGuard) {
@@ -227,25 +237,27 @@ describe("xtoken tests", () => {
               }
               expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(0);
           }
+          return nonce;
       }
 
       async function requestRemoteUnlockForIssuingFailure(
-          transferId,
           originalToken,
-          originalSender,
           amount,
+          nonce,
           fee,
           result
       ) {
+          const originalSender = user01.address;
+          const recipient = user02.address;
           const balanceBackingBefore = await balanceOf(originalToken, backing.address);
           const balanceSenderBefore = await balanceOf(originalToken, originalSender);
-          const balanceSlasherBefore = await balanceOf(originalToken, slasher.address);
-          const transaction = await issuing.connect(slasher).requestRemoteUnlockForIssuingFailure(
-              transferId,
+          const transaction = await issuing.requestRemoteUnlockForIssuingFailure(
               backingChainId,
               originalToken,
               originalSender,
+              recipient,
               amount,
+              nonce,
               0,
               {
                   value: ethers.utils.parseEther(fee),
@@ -254,18 +266,17 @@ describe("xtoken tests", () => {
           );
           const balanceSenderAfter = await balanceOf(originalToken, originalSender);
           const balanceBackingAfter = await balanceOf(originalToken, backing.address);
-          const balanceSlasherAfter = await balanceOf(originalToken, slasher.address);
           
           let receipt = await transaction.wait();
           let gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
-          expect(balanceSlasherBefore.sub(balanceSlasherAfter)).to.be.equal(gasFee.add(ethers.utils.parseEther(fee)));
 
-          const lockInfo = await backing.lockedMessages(transferId);
-          expect(lockInfo.hash).not.to.equal("0x0000000000000000000000000000000000000000000000000000000000000000");
+          const transferId = await backing.getTransferId(nonce, issuingChainId, originalToken, originalSender, recipient, amount);
+          const requestInfo = await backing.requestInfos(transferId);
           if (result) {
               expect(balanceSenderAfter.sub(balanceSenderBefore)).to.be.equal(amount);
               expect(balanceBackingBefore.sub(balanceBackingAfter)).to.be.equal(amount);
-              expect(lockInfo.hasRefundForFailed).to.equal(true);
+              expect(requestInfo.isRequested).to.equal(true);
+              expect(requestInfo.hasRefundForFailed).to.equal(true);
           } else {
               expect(balanceSenderAfter.sub(balanceSenderBefore)).to.be.equal(0);
               expect(balanceBackingBefore.sub(balanceBackingAfter)).to.be.equal(0);
@@ -273,22 +284,25 @@ describe("xtoken tests", () => {
       }
 
       async function requestRemoteIssuingForUnlockFailure(
-          transferId,
           originalToken,
-          originalSender,
           amount,
+          nonce,
           fee,
           result
       ) {
+          const originalSender = user02.address;
+          const recipient = user01.address;
+
           const xTokenAddress = xTokens[originalToken];
 
           const balanceSenderBefore = await balanceOf(xTokenAddress, originalSender);
           await backing.requestRemoteIssuingForUnlockFailure(
-              transferId,
               issuingChainId,
               originalToken,
               originalSender,
+              recipient,
               amount,
+              nonce,
               0,
               {value: ethers.utils.parseEther(fee)}
           );
@@ -352,7 +366,6 @@ describe("xtoken tests", () => {
 
       await expect(lockAndRemoteIssuing(
           nativeTokenAddress,
-          owner.address,
           100,
           "0.9",
           false,
@@ -360,18 +373,16 @@ describe("xtoken tests", () => {
       )).to.be.revertedWith("fee is not enough");
 
       // success lock and remote xtoken
-      await lockAndRemoteIssuing(
+      const nonce01 = await lockAndRemoteIssuing(
           nativeTokenAddress,
-          owner.address,
           500,
           "1.1",
           false,
           true
       );
       // success burn and remote unlock
-      await burnAndRemoteUnlock(
+      const nonce02 = await burnAndRemoteUnlock(
           nativeTokenAddress,
-          user.address,
           100,
           "1.1",
           false,
@@ -380,26 +391,23 @@ describe("xtoken tests", () => {
 
       // test refund failed if the message has been successed
       await expect(requestRemoteUnlockForIssuingFailure(
-          await issuingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          owner.address,
-          100,
+          500,
+          nonce01,
           "1.1",
           true
       )).to.be.revertedWith("success message can't refund for failed");
       await expect(requestRemoteIssuingForUnlockFailure(
-          await backingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          owner.address,
           100,
+          nonce02,
           "1.1",
           true
       )).to.be.revertedWith("success message can't refund for failed");
 
       // lock exceed daily limit
-      await lockAndRemoteIssuing(
+      const nonce03 = await lockAndRemoteIssuing(
           nativeTokenAddress,
-          owner.address,
           501,
           "1.1",
           false,
@@ -407,46 +415,41 @@ describe("xtoken tests", () => {
       );
       // refund (when isssuing failed)
       await requestRemoteUnlockForIssuingFailure(
-          await issuingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          owner.address,
           501,
+          nonce03,
           "1.1",
           true
       );
       // the params not right
       // 1. amount
       await requestRemoteUnlockForIssuingFailure(
-          await issuingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          owner.address,
           500,
+          nonce03,
           "1.1",
           false
       );
       // receiver
       await requestRemoteUnlockForIssuingFailure(
-          await issuingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          relayer.address,
           501,
+          nonce03,
           "1.1",
           false
       );
       // refund twice
       await requestRemoteUnlockForIssuingFailure(
-          await issuingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          owner.address,
           501,
+          nonce03,
           "1.1",
           false
       );
       // burn failed
       await mockBackingMsgline.setRecvFailed();
-      await burnAndRemoteUnlock(
+      const nonce04 = await burnAndRemoteUnlock(
           nativeTokenAddress,
-          user.address,
           100,
           "1.1",
           false,
@@ -454,28 +457,25 @@ describe("xtoken tests", () => {
       );
       // invalid args
       await requestRemoteIssuingForUnlockFailure(
-          await backingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          user.address,
           101,
+          nonce04,
           "1.1",
           false
       );
       // refund (when unlock failed)
       await requestRemoteIssuingForUnlockFailure(
-          await backingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          owner.address,
           100,
+          nonce04,
           "1.1",
           true
       );
       // refund twice
       await requestRemoteIssuingForUnlockFailure(
-          await backingMessager.latestRecvMessageId(),
           nativeTokenAddress,
-          owner.address,
           100,
+          nonce04,
           "1.1",
           false
       );
@@ -485,42 +485,42 @@ describe("xtoken tests", () => {
       await issuing.updateGuard(issuingGuard.address);
 
       // lock -> issuing using guard
-      await lockAndRemoteIssuing(
+      const nonce05 = await lockAndRemoteIssuing(
           nativeTokenAddress,
-          owner.address,
           10,
           "1.1",
           true,//using guard
           true
       );
+      const transferId = await backing.getTransferId(nonce05, issuingChainId, nativeTokenAddress, user01.address, user02.address, 10);
       await guardClaim(
           issuingGuard,
           issuing.address,
-          await issuingMessager.latestRecvMessageId(),
+          transferId,
           await getBlockTimestamp(),
           [guards[0], guards[1]],
           xTokens[nativeTokenAddress],
-          owner.address,
+          user02.address,
           10
       );
       // burn -> unlock using guard (native token)
-      await burnAndRemoteUnlock(
+      const nonce06 = await burnAndRemoteUnlock(
           nativeTokenAddress,
-          user.address,
           20,
           "1.1",
           true, //using guard
           true
       );
+      const transferId06 = await backing.getTransferId(nonce06, backingChainId, nativeTokenAddress, user02.address, user01.address, 20);
       await guardClaim(
           backingGuard,
           backing.address,
-          await backingMessager.latestRecvMessageId(),
+          transferId06,
           await getBlockTimestamp(),
           [guards[0], guards[1]],
           // native token must be claimed by wtoken
           weth.address,
-          user.address,
+          user01.address,
           20
       );
       // claim twice
@@ -531,50 +531,19 @@ describe("xtoken tests", () => {
           await getBlockTimestamp(),
           [guards[0], guards[1]],
           weth.address,
-          user.address,
+          user01.address,
           20
       )).to.be.revertedWith("Guard: Invalid id to claim");
 
       // test message slashed
       await mockIssuingMsgline.setNeverDelivered();
       // this message will be never delivered
-      await lockAndRemoteIssuing(
+      const nonce07 = await lockAndRemoteIssuing(
           nativeTokenAddress,
-          owner.address,
           10,
           "1.1",
           true,
           false
-      );
-      // can't request refund
-      await expect(requestRemoteUnlockForIssuingFailure(
-          await backingMessager.latestSentMessageId(),
-          nativeTokenAddress,
-          owner.address,
-          10,
-          "1.1",
-          false
-      )).to.be.revertedWith("message not delivered");
-      // start expire
-      await issuingMessager.slashMessage(backingMessager.latestSentMessageId());
-      // still can't refund
-      await expect(requestRemoteUnlockForIssuingFailure(
-          await backingMessager.latestSentMessageId(),
-          nativeTokenAddress,
-          owner.address,
-          10,
-          "1.1",
-          false
-      )).to.be.revertedWith("message not delivered");
-      // time expired, and refund successed
-      await network.provider.send("evm_increaseTime", [Number(await issuingMessager.SLASH_EXPIRE_TIME())]);
-      requestRemoteUnlockForIssuingFailure(
-          await backingMessager.latestSentMessageId(),
-          nativeTokenAddress,
-          owner.address,
-          10,
-          "1.1",
-          true
       );
   });
 });

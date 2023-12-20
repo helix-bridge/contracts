@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/8/2023
+ * 12/20/2023
  **/
 
 pragma solidity ^0.8.17;
@@ -330,119 +330,11 @@ library SafeMath {
     }
 }
 
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
-}
-
-// File @zeppelin-solidity/contracts/access/Ownable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (access/Ownable.sol)
-
-
-/**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
- *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
- *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
- */
-abstract contract Ownable is Context {
-    address private _owner;
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-    constructor() {
-        _transferOwnership(_msgSender());
-    }
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        _checkOwner();
-        _;
-    }
-
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if the sender is not the owner.
-     */
-    function _checkOwner() internal view virtual {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-    }
-
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called by the current owner.
-     *
-     * NOTE: Renouncing ownership will leave the contract without an owner,
-     * thereby removing any functionality that is only available to the owner.
-     */
-    function renounceOwnership() public virtual onlyOwner {
-        _transferOwnership(address(0));
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        _transferOwnership(newOwner);
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Internal function without access restriction.
-     */
-    function _transferOwnership(address newOwner) internal virtual {
-        address oldOwner = _owner;
-        _owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
-    }
-}
-
 // File contracts/mapping-token/v3/base/xTokenErc20.sol
 // License-Identifier: MIT
 
 
-
-contract xTokenErc20 is IERC20, Ownable {
+contract xTokenErc20 is IERC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -454,11 +346,37 @@ contract xTokenErc20 is IERC20, Ownable {
     string public symbol;
     uint8 public decimals;
 
+    address public owner;
+    address public pendingOwner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    modifier onlyOwner() {
+        require(owner == msg.sender, "Ownable: caller is not the owner");
+        _;
+    }
+
     constructor(string memory _name, string memory _symbol, uint8 _decimals) {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
-        _transferOwnership(_msgSender());
+        _transferOwnership(msg.sender);
+    }
+
+    function _transferOwnership(address newOwner) internal {
+        address oldOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+
+    function transferOwnership(address newOwner) public onlyOwner {
+        pendingOwner = newOwner;
+    }
+
+    function acceptOwnership() external {
+        require(pendingOwner == msg.sender, "invalid pending owner");
+        _transferOwnership(pendingOwner);
+        pendingOwner = address(0);
     }
 
     function totalSupply() public view override returns (uint256) {
@@ -474,8 +392,8 @@ contract xTokenErc20 is IERC20, Ownable {
         return true;
     }
 
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address account, address spender) public view virtual override returns (uint256) {
+        return _allowances[account][spender];
     }
 
     function approve(address spender, uint256 amount) public virtual override returns (bool) {
@@ -516,7 +434,7 @@ contract xTokenErc20 is IERC20, Ownable {
     }
 
     function burn(address account, uint256 amount) external {
-        if (account != msg.sender && owner() != msg.sender && _allowances[account][msg.sender] != type(uint256).max) {
+        if (account != msg.sender && owner != msg.sender && _allowances[account][msg.sender] != type(uint256).max) {
             _approve(account, msg.sender, _allowances[account][msg.sender].sub(amount, "ERC20: decreased allowance below zero"));
         }
         _burn(account, amount);
@@ -542,12 +460,12 @@ contract xTokenErc20 is IERC20, Ownable {
         emit Transfer(account, address(0), amount);
     }
 
-    function _approve(address owner, address spender, uint256 amount) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
+    function _approve(address account, address spender, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        _allowances[account][spender] = amount;
+        emit Approval(account, spender, amount);
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }

@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/8/2023
+ * 12/20/2023
  **/
 
 pragma solidity ^0.8.17;
@@ -151,6 +151,66 @@ interface IGuard {
   function deposit(uint256 id, address token, address recipient, uint256 amount) external;
 }
 
+// File contracts/interfaces/IMessager.sol
+// License-Identifier: MIT
+
+interface ILowLevelMessageSender {
+    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
+    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
+}
+
+interface ILowLevelMessageReceiver {
+    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
+    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
+}
+
+interface IMessageId {
+    function latestSentMessageId() external view returns(bytes32);
+    function latestRecvMessageId() external view returns(bytes32);
+}
+
+// File contracts/utils/AccessController.sol
+// License-Identifier: MIT
+
+/// @title AccessController
+/// @notice AccessController is a contract to control the access permission 
+/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
+contract AccessController {
+    address public dao;
+    address public operator;
+    address public pendingDao;
+
+    modifier onlyDao() {
+        require(msg.sender == dao, "!dao");
+        _;
+    }
+
+    modifier onlyOperator() {
+        require(msg.sender == operator, "!operator");
+        _;
+    }
+
+    function _initialize(address _dao) internal {
+        dao = _dao;
+        operator = _dao;
+    }
+
+    function setOperator(address _operator) onlyDao external {
+        operator = _operator;
+    }
+
+    function transferOwnership(address _dao) onlyDao external {
+        pendingDao = _dao;
+    }
+
+    function acceptOwnership() external {
+        address newDao = msg.sender;
+        require(pendingDao == newDao, "!pendingDao");
+        delete pendingDao;
+        dao = newDao;
+    }
+}
+
 // File contracts/utils/DailyLimit.sol
 // License-Identifier: MIT
 
@@ -232,67 +292,6 @@ contract DailyLimit {
 
         return dailyLimit[token] - lastspent;
     }
-}
-
-// File contracts/utils/AccessController.sol
-// License-Identifier: MIT
-
-/// @title AccessController
-/// @notice AccessController is a contract to control the access permission 
-/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract AccessController {
-    address public dao;
-    address public operator;
-    address public pendingDao;
-
-    modifier onlyDao() {
-        require(msg.sender == dao, "!dao");
-        _;
-    }
-
-    modifier onlyOperator() {
-        require(msg.sender == operator, "!operator");
-        _;
-    }
-
-    function _initialize(address _dao) internal {
-        dao = _dao;
-        operator = _dao;
-    }
-
-    function setOperator(address _operator) onlyDao external {
-        operator = _operator;
-    }
-
-    function transferOwnership(address _dao) onlyDao external {
-        pendingDao = _dao;
-    }
-
-    function acceptOwnership() external {
-        address newDao = msg.sender;
-        require(pendingDao == newDao, "!pendingDao");
-        delete pendingDao;
-        dao = newDao;
-    }
-}
-
-// File contracts/interfaces/IMessager.sol
-// License-Identifier: MIT
-
-interface ILowLevelMessageSender {
-    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
-    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
-}
-
-interface ILowLevelMessageReceiver {
-    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
-    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
-}
-
-interface IMessageId {
-    function latestSentMessageId() external view returns(bytes32);
-    function latestRecvMessageId() external view returns(bytes32);
-    function messageDelivered(bytes32 messageId) external view returns(bool);
 }
 
 // File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
@@ -792,20 +791,42 @@ abstract contract Initializable {
 
 
 
+// The Base contract for xToken protocol
+// Backing or Issuing contract will inherit the contract.
+// This contract define the access authorization, the message channel
 contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLimit {
+    uint256 constant public TRANSFER_UNFILLED = 0x00;
+    uint256 constant public TRANSFER_DELIVERED = 0x01;
+    uint256 constant public TRANSFER_REFUNDED = 0x02;
     struct MessagerService {
         address sendService;
         address receiveService;
     }
 
+    struct RequestInfo {
+        bool isRequested;
+        bool hasRefundForFailed;
+    }
+
+    // the version is to issue different xTokens for different version of bridge.
     string public version;
+    // the protocol fee for each time user send transaction
     uint256 public protocolFee;
+    // the reserved protocol fee in the contract
     uint256 public protocolFeeReserved;
     address public guard;
     // remoteChainId => info
     mapping(uint256 => MessagerService) public messagers;
 
-    // common method
+    // transferId => RequestInfo
+    mapping(bytes32 => RequestInfo) public requestInfos;
+
+    // transferId => result
+    // 1. 0x01: filled by receive message
+    // 2. 0x02: filled by refund operation
+    mapping(bytes32 => uint256) public filledTransfers;
+
+    // must be called by message service configured
     modifier calledByMessager(uint256 _remoteChainId) {
         address receiveService = messagers[_remoteChainId].receiveService;
         require(receiveService == msg.sender, "invalid messager");
@@ -850,13 +871,14 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     function _sendMessage(
         uint256 _remoteChainId,
         bytes memory _payload,
-        uint256 feePrepaid,
+        uint256 _feePrepaid,
         bytes memory _extParams
     ) internal whenNotPaused returns(bytes32 messageId) {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.sendService != address(0), "bridge not configured");
-        protocolFeeReserved += protocolFee;
-        ILowLevelMessageSender(service.sendService).sendMessage{value: feePrepaid - protocolFee}(
+        uint256 _protocolFee = protocolFee;
+        protocolFeeReserved += _protocolFee;
+        ILowLevelMessageSender(service.sendService).sendMessage{value: _feePrepaid - _protocolFee}(
             _remoteChainId,
             _payload,
             _extParams
@@ -864,16 +886,55 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         messageId = IMessageId(service.sendService).latestSentMessageId();
     }
 
-    function _assertMessageIsDelivered(uint256 _remoteChainId, bytes32 _transferId) view internal {
-        MessagerService memory service = messagers[_remoteChainId];
-        require(service.receiveService != address(0), "bridge not configured");
-        require(IMessageId(service.receiveService).messageDelivered(_transferId), "message not delivered");
+    // request a cross-chain transfer
+    // 1. lock and remote issue
+    // 2. burn and remote unlock
+    // save the transferId if not exist, else revert
+    function _requestTransfer(bytes32 _transferId) internal {
+        require(requestInfos[_transferId].isRequested == false, "request exist");
+        requestInfos[_transferId].isRequested = true;
     }
 
-    function _latestRecvMessageId(uint256 _remoteChainId) view internal returns(bytes32) {
-        MessagerService memory service = messagers[_remoteChainId];
-        require(service.receiveService != address(0), "invalid remoteChainId");
-        return IMessageId(service.receiveService).latestRecvMessageId();
+    // receive a cross-chain refund request
+    // 1. request must be exist
+    // 2. can't repeat
+    function _handleRefund(bytes32 _transferId) internal {
+        RequestInfo memory requestInfo = requestInfos[_transferId];
+        require(requestInfo.isRequested == true, "request not exist");
+        require(requestInfo.hasRefundForFailed == false, "request has been refund");
+        requestInfos[_transferId].hasRefundForFailed = true;
+    }
+
+    // receive a cross-chain request
+    // must not filled
+    // fill the transfer with delivered transfer type
+    function _handleTransfer(bytes32 _transferId) internal {
+        require(filledTransfers[_transferId] == TRANSFER_UNFILLED, "!conflict");
+        filledTransfers[_transferId] = TRANSFER_DELIVERED;
+    }
+
+    // request a cross-chain refund
+    // 1. can retry
+    // 2. can't be filled by delivery
+    function _requestRefund(bytes32 _transferId) internal {
+        uint256 filledTransfer = filledTransfers[_transferId];
+        // already fill by refund, retry request
+        if (filledTransfer == TRANSFER_REFUNDED) {
+            return;
+        }
+        require(filledTransfer == TRANSFER_UNFILLED, "!conflict");
+        filledTransfers[_transferId] = TRANSFER_REFUNDED;
+    }
+
+    function getTransferId(
+        uint256 _nonce,
+        uint256 _targetChainId,
+        address _originalToken,
+        address _originalSender,
+        address _recipient,
+        uint256 _amount
+    ) public pure returns(bytes32) {
+        return keccak256(abi.encodePacked(_nonce, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
     }
 
     // settings
@@ -883,88 +944,6 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
 
     function setDailyLimit(address _token, uint256 _dailyLimit) external onlyDao {
         _setDailyLimit(_token, _dailyLimit);
-    }
-}
-
-// File @zeppelin-solidity/contracts/access/Ownable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (access/Ownable.sol)
-
-
-/**
- * @dev Contract module which provides a basic access control mechanism, where
- * there is an account (an owner) that can be granted exclusive access to
- * specific functions.
- *
- * By default, the owner account will be the one that deploys the contract. This
- * can later be changed with {transferOwnership}.
- *
- * This module is used through inheritance. It will make available the modifier
- * `onlyOwner`, which can be applied to your functions to restrict their use to
- * the owner.
- */
-abstract contract Ownable is Context {
-    address private _owner;
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    /**
-     * @dev Initializes the contract setting the deployer as the initial owner.
-     */
-    constructor() {
-        _transferOwnership(_msgSender());
-    }
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        _checkOwner();
-        _;
-    }
-
-    /**
-     * @dev Returns the address of the current owner.
-     */
-    function owner() public view virtual returns (address) {
-        return _owner;
-    }
-
-    /**
-     * @dev Throws if the sender is not the owner.
-     */
-    function _checkOwner() internal view virtual {
-        require(owner() == _msgSender(), "Ownable: caller is not the owner");
-    }
-
-    /**
-     * @dev Leaves the contract without owner. It will not be possible to call
-     * `onlyOwner` functions anymore. Can only be called by the current owner.
-     *
-     * NOTE: Renouncing ownership will leave the contract without an owner,
-     * thereby removing any functionality that is only available to the owner.
-     */
-    function renounceOwnership() public virtual onlyOwner {
-        _transferOwnership(address(0));
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Can only be called by the current owner.
-     */
-    function transferOwnership(address newOwner) public virtual onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        _transferOwnership(newOwner);
-    }
-
-    /**
-     * @dev Transfers ownership of the contract to a new account (`newOwner`).
-     * Internal function without access restriction.
-     */
-    function _transferOwnership(address newOwner) internal virtual {
-        address oldOwner = _owner;
-        _owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
     }
 }
 
@@ -1200,8 +1179,7 @@ library SafeMath {
 // License-Identifier: MIT
 
 
-
-contract xTokenErc20 is IERC20, Ownable {
+contract xTokenErc20 is IERC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -1213,11 +1191,37 @@ contract xTokenErc20 is IERC20, Ownable {
     string public symbol;
     uint8 public decimals;
 
+    address public owner;
+    address public pendingOwner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    modifier onlyOwner() {
+        require(owner == msg.sender, "Ownable: caller is not the owner");
+        _;
+    }
+
     constructor(string memory _name, string memory _symbol, uint8 _decimals) {
         name = _name;
         symbol = _symbol;
         decimals = _decimals;
-        _transferOwnership(_msgSender());
+        _transferOwnership(msg.sender);
+    }
+
+    function _transferOwnership(address newOwner) internal {
+        address oldOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+
+    function transferOwnership(address newOwner) public onlyOwner {
+        pendingOwner = newOwner;
+    }
+
+    function acceptOwnership() external {
+        require(pendingOwner == msg.sender, "invalid pending owner");
+        _transferOwnership(pendingOwner);
+        pendingOwner = address(0);
     }
 
     function totalSupply() public view override returns (uint256) {
@@ -1233,8 +1237,8 @@ contract xTokenErc20 is IERC20, Ownable {
         return true;
     }
 
-    function allowance(address owner, address spender) public view virtual override returns (uint256) {
-        return _allowances[owner][spender];
+    function allowance(address account, address spender) public view virtual override returns (uint256) {
+        return _allowances[account][spender];
     }
 
     function approve(address spender, uint256 amount) public virtual override returns (bool) {
@@ -1275,7 +1279,7 @@ contract xTokenErc20 is IERC20, Ownable {
     }
 
     function burn(address account, uint256 amount) external {
-        if (account != msg.sender && owner() != msg.sender && _allowances[account][msg.sender] != type(uint256).max) {
+        if (account != msg.sender && owner != msg.sender && _allowances[account][msg.sender] != type(uint256).max) {
             _approve(account, msg.sender, _allowances[account][msg.sender].sub(amount, "ERC20: decreased allowance below zero"));
         }
         _burn(account, amount);
@@ -1301,12 +1305,12 @@ contract xTokenErc20 is IERC20, Ownable {
         emit Transfer(account, address(0), amount);
     }
 
-    function _approve(address owner, address spender, uint256 amount) internal virtual {
-        require(owner != address(0), "ERC20: approve from the zero address");
+    function _approve(address account, address spender, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
 
-        _allowances[owner][spender] = amount;
-        emit Approval(owner, spender, amount);
+        _allowances[account][spender] = amount;
+        emit Approval(account, spender, amount);
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
@@ -1319,16 +1323,19 @@ interface IxTokenBacking {
     function unlockFromRemote(
         uint256 remoteChainId,
         address originalToken,
+        address originalSender,
         address recipient,
-        uint256 amount
+        uint256 amount,
+        uint256 nonce
     ) external;
 
     function handleUnlockForIssuingFailureFromRemote(
         uint256 remoteChainId,
-        bytes32 transferId,
         address originalToken,
         address originalSender,
-        uint256 amount
+        address recipient,
+        uint256 amount,
+        uint256 nonce
     ) external;
 }
 
@@ -1340,20 +1347,10 @@ interface IxTokenBacking {
 
 
 contract xTokenIssuing is xTokenBridgeBase {
-    struct BurnInfo {
-        bytes32 hash;
-        bool hasRefundForFailed;
-    }
-
     struct OriginalTokenInfo {
         uint256 chainId;
         address token;
     }
-
-    // transferId => BurnInfo
-    mapping(bytes32 => BurnInfo) public burnMessages;
-    // transferId => bool
-    mapping(bytes32 => bool) public issueTransferIds;
 
     // original Token => xToken mapping is saved in Issuing Contract
     // salt => xToken address
@@ -1365,7 +1362,17 @@ contract xTokenIssuing is xTokenBridgeBase {
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
     event RemoteUnlockForIssuingFailureRequested(bytes32 refundId, bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
     event xTokenIssued(bytes32 transferId, uint256 remoteChainId, address originalToken, address xToken, address recipient, uint256 amount);
-    event BurnAndRemoteUnlocked(bytes32 transferId, uint256 remoteChainId, address sender, address recipient, address originalToken, address xToken, uint256 amount, uint256 fee);
+    event BurnAndRemoteUnlocked(
+        bytes32 transferId,
+        bytes32 messageId,
+        uint256 nonce,
+        uint256 remoteChainId,
+        address sender,
+        address recipient,
+        address originalToken,
+        uint256 amount,
+        uint256 fee
+    );
     event TokenRemintForFailed(bytes32 transferId, uint256 originalChainId, address originalToken, address xToken, address originalSender, uint256 amount);
 
     function registerxToken(
@@ -1397,6 +1404,8 @@ contract xTokenIssuing is xTokenBridgeBase {
         emit IssuingERC20Created(_originalChainId, _originalToken, xToken);
     }
 
+    // using this interface, the Issuing contract must be must be granted mint and burn authorities.
+    // warning: if the _xToken contract has no transferOwnership/acceptOwnership interface, then the authority cannot be transfered.
     function updatexToken(
         uint256 _originalChainId,
         address _originalToken,
@@ -1405,7 +1414,6 @@ contract xTokenIssuing is xTokenBridgeBase {
         bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         address oldxToken = xTokens[salt];
         if (oldxToken != address(0)) {
-            require(xTokenErc20(oldxToken).totalSupply() == 0, "can't delete old xToken");
             delete originalTokens[oldxToken];
         }
         xTokens[salt] = _xToken;
@@ -1413,22 +1421,32 @@ contract xTokenIssuing is xTokenBridgeBase {
         emit IssuingERC20Updated(_originalChainId, _originalToken, _xToken, oldxToken);
     }
 
+    // transfer xToken ownership
+    function transferxTokenOwnership(address _xToken, address _newOwner) external onlyDao {
+        xTokenErc20(_xToken).transferOwnership(_newOwner);
+    }
+
+    function acceptxTokenOwnership(address _xToken) external onlyDao {
+        xTokenErc20(_xToken).acceptOwnership();
+    }
+
     // receive issuing xToken message from remote backing contract
     function issuexToken(
         uint256 _remoteChainId,
         address _originalToken,
+        address _originalSender,
         address _recipient,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _nonce
     ) external calledByMessager(_remoteChainId) whenNotPaused {
-        bytes32 transferId = _latestRecvMessageId(_remoteChainId);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         bytes32 salt = xTokenSalt(_remoteChainId, _originalToken);
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
         require(_amount > 0, "can not receive amount zero");
         expendDailyLimit(xToken, _amount);
 
-        require(issueTransferIds[transferId] == false, "message has been accepted");
-        issueTransferIds[transferId] = true;
+        _handleTransfer(transferId);
 
         address _guard = guard;
         if (_guard != address(0)) {
@@ -1446,100 +1464,114 @@ contract xTokenIssuing is xTokenBridgeBase {
         address _xToken,
         address _recipient,
         uint256 _amount,
+        uint256 _nonce,
         bytes memory _extParams
     ) external payable {
         require(_amount > 0, "can not transfer amount zero");
         OriginalTokenInfo memory originalInfo = originalTokens[_xToken];
+        bytes32 transferId = getTransferId(_nonce, originalInfo.chainId, originalInfo.token, msg.sender, _recipient, _amount);
+        _requestTransfer(transferId);
         // transfer to this and then burn
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
         xTokenErc20(_xToken).burn(address(this), _amount);
 
         bytes memory remoteUnlockCall = encodeUnlockFromRemote(
             originalInfo.token,
+            msg.sender,
             _recipient,
-            _amount
+            _amount,
+            _nonce
         );
-        bytes32 transferId = _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
+        bytes32 messageId = _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
 
-        require(burnMessages[transferId].hash == bytes32(0), "message exist");
-        bytes32 messageHash = keccak256(abi.encodePacked(transferId, originalInfo.chainId, _xToken, msg.sender, _amount));
-        burnMessages[transferId] = BurnInfo(messageHash, false);
-        emit BurnAndRemoteUnlocked(transferId, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _xToken, _amount, msg.value);
+        emit BurnAndRemoteUnlocked(transferId, messageId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
     }
 
     function encodeUnlockFromRemote(
         address _originalToken,
+        address _originalSender,
         address _recipient,
-        uint256 _amount
+        uint256 _amount,
+        uint256 _nonce
     ) public view returns(bytes memory) {
         return abi.encodeWithSelector(
             IxTokenBacking.unlockFromRemote.selector,
             block.chainid,
             _originalToken,
+            _originalSender,
             _recipient,
-            _amount
+            _amount,
+            _nonce
         );
     }
 
+    // send unlock message when issuing failed
+    // 1. message has been delivered
+    // 2. xtoken not issued
+    // this method can retry
     function requestRemoteUnlockForIssuingFailure(
-        bytes32 _transferId,
         uint256 _originalChainId,
         address _originalToken,
         address _originalSender,
+        address _recipient,
         uint256 _amount,
+        uint256 _nonce,
         bytes memory _extParams
     ) external payable {
-        require(issueTransferIds[_transferId] == false, "success message can't refund for failed");
-        _assertMessageIsDelivered(_originalChainId, _transferId);
+        require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
+        bytes32 transferId = getTransferId(_nonce, _originalChainId, _originalToken, _originalSender, _recipient, _amount);
+        _requestRefund(transferId);
         bytes memory handleUnlockForFailed = encodeUnlockForIssuingFailureFromRemote(
-            _transferId,
             _originalToken,
             _originalSender,
-            _amount
+            _recipient,
+            _amount,
+            _nonce
         );
-        bytes32 refundId = _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
-        emit RemoteUnlockForIssuingFailureRequested(refundId, _transferId, _originalToken, _originalSender, _amount, msg.value);
+        bytes32 messageId = _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
+        emit RemoteUnlockForIssuingFailureRequested(transferId, messageId, _originalToken, _originalSender, _amount, msg.value);
     }
 
     function encodeUnlockForIssuingFailureFromRemote(
-        bytes32 _transferId,
         address _originalToken,
         address _originalSender,
-        uint256 _amount
+        address _recipient,
+        uint256 _amount,
+        uint256 _nonce
     ) public view returns(bytes memory) {
         return abi.encodeWithSelector(
             IxTokenBacking.handleUnlockForIssuingFailureFromRemote.selector,
             block.chainid,
-            _transferId,
             _originalToken,
             _originalSender,
-            _amount
+            _recipient,
+            _amount,
+            _nonce
         );
     }
 
     // when burn and unlock failed
     // receive reIssue(refund) message from remote backing contract
     // this will refund xToken to original sender
+    // 1. the transfer not refund before
+    // 2. the burn information(hash) matched
     function handleIssuingForUnlockFailureFromRemote(
         uint256 _originalChainId,
-        bytes32 _transferId,
         address _originalToken,
         address _originalSender,
-        uint256 _amount
+        address _recipient,
+        uint256 _amount,
+        uint256 _nonce
     ) external calledByMessager(_originalChainId) whenNotPaused {
-        BurnInfo memory burnInfo = burnMessages[_transferId];
-        require(burnInfo.hasRefundForFailed == false, "Backing:the burn message has been refund");
+        bytes32 transferId = getTransferId(_nonce, _originalChainId, _originalToken, _originalSender, _recipient, _amount);
+        _handleRefund(transferId);
 
         bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
 
-        bytes32 messageHash = keccak256(abi.encodePacked(_transferId, _originalChainId, xToken, _originalSender, _amount));
-        require(burnInfo.hash == messageHash, "message is not matched");
-        burnMessages[_transferId].hasRefundForFailed = true;
-
         xTokenErc20(xToken).mint(_originalSender, _amount);
-        emit TokenRemintForFailed(_transferId, _originalChainId, _originalToken, xToken, _originalSender, _amount);
+        emit TokenRemintForFailed(transferId, _originalChainId, _originalToken, xToken, _originalSender, _amount);
     }
 
     function xTokenSalt(

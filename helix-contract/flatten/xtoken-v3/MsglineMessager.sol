@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/8/2023
+ * 12/20/2023
  **/
 
 pragma solidity ^0.8.17;
@@ -113,8 +113,8 @@ contract MsglineMessager is Application, AccessController {
     mapping(bytes32=>address) public remoteAppReceivers;
     mapping(bytes32=>address) public remoteAppSenders;
 
-    event CallerUnMatched(uint256 srcAppChainId, address srcAppAddress);
-    event CallResult(uint256 srcAppChainId, bool result);
+    event CallerUnMatched(uint256 srcAppChainId, bytes32 transferId, address srcAppAddress);
+    event CallResult(uint256 srcAppChainId, bytes32 transferId, bool result);
 
     modifier onlyWhiteList() {
         require(whiteList[msg.sender], "msg.sender not in whitelist");
@@ -125,8 +125,6 @@ contract MsglineMessager is Application, AccessController {
         require(msg.sender == address(msgline), "invalid caller");
         _;
     }
-
-    //event CallResult(string sourceChain, string srcAddress, bool successed);
 
     constructor(address _dao, address _msgline) {
         _initialize(_dao);
@@ -176,27 +174,24 @@ contract MsglineMessager is Application, AccessController {
         require(srcChainId == remoteMessager.msglineRemoteChainId, "invalid remote chainid");
         require(remoteMessager.messager == _xmsgSender(), "invalid remote messager");
         bytes32 key = keccak256(abi.encodePacked(srcChainId, _localAppAddress));
+        bytes32 transferId = latestRecvMessageId();
 
         // check remote appSender
         if (_remoteAppAddress != remoteAppSenders[key]) {
-            emit CallerUnMatched(_srcAppChainId, _remoteAppAddress);
+            emit CallerUnMatched(_srcAppChainId, transferId, _remoteAppAddress);
             return;
         }
         (bool success,) = _localAppAddress.call(_message);
         // don't revert to prevent message block
-        emit CallResult(_srcAppChainId, success);
+        emit CallResult(_srcAppChainId, transferId, success);
     }
 
     function latestSentMessageId() external view returns(bytes32) {
         return msgline.sentMessageId();
     }
 
-    function latestRecvMessageId() external view returns(bytes32) {
+    function latestRecvMessageId() public view returns(bytes32) {
         return msgline.recvMessageId();
-    }
-
-    function messageDelivered(bytes32 messageId) external view returns(bool) {
-        return msgline.dones(messageId);
     }
 
     function messagePayload(address _from, address _to, bytes memory _message) public view returns(bytes memory) {

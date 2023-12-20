@@ -54,6 +54,8 @@ contract xTokenBacking is xTokenBridgeBase {
 
     // We use nonce to ensure that messages are not duplicated
     // especially in reorg scenarios, the destination chain use nonce to filter out duplicate deliveries. 
+    // nonce is user-defined, there is no requirement that it must not be repeated.
+    // But the transferId generated must not be repeated.
     function lockAndRemoteIssuing(
         uint256 _remoteChainId,
         address _originalToken,
@@ -124,8 +126,7 @@ contract xTokenBacking is xTokenBridgeBase {
         expendDailyLimit(_originalToken, _amount);
 
         bytes32 transferId = getTransferId(_nonce, block.chainid, _originalToken, _originSender, _recipient, _amount);
-        require(filledTransfers[transferId] == TRANSFER_UNFILLED, "message has been accepted");
-        filledTransfers[transferId] = TRANSFER_DELIVERED;
+        _handleTransfer(transferId);
 
         // native token do not use guard
         if (address(0) == _originalToken) {
@@ -182,12 +183,7 @@ contract xTokenBacking is xTokenBridgeBase {
     ) external payable {
         require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
         bytes32 transferId = getTransferId(_nonce, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
-        // must not exist in successful issue list
-        uint256 filledTransfer = filledTransfers[transferId];
-        require(filledTransfer != TRANSFER_DELIVERED, "success message can't refund for failed");
-        if (filledTransfer != TRANSFER_REFUNDED) {
-            filledTransfers[transferId] = TRANSFER_REFUNDED;
-        }
+        _requestRefund(transferId);
         bytes memory unlockForFailed = encodeIssuingForUnlockFailureFromRemote(
             _originalToken,
             _originalSender,

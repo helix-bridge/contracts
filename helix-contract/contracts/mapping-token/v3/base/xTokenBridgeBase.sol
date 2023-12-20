@@ -103,16 +103,44 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         messageId = IMessageId(service.sendService).latestSentMessageId();
     }
 
+    // request a cross-chain transfer
+    // 1. lock and remote issue
+    // 2. burn and remote unlock
+    // save the transferId if not exist, else revert
     function _requestTransfer(bytes32 _transferId) internal {
         require(requestInfos[_transferId].isRequested == false, "request exist");
         requestInfos[_transferId].isRequested = true;
     }
 
+    // receive a cross-chain refund request
+    // 1. request must be exist
+    // 2. can't repeat
     function _handleRefund(bytes32 _transferId) internal {
         RequestInfo memory requestInfo = requestInfos[_transferId];
         require(requestInfo.isRequested == true, "request not exist");
         require(requestInfo.hasRefundForFailed == false, "request has been refund");
         requestInfos[_transferId].hasRefundForFailed = true;
+    }
+
+    // receive a cross-chain request
+    // must not filled
+    // fill the transfer with delivered transfer type
+    function _handleTransfer(bytes32 _transferId) internal {
+        require(filledTransfers[_transferId] == TRANSFER_UNFILLED, "!conflict");
+        filledTransfers[_transferId] = TRANSFER_DELIVERED;
+    }
+
+    // request a cross-chain refund
+    // 1. can retry
+    // 2. can't be filled by delivery
+    function _requestRefund(bytes32 _transferId) internal {
+        uint256 filledTransfer = filledTransfers[_transferId];
+        // already fill by refund, retry request
+        if (filledTransfer == TRANSFER_REFUNDED) {
+            return;
+        }
+        require(filledTransfer == TRANSFER_UNFILLED, "!conflict");
+        filledTransfers[_transferId] = TRANSFER_REFUNDED;
     }
 
     function getTransferId(

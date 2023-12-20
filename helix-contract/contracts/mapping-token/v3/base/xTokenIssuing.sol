@@ -107,8 +107,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         require(_amount > 0, "can not receive amount zero");
         expendDailyLimit(xToken, _amount);
 
-        require(filledTransfers[transferId] == TRANSFER_UNFILLED, "message has been accepted");
-        filledTransfers[transferId] = TRANSFER_DELIVERED;
+        _handleTransfer(transferId);
 
         address _guard = guard;
         if (_guard != address(0)) {
@@ -182,11 +181,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     ) external payable {
         require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
         bytes32 transferId = getTransferId(_nonce, _originalChainId, _originalToken, _originalSender, _recipient, _amount);
-        uint256 filledTransfer = filledTransfers[transferId];
-        require(filledTransfer != TRANSFER_DELIVERED, "success message can't refund for failed");
-        if (filledTransfer != TRANSFER_REFUNDED) {
-            filledTransfers[transferId] = TRANSFER_REFUNDED;
-        }
+        _requestRefund(transferId);
         bytes memory handleUnlockForFailed = encodeUnlockForIssuingFailureFromRemote(
             _originalToken,
             _originalSender,

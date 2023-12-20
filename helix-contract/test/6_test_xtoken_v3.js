@@ -396,14 +396,14 @@ describe("xtoken tests", () => {
           nonce01,
           "1.1",
           true
-      )).to.be.revertedWith("success message can't refund for failed");
+      )).to.be.revertedWith("!conflict");
       await expect(requestRemoteIssuingForUnlockFailure(
           nativeTokenAddress,
           100,
           nonce02,
           "1.1",
           true
-      )).to.be.revertedWith("success message can't refund for failed");
+      )).to.be.revertedWith("!conflict");
 
       // lock exceed daily limit
       const nonce03 = await lockAndRemoteIssuing(

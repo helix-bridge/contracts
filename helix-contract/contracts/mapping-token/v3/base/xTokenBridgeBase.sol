@@ -90,7 +90,7 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         bytes memory _payload,
         uint256 _feePrepaid,
         bytes memory _extParams
-    ) internal whenNotPaused returns(bytes32 messageId) {
+    ) internal whenNotPaused {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.sendService != address(0), "bridge not configured");
         uint256 _protocolFee = protocolFee;
@@ -100,7 +100,6 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
             _payload,
             _extParams
         );
-        messageId = IMessageId(service.sendService).latestSentMessageId();
     }
 
     // request a cross-chain transfer

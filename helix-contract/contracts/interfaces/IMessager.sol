@@ -11,7 +11,3 @@ interface ILowLevelMessageReceiver {
     function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
-interface IMessageId {
-    function latestSentMessageId() external view returns(bytes32);
-    function latestRecvMessageId() external view returns(bytes32);
-}

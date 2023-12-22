@@ -19,7 +19,6 @@ contract xTokenBacking is xTokenBridgeBase {
 
     event TokenLocked(
         bytes32 transferId,
-        bytes32 messageId,
         uint256 nonce,
         uint256 remoteChainId,
         address token,
@@ -29,7 +28,7 @@ contract xTokenBacking is xTokenBridgeBase {
         uint256 fee
     );
     event TokenUnlocked(bytes32 transferId, uint256 remoteChainId, address token, address recipient, uint256 amount);
-    event RemoteIssuingFailure(bytes32 transferId, bytes32 messageId, address xToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteIssuingFailure(bytes32 transferId, address xToken, address originalSender, uint256 amount, uint256 fee);
     event TokenUnlockedForFailed(bytes32 transferId, uint256 remoteChainId, address token, address recipient, uint256 amount);
 
     // the wToken is the wrapped native token's address
@@ -92,8 +91,8 @@ contract xTokenBacking is xTokenBridgeBase {
             _amount,
             _nonce
         );
-        bytes32 messageId = _sendMessage(_remoteChainId, issuxToken, prepaid, _extParams);
-        emit TokenLocked(transferId, messageId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, prepaid);
+        _sendMessage(_remoteChainId, issuxToken, prepaid, _extParams);
+        emit TokenLocked(transferId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, prepaid);
     }
 
     function encodeIssuexToken(
@@ -191,8 +190,8 @@ contract xTokenBacking is xTokenBridgeBase {
             _amount,
             _nonce
         );
-        bytes32 messageId = _sendMessage(_remoteChainId, unlockForFailed, msg.value, _extParams);
-        emit RemoteIssuingFailure(transferId, messageId, _originalToken, _originalSender, _amount, msg.value);
+        _sendMessage(_remoteChainId, unlockForFailed, msg.value, _extParams);
+        emit RemoteIssuingFailure(transferId, _originalToken, _originalSender, _amount, msg.value);
     }
 
     function encodeIssuingForUnlockFailureFromRemote(

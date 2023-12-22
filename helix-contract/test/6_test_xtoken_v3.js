@@ -527,7 +527,7 @@ describe("xtoken tests", () => {
       await expect(guardClaim(
           backingGuard,
           backing.address,
-          await backingMessager.latestRecvMessageId(),
+          transferId06,
           await getBlockTimestamp(),
           [guards[0], guards[1]],
           weth.address,

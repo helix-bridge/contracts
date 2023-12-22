@@ -21,11 +21,10 @@ contract xTokenIssuing is xTokenBridgeBase {
 
     event IssuingERC20Created(uint256 originalChainId, address originalToken, address xToken);
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
-    event RemoteUnlockForIssuingFailureRequested(bytes32 refundId, bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteUnlockForIssuingFailureRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
     event xTokenIssued(bytes32 transferId, uint256 remoteChainId, address originalToken, address xToken, address recipient, uint256 amount);
     event BurnAndRemoteUnlocked(
         bytes32 transferId,
-        bytes32 messageId,
         uint256 nonce,
         uint256 remoteChainId,
         address sender,
@@ -143,9 +142,8 @@ contract xTokenIssuing is xTokenBridgeBase {
             _amount,
             _nonce
         );
-        bytes32 messageId = _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
-
-        emit BurnAndRemoteUnlocked(transferId, messageId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
+        _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
+        emit BurnAndRemoteUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
     }
 
     function encodeUnlockFromRemote(
@@ -189,8 +187,8 @@ contract xTokenIssuing is xTokenBridgeBase {
             _amount,
             _nonce
         );
-        bytes32 messageId = _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
-        emit RemoteUnlockForIssuingFailureRequested(transferId, messageId, _originalToken, _originalSender, _amount, msg.value);
+        _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
+        emit RemoteUnlockForIssuingFailureRequested(transferId, _originalToken, _originalSender, _amount, msg.value);
     }
 
     function encodeUnlockForIssuingFailureFromRemote(

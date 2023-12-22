@@ -4,9 +4,6 @@ pragma solidity >=0.8.17;
 interface IMessageLine {
     function send(uint256 toChainId, address toDapp, bytes calldata message, bytes calldata params) external payable;
     function fee(uint256 toChainId, address toDapp, bytes calldata message, bytes calldata params) external view returns (uint256);
-    function sentMessageId() external view returns(bytes32);
-    function recvMessageId() external view returns(bytes32);
-    function dones(bytes32) external view returns(bool);
 }
 
 abstract contract Application {

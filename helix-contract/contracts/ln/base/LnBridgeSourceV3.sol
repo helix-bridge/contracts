@@ -5,8 +5,8 @@ import "@zeppelin-solidity/contracts/security/Pausable.sol";
 import "./LnAccessController.sol";
 import "./TokenTransferHelper.sol";
 
-/// @title LnBridgeSourceV1
-/// @notice LnBridgeSourceV1 is a contract to help user lock token and then trigger remote chain relay
+/// @title LnBridgeSourceV3
+/// @notice LnBridgeSourceV3 is a contract to help user lock token and then trigger remote chain relay
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
 contract LnBridgeSourceV3 is Pausable, LnAccessController {
     uint256 constant public SLASH_EXPIRE_TIME = 60 * 60;
@@ -17,9 +17,11 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
     uint8 constant public LOCK_STATUS_LOCKED = 1;
     uint8 constant public LOCK_STATUS_WITHDRAWN = 2;
     uint8 constant public LOCK_STATUS_SLASHED = 3;
-    // the configure infomation can be updated
+    // the configure information can be updated
     struct TokenConfigure {
+        // pay to system for each tx
         uint112 protocolFee;
+        // Used to penalise relayer for each slashed transaction
         uint112 penalty;
         uint8 sourceDecimals;
         uint8 targetDecimals;
@@ -31,6 +33,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
         uint32 index;
         address sourceToken;
         address targetToken;
+        // accumulated system revenues
         uint256 protocolFeeIncome;
     }
     struct TransferParams {
@@ -41,6 +44,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
         uint112 totalFee;
         uint112 amount;
         address receiver;
+        uint256 nonce;
     }
     // hash(remoteChainId, sourceToken, targetToken) => TokenInfo
     mapping(bytes32=>TokenInfo) public tokenInfos;
@@ -67,16 +71,12 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
         uint112 transferLimit;
         bool pause;
     }
-    struct SourceProviderState {
-        uint112 penaltyReserve;
-        uint64 nonce;
-    }
 
     // hash(remoteChainId, provider, sourceToken, targetToken) => SourceProviderInfo
     mapping(bytes32=>SourceProviderInfo) public srcProviders;
     // for a special source token, all the path start from this chain use the same panaltyReserve
-    // hash(sourceToken, provider) => SourceProviderState
-    mapping(bytes32=>SourceProviderState) public srcProviderStates;
+    // hash(sourceToken, provider) => penalty reserve
+    mapping(bytes32=>uint256) public penaltyReserves;
 
     event TokenRegistered(
         bytes32 key,
@@ -92,7 +92,6 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
     event TokenLocked(
         TransferParams params,
         bytes32 transferId,
-        uint64 nonce,
         uint112 targetAmount,
         uint112 fee,
         uint64  timestamp
@@ -105,7 +104,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
         uint112 baseFee,
         uint16 liquidityfeeRate
     );
-    event PenaltyReserveUpdated(address provider, address sourceToken, uint112 updatedPanaltyReserve);
+    event PenaltyReserveUpdated(address provider, address sourceToken, uint256 updatedPanaltyReserve);
     event LiquidityWithdrawn(bytes32 transferId, address provider, uint112 amount);
     event TransferSlashed(bytes32 transferId, address provider, address slasher, uint112 slashAmount);
     event LnProviderPaused(address provider, uint256 remoteChainId, address sourceToken, address targetToken,  bool paused);
@@ -232,11 +231,11 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
 
     function depositPenaltyReserve(
         address _sourceToken,
-        uint112 _amount
+        uint256 _amount
     ) external payable {
         bytes32 key = getProviderStateKey(_sourceToken, msg.sender);
-        uint112 updatedPanaltyReserve = srcProviderStates[key].penaltyReserve + _amount;
-        srcProviderStates[key].penaltyReserve = updatedPanaltyReserve;
+        uint256 updatedPanaltyReserve = penaltyReserves[key] + _amount;
+        penaltyReserves[key] = updatedPanaltyReserve;
 
         if (_sourceToken == address(0)) {
             require(msg.value == _amount, "invalid penaltyReserve value");
@@ -254,11 +253,11 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
 
     function withdrawPenaltyReserve(
         address _sourceToken,
-        uint112 _amount
+        uint256 _amount
     ) external {
         bytes32 key = getProviderStateKey(_sourceToken, msg.sender);
-        uint112 updatedPanaltyReserve = srcProviderStates[key].penaltyReserve - _amount;
-        srcProviderStates[key].penaltyReserve = updatedPanaltyReserve;
+        uint256 updatedPanaltyReserve = penaltyReserves[key] - _amount;
+        penaltyReserves[key] = updatedPanaltyReserve;
 
         if (_sourceToken == address(0)) {
             TokenTransferHelper.safeTransferNative(msg.sender, _amount);
@@ -315,20 +314,19 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
 
         // update provider state
         bytes32 stateKey = getProviderStateKey(_params.sourceToken, _params.provider);
-        SourceProviderState memory providerState  = srcProviderStates[stateKey];
-        require(providerState.penaltyReserve >= tokenInfo.config.penalty, "penalty reserve not enough");
-        providerState.penaltyReserve -= tokenInfo.config.penalty;
-        providerState.nonce += 1;
-        srcProviderStates[stateKey] = providerState;
-        emit PenaltyReserveUpdated(_params.provider, _params.sourceToken, providerState.penaltyReserve);
+        uint256 penaltyReserved = penaltyReserves[stateKey];
+        require(penaltyReserved >= tokenInfo.config.penalty, "penalty reserve not enough");
+        penaltyReserved -= tokenInfo.config.penalty;
+        penaltyReserves[stateKey] = penaltyReserved;
+        emit PenaltyReserveUpdated(_params.provider, _params.sourceToken, penaltyReserved);
 
         // save lock info
         uint256 remoteAmount = uint256(_params.amount) * 10**tokenInfo.config.targetDecimals / 10**tokenInfo.config.sourceDecimals;
         require(remoteAmount < MAX_TRANSFER_AMOUNT, "overflow amount");
-        bytes32 transferId = getTransferId(_params, providerState.nonce, uint112(remoteAmount));
+        bytes32 transferId = getTransferId(_params, uint112(remoteAmount));
         require(lockInfos[transferId].status == 0, "transferId exist");
         lockInfos[transferId] = LockInfo(amountWithFeeAndPenalty, uint64(block.timestamp), tokenInfo.index, LOCK_STATUS_LOCKED);
-        emit TokenLocked(_params, transferId, providerState.nonce, uint112(remoteAmount), uint112(providerFee), uint64(block.timestamp));
+        emit TokenLocked(_params, transferId, uint112(remoteAmount), uint112(providerFee), uint64(block.timestamp));
 
         // update protocol fee income
         // leave the protocol fee into contract, and admin can withdraw this fee anytime
@@ -379,11 +377,10 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
             // restore the penalty reserve
             uint112 redepositPenalty = tokenInfo.config.penalty * uint112(_transferIds.length);
             bytes32 stateKey = getProviderStateKey(tokenInfo.sourceToken, _provider);
-            SourceProviderState memory providerState  = srcProviderStates[stateKey];
-            providerState.penaltyReserve += redepositPenalty;
-            srcProviderStates[stateKey].penaltyReserve = providerState.penaltyReserve;
+            uint256 penaltyReserved = penaltyReserves[stateKey] + uint256(redepositPenalty);
+            penaltyReserves[stateKey] = penaltyReserved;
             withdrawAmount -= redepositPenalty;
-            emit PenaltyReserveUpdated(_provider, tokenInfo.sourceToken, providerState.penaltyReserve);
+            emit PenaltyReserveUpdated(_provider, tokenInfo.sourceToken, penaltyReserved);
         }
 
         if (tokenInfo.sourceToken == address(0)) {
@@ -422,8 +419,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
             // this means the slasher help the provider relay message and get no reward
             // redeposit penalty(the fee and penalty) for lnProvider
             bytes32 key = getProviderStateKey(tokenInfo.sourceToken, _lnProvider);
-            uint112 updatedPanaltyReserve = srcProviderStates[key].penaltyReserve + lockInfo.amountWithFeeAndPenalty - slashAmount;
-            srcProviderStates[key].penaltyReserve = updatedPanaltyReserve;
+            penaltyReserves[key] = penaltyReserves[key] + lockInfo.amountWithFeeAndPenalty - slashAmount;
         }
         // transfer slashAmount to slasher
         if (tokenInfo.sourceToken == address(0)) {
@@ -448,11 +444,9 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
 
     function getTransferId(
         TransferParams memory _params,
-        uint64 _nonce,
         uint112 _remoteAmount
     ) public view returns(bytes32) {
         return keccak256(abi.encodePacked(
-            _nonce,
             block.chainid,
             _params.remoteChainId,
             _params.provider,
@@ -460,7 +454,9 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
             _params.targetToken,
             _params.receiver,
             _params.amount,
-            _remoteAmount));
+            _remoteAmount,
+            _params.nonce
+        ));
     }
 
     function getTokenInfo(uint256 _remoteChainId, address _sourceToken, address _targetToken) view internal returns(TokenInfo memory) {

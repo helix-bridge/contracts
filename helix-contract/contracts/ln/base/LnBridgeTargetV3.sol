@@ -39,7 +39,7 @@ contract LnBridgeTargetV3 {
         uint112 _sourceAmount,
         uint112 _targetAmount,
         address _receiver,
-        uint64  _nonce,
+        uint256  _nonce,
         bytes32 _expectedTransferId,
         bool _relayBySelf
     ) external payable {
@@ -47,7 +47,6 @@ contract LnBridgeTargetV3 {
         // _relayBySelf = false to allow that lnProvider can use different account between source chain and target chain
         require(!_relayBySelf || _provider == msg.sender, "invalid provider");
         bytes32 transferId = keccak256(abi.encodePacked(
-           _nonce,
            _remoteChainId,
            block.chainid,
            _provider,
@@ -55,7 +54,8 @@ contract LnBridgeTargetV3 {
            _targetToken,
            _receiver,
            _sourceAmount,
-           _targetAmount
+           _targetAmount,
+           _nonce
         ));
         require(_expectedTransferId == transferId, "check expected transferId failed");
         FillTransfer memory fillTransfer = fillTransfers[transferId];
@@ -80,13 +80,12 @@ contract LnBridgeTargetV3 {
         uint112 _sourceAmount,
         uint112 _targetAmount,
         address _receiver,
-        uint64  _nonce,
+        uint256  _nonce,
         uint64 _timestamp,
         bytes32 _expectedTransferId,
         bytes memory _extParams
     ) external payable {
         bytes32 transferId = keccak256(abi.encodePacked(
-           _nonce,
            _remoteChainId,
            block.chainid,
            _provider,
@@ -94,7 +93,8 @@ contract LnBridgeTargetV3 {
            _targetToken,
            _receiver,
            _sourceAmount,
-           _targetAmount
+           _targetAmount,
+           _nonce
         ));
         require(_expectedTransferId == transferId, "check expected transferId failed");
 

@@ -21,6 +21,17 @@ contract LnBridgeTargetV3 {
         address slasher;
     }
 
+    struct RelayParams {
+        uint256 remoteChainId;
+        address provider;
+        address sourceToken;
+        address targetToken;
+        uint112 sourceAmount;
+        uint112 targetAmount;
+        address receiver;
+        uint256 nonce;
+    }
+
     // transferId => FillTransfer
     mapping(bytes32 => FillTransfer) public fillTransfers;
     // transferId => SlashInfo
@@ -32,96 +43,86 @@ contract LnBridgeTargetV3 {
     function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) internal virtual {}
 
     function transferAndReleaseMargin(
-        uint256 _remoteChainId,
-        address _provider,
-        address _sourceToken,
-        address _targetToken,
-        uint112 _sourceAmount,
-        uint112 _targetAmount,
-        address _receiver,
-        uint256  _nonce,
+        RelayParams calldata _params,
         bytes32 _expectedTransferId,
         bool _relayBySelf
     ) external payable {
         // _relayBySelf = true to protect that the msg.sender don't relay for others
         // _relayBySelf = false to allow that lnProvider can use different account between source chain and target chain
-        require(!_relayBySelf || _provider == msg.sender, "invalid provider");
+        require(!_relayBySelf || _params.provider == msg.sender, "invalid provider");
         bytes32 transferId = keccak256(abi.encodePacked(
-           _remoteChainId,
+           _params.remoteChainId,
            block.chainid,
-           _provider,
-           _sourceToken,
-           _targetToken,
-           _receiver,
-           _sourceAmount,
-           _targetAmount,
-           _nonce
+           _params.provider,
+           _params.sourceToken,
+           _params.targetToken,
+           _params.receiver,
+           _params.sourceAmount,
+           _params.targetAmount,
+           _params.nonce
         ));
         require(_expectedTransferId == transferId, "check expected transferId failed");
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         // Make sure this transfer was never filled before 
         require(fillTransfer.timestamp == 0, "transfer has been filled");
-        fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _provider);
+        fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _params.provider);
 
-        if (_targetToken == address(0)) {
-            require(msg.value == _targetAmount, "invalid amount");
-            LnBridgeHelper.safeTransferNative(_receiver, _targetAmount);
+        if (_params.targetToken == address(0)) {
+            require(msg.value == _params.targetAmount, "invalid amount");
+            LnBridgeHelper.safeTransferNative(_params.receiver, _params.targetAmount);
         } else {
-            LnBridgeHelper.safeTransferFrom(_targetToken, msg.sender, _receiver, uint256(_targetAmount));
+            LnBridgeHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
         }
-        emit TransferFilled(transferId, _provider);
+        emit TransferFilled(transferId, _params.provider);
     }
 
     function requestSlashAndRemoteRelease(
-        uint256 _remoteChainId,
-        address _provider,
-        address _sourceToken,
-        address _targetToken,
-        uint112 _sourceAmount,
-        uint112 _targetAmount,
-        address _receiver,
-        uint256  _nonce,
+        RelayParams calldata _params,
         uint64 _timestamp,
         bytes32 _expectedTransferId,
+        bytes32 _expectedIdWithTimestamp,
         bytes memory _extParams
     ) external payable {
         bytes32 transferId = keccak256(abi.encodePacked(
-           _remoteChainId,
+           _params.remoteChainId,
            block.chainid,
-           _provider,
-           _sourceToken,
-           _targetToken,
-           _receiver,
-           _sourceAmount,
-           _targetAmount,
-           _nonce
+           _params.provider,
+           _params.sourceToken,
+           _params.targetToken,
+           _params.receiver,
+           _params.sourceAmount,
+           _params.targetAmount,
+           _params.nonce
         ));
         require(_expectedTransferId == transferId, "check expected transferId failed");
+        bytes32 idWithTimestamp = keccak256(abi.encodePacked(transferId, _timestamp));
+        require(idWithTimestamp == _expectedIdWithTimestamp, "check timestamp failed");
 
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.timestamp == 0, "transfer has been filled");
 
         require(_timestamp < block.timestamp - LnBridgeHelper.SLASH_EXPIRE_TIME, "time not expired");
-        fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _provider);
-        slashInfos[transferId] = SlashInfo(_remoteChainId, _timestamp, _sourceAmount, msg.sender);
+        fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _params.provider);
+        slashInfos[transferId] = SlashInfo(_params.remoteChainId, _timestamp, _params.sourceAmount, msg.sender);
 
-        if (_targetToken == address(0)) {
-            require(msg.value == _targetAmount, "invalid value");
-            LnBridgeHelper.safeTransferNative(_receiver, _targetAmount);
+        if (_params.targetToken == address(0)) {
+            require(msg.value == _params.targetAmount, "invalid value");
+            LnBridgeHelper.safeTransferNative(_params.receiver, _params.targetAmount);
         } else {
             require(msg.value == 0, "value not need");
-            LnBridgeHelper.safeTransferFrom(_targetToken, msg.sender, _receiver, uint256(_targetAmount));
+            LnBridgeHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
         }
         bytes memory message = abi.encodeWithSelector(
            ILnBridgeSourceV3.slash.selector,
+           block.chainid,
            transferId,
-           _sourceAmount,
-           _provider,
+           _params.sourceAmount,
+           _params.provider,
            _timestamp,
            msg.sender
         );
-        _sendMessageToSource(_remoteChainId, message, _extParams);
-        emit SlashRequest(transferId, _remoteChainId, _provider, _sourceToken, _targetToken, msg.sender);
+        _sendMessageToSource(_params.remoteChainId, message, _extParams);
+        emit SlashRequest(transferId, _params.remoteChainId, _params.provider, _params.sourceToken, _params.targetToken, msg.sender);
     }
 
     function retrySlash(bytes32 transferId, bytes memory _extParams) external {
@@ -132,6 +133,7 @@ contract LnBridgeTargetV3 {
         // send message
         bytes memory message = abi.encodeWithSelector(
            ILnBridgeSourceV3.slash.selector,
+           block.chainid,
            transferId,
            slashInfo.sourceAmount,
            fillTransfer.provider,

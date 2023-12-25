@@ -92,6 +92,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
     event TokenLocked(
         TransferParams params,
         bytes32 transferId,
+        bytes32 idWithTimestamp,
         uint112 targetAmount,
         uint112 fee,
         uint64  timestamp
@@ -326,7 +327,8 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
         bytes32 transferId = getTransferId(_params, uint112(remoteAmount));
         require(lockInfos[transferId].status == 0, "transferId exist");
         lockInfos[transferId] = LockInfo(amountWithFeeAndPenalty, uint64(block.timestamp), tokenInfo.index, LOCK_STATUS_LOCKED);
-        emit TokenLocked(_params, transferId, uint112(remoteAmount), uint112(providerFee), uint64(block.timestamp));
+        bytes32 idWithTimestamp = keccak256(abi.encodePacked(transferId, uint64(block.timestamp)));
+        emit TokenLocked(_params, transferId, idWithTimestamp, uint112(remoteAmount), uint112(providerFee), uint64(block.timestamp));
 
         // update protocol fee income
         // leave the protocol fee into contract, and admin can withdraw this fee anytime

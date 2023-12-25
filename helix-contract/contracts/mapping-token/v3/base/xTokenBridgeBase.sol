@@ -144,13 +144,14 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
 
     function getTransferId(
         uint256 _nonce,
+        uint256 _sourceChainId,
         uint256 _targetChainId,
         address _originalToken,
         address _originalSender,
         address _recipient,
         uint256 _amount
     ) public pure returns(bytes32) {
-        return keccak256(abi.encodePacked(_nonce, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
+        return keccak256(abi.encodePacked(_nonce, _sourceChainId, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
     }
 
     // settings

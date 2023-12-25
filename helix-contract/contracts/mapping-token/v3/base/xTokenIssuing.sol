@@ -99,7 +99,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         uint256 _amount,
         uint256 _nonce
     ) external calledByMessager(_remoteChainId) whenNotPaused {
-        bytes32 transferId = getTransferId(_nonce, block.chainid, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, _remoteChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         bytes32 salt = xTokenSalt(_remoteChainId, _originalToken);
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
@@ -129,7 +129,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     ) external payable {
         require(_amount > 0, "can not transfer amount zero");
         OriginalTokenInfo memory originalInfo = originalTokens[_xToken];
-        bytes32 transferId = getTransferId(_nonce, originalInfo.chainId, originalInfo.token, msg.sender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, originalInfo.chainId, block.chainid, originalInfo.token, msg.sender, _recipient, _amount);
         _requestTransfer(transferId);
         // transfer to this and then burn
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
@@ -178,7 +178,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         bytes memory _extParams
     ) external payable {
         require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
-        bytes32 transferId = getTransferId(_nonce, _originalChainId, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         _requestRefund(transferId);
         bytes memory handleUnlockForFailed = encodeUnlockForIssuingFailureFromRemote(
             _originalToken,
@@ -222,7 +222,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         uint256 _amount,
         uint256 _nonce
     ) external calledByMessager(_originalChainId) whenNotPaused {
-        bytes32 transferId = getTransferId(_nonce, _originalChainId, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         _handleRefund(transferId);
 
         bytes32 salt = xTokenSalt(_originalChainId, _originalToken);

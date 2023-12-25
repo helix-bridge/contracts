@@ -42,11 +42,11 @@ async function deployxTokenIssuing(wallet, deployerAddress, salt) {
 async function main() {
     // deploy backing on crab
     const walletCrab = wallet(crabNetwork.url);
-    const backingLogic = await deployxTokenBacking(walletCrab, crabNetwork.deployer, "xTokenBacking-logic-v1.0.1");
+    const backingLogic = await deployxTokenBacking(walletCrab, crabNetwork.deployer, "xTokenBacking-logic-v1.0.3");
 
     // deploy issuing on sepolia
     const walletSpeolia = wallet(sepoliaNetwork.url);
-    const issuingLogic = await deployxTokenIssuing(walletSpeolia, sepoliaNetwork.deployer, "xTokenIssuing-logic-v1.0.0");
+    const issuingLogic = await deployxTokenIssuing(walletSpeolia, sepoliaNetwork.deployer, "xTokenIssuing-logic-v1.0.3");
 }
 
 main()

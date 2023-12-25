@@ -66,7 +66,7 @@ contract xTokenBacking is xTokenBridgeBase {
         bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _originalToken));
         require(originalToken2xTokens[key] != address(0), "token not registered");
 
-        bytes32 transferId = getTransferId(_nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, msg.sender, _recipient, _amount);
         _requestTransfer(transferId);
 
         uint256 prepaid = msg.value;
@@ -124,7 +124,7 @@ contract xTokenBacking is xTokenBridgeBase {
     ) external calledByMessager(_remoteChainId) whenNotPaused {
         expendDailyLimit(_originalToken, _amount);
 
-        bytes32 transferId = getTransferId(_nonce, block.chainid, _originalToken, _originSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originSender, _recipient, _amount);
         _handleTransfer(transferId);
 
         // native token do not use guard
@@ -181,7 +181,7 @@ contract xTokenBacking is xTokenBridgeBase {
         bytes memory _extParams
     ) external payable {
         require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
-        bytes32 transferId = getTransferId(_nonce, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
         _requestRefund(transferId);
         bytes memory unlockForFailed = encodeIssuingForUnlockFailureFromRemote(
             _originalToken,
@@ -225,7 +225,7 @@ contract xTokenBacking is xTokenBridgeBase {
         uint256 _amount,
         uint256 _nonce
     ) external calledByMessager(_remoteChainId) whenNotPaused {
-        bytes32 transferId = keccak256(abi.encodePacked(_nonce, _remoteChainId, _originalToken, _originalSender, _recipient, _amount));
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
         _handleRefund(transferId);
         if (_originalToken == address(0)) {
             TokenTransferHelper.safeTransferNative(_originalSender, _amount);

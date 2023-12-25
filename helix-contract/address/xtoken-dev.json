@@ -8,15 +8,15 @@
         }
     },
     "backingProxy": {
-        "crab": "0x27F58339CbB8c5A6f58d5D05Bfc1B3fd121F489C"
+        "crab": "0xbdC7bbF408931C5d666b4F0520E0D9E9A0B04e99"
     },
     "backingLogic": {
-        "crab": "0xF2274a80e93075ccD5E2Af8F07beF370Bb6dfac7"
+        "crab": "0x01F53415adC20a2D058DfF14e295Ab955CafD6d6"
     },
     "issuingProxy": {
-        "sepolia": "0xFF3bc7372A8011CFaD43D240464ef2fe74C59b86"
+        "sepolia": "0xf22D0bb66b39745Ae6e3fEa3E5859d7f0b367Fd1"
     },
     "issuingLogic": {
-        "sepolia": "0x1c955644c527BAA5a28255bCf9F7D3635B7ad99b"
+        "sepolia": "0xCD1c1C799f3914ECFC5e3653D3Cc846355d3dFC9"
     }
 }

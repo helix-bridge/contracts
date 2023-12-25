@@ -45,12 +45,12 @@ async function deployxTokenProxy(wallet, salt, dao, proxyAdminAddress, logicAddr
 
 async function deploy() {
     const walletCrab = wallet(crabNetwork.url);
-    const backingLogic = "0xF2274a80e93075ccD5E2Af8F07beF370Bb6dfac7";
-    await deployxTokenProxy(walletCrab, "xtoken-backing-1.0.1", crabNetwork.dao, crabNetwork.proxyAdmin, backingLogic, crabNetwork.deployer);
+    const backingLogic = "0x22E50D0511538B78D4E3b94d4D51AFDa924286D0";
+    await deployxTokenProxy(walletCrab, "xtoken-backing-1.0.4", crabNetwork.dao, crabNetwork.proxyAdmin, backingLogic, crabNetwork.deployer);
 
     const walletSepolia = wallet(sepoliaNetwork.url);
-    const issuingLogic = "0x1c955644c527BAA5a28255bCf9F7D3635B7ad99b";
-    await deployxTokenProxy(walletSepolia, "xtoken-issuing-1.0.1", sepoliaNetwork.dao, sepoliaNetwork.proxyAdmin, issuingLogic, sepoliaNetwork.deployer);
+    const issuingLogic = "0xCD1c1C799f3914ECFC5e3653D3Cc846355d3dFC9";
+    await deployxTokenProxy(walletSepolia, "xtoken-issuing-1.0.4", sepoliaNetwork.dao, sepoliaNetwork.proxyAdmin, issuingLogic, sepoliaNetwork.deployer);
 }
 
 async function main() {

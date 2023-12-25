@@ -175,7 +175,7 @@ describe("xtoken tests", () => {
 
           const balanceRecipientAfter = await balanceOf(xTokenAddress, recipient);
           const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
-          const transferId = await backing.getTransferId(nonce, issuingChainId, originalAddress, user01.address, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, originalAddress, user01.address, recipient, amount);
           const requestInfo = await backing.requestInfos(transferId);
           expect(requestInfo.isRequested).to.equal(true);
           expect(requestInfo.hasRefundForFailed).to.equal(false);
@@ -219,7 +219,7 @@ describe("xtoken tests", () => {
           const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
           const balanceUserAfter = await balanceOf(xTokenAddress, user02.address);
 
-          const transferId = await backing.getTransferId(nonce, backingChainId, originalAddress, user02.address, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, originalAddress, user02.address, recipient, amount);
           const requestInfo = await issuing.requestInfos(transferId);
           expect(requestInfo.isRequested).to.equal(true);
           expect(requestInfo.hasRefundForFailed).to.equal(false);
@@ -270,7 +270,7 @@ describe("xtoken tests", () => {
           let receipt = await transaction.wait();
           let gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
-          const transferId = await backing.getTransferId(nonce, issuingChainId, originalToken, originalSender, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, originalToken, originalSender, recipient, amount);
           const requestInfo = await backing.requestInfos(transferId);
           if (result) {
               expect(balanceSenderAfter.sub(balanceSenderBefore)).to.be.equal(amount);
@@ -492,7 +492,7 @@ describe("xtoken tests", () => {
           true,//using guard
           true
       );
-      const transferId = await backing.getTransferId(nonce05, issuingChainId, nativeTokenAddress, user01.address, user02.address, 10);
+      const transferId = await backing.getTransferId(nonce05, backingChainId, issuingChainId, nativeTokenAddress, user01.address, user02.address, 10);
       await guardClaim(
           issuingGuard,
           issuing.address,
@@ -511,7 +511,7 @@ describe("xtoken tests", () => {
           true, //using guard
           true
       );
-      const transferId06 = await backing.getTransferId(nonce06, backingChainId, nativeTokenAddress, user02.address, user01.address, 20);
+      const transferId06 = await backing.getTransferId(nonce06, backingChainId, issuingChainId, nativeTokenAddress, user02.address, user01.address, 20);
       await guardClaim(
           backingGuard,
           backing.address,

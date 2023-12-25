@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/20/2023
+ * 12/25/2023
  **/
 
 pragma solidity ^0.8.17;
@@ -151,24 +151,6 @@ interface IGuard {
   function deposit(uint256 id, address token, address recipient, uint256 amount) external;
 }
 
-// File contracts/interfaces/IMessager.sol
-// License-Identifier: MIT
-
-interface ILowLevelMessageSender {
-    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
-    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
-}
-
-interface ILowLevelMessageReceiver {
-    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
-    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
-}
-
-interface IMessageId {
-    function latestSentMessageId() external view returns(bytes32);
-    function latestRecvMessageId() external view returns(bytes32);
-}
-
 // File contracts/utils/AccessController.sol
 // License-Identifier: MIT
 
@@ -209,6 +191,19 @@ contract AccessController {
         delete pendingDao;
         dao = newDao;
     }
+}
+
+// File contracts/interfaces/IMessager.sol
+// License-Identifier: MIT
+
+interface ILowLevelMessageSender {
+    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
+    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
+}
+
+interface ILowLevelMessageReceiver {
+    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
+    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
 // File contracts/utils/DailyLimit.sol
@@ -873,7 +868,7 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         bytes memory _payload,
         uint256 _feePrepaid,
         bytes memory _extParams
-    ) internal whenNotPaused returns(bytes32 messageId) {
+    ) internal whenNotPaused {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.sendService != address(0), "bridge not configured");
         uint256 _protocolFee = protocolFee;
@@ -883,7 +878,6 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
             _payload,
             _extParams
         );
-        messageId = IMessageId(service.sendService).latestSentMessageId();
     }
 
     // request a cross-chain transfer
@@ -928,13 +922,14 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
 
     function getTransferId(
         uint256 _nonce,
+        uint256 _sourceChainId,
         uint256 _targetChainId,
         address _originalToken,
         address _originalSender,
         address _recipient,
         uint256 _amount
     ) public pure returns(bytes32) {
-        return keccak256(abi.encodePacked(_nonce, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
+        return keccak256(abi.encodePacked(_nonce, _sourceChainId, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
     }
 
     // settings
@@ -1360,11 +1355,10 @@ contract xTokenIssuing is xTokenBridgeBase {
 
     event IssuingERC20Created(uint256 originalChainId, address originalToken, address xToken);
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
-    event RemoteUnlockForIssuingFailureRequested(bytes32 refundId, bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteUnlockForIssuingFailureRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
     event xTokenIssued(bytes32 transferId, uint256 remoteChainId, address originalToken, address xToken, address recipient, uint256 amount);
     event BurnAndRemoteUnlocked(
         bytes32 transferId,
-        bytes32 messageId,
         uint256 nonce,
         uint256 remoteChainId,
         address sender,
@@ -1439,7 +1433,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         uint256 _amount,
         uint256 _nonce
     ) external calledByMessager(_remoteChainId) whenNotPaused {
-        bytes32 transferId = getTransferId(_nonce, block.chainid, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, _remoteChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         bytes32 salt = xTokenSalt(_remoteChainId, _originalToken);
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
@@ -1469,7 +1463,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     ) external payable {
         require(_amount > 0, "can not transfer amount zero");
         OriginalTokenInfo memory originalInfo = originalTokens[_xToken];
-        bytes32 transferId = getTransferId(_nonce, originalInfo.chainId, originalInfo.token, msg.sender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, originalInfo.chainId, block.chainid, originalInfo.token, msg.sender, _recipient, _amount);
         _requestTransfer(transferId);
         // transfer to this and then burn
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
@@ -1482,9 +1476,8 @@ contract xTokenIssuing is xTokenBridgeBase {
             _amount,
             _nonce
         );
-        bytes32 messageId = _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
-
-        emit BurnAndRemoteUnlocked(transferId, messageId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
+        _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
+        emit BurnAndRemoteUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
     }
 
     function encodeUnlockFromRemote(
@@ -1519,7 +1512,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         bytes memory _extParams
     ) external payable {
         require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
-        bytes32 transferId = getTransferId(_nonce, _originalChainId, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         _requestRefund(transferId);
         bytes memory handleUnlockForFailed = encodeUnlockForIssuingFailureFromRemote(
             _originalToken,
@@ -1528,8 +1521,8 @@ contract xTokenIssuing is xTokenBridgeBase {
             _amount,
             _nonce
         );
-        bytes32 messageId = _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
-        emit RemoteUnlockForIssuingFailureRequested(transferId, messageId, _originalToken, _originalSender, _amount, msg.value);
+        _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
+        emit RemoteUnlockForIssuingFailureRequested(transferId, _originalToken, _originalSender, _amount, msg.value);
     }
 
     function encodeUnlockForIssuingFailureFromRemote(
@@ -1563,7 +1556,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         uint256 _amount,
         uint256 _nonce
     ) external calledByMessager(_originalChainId) whenNotPaused {
-        bytes32 transferId = getTransferId(_nonce, _originalChainId, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         _handleRefund(transferId);
 
         bytes32 salt = xTokenSalt(_originalChainId, _originalToken);

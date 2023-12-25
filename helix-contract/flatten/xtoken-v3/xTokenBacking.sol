@@ -14,27 +14,10 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/20/2023
+ * 12/25/2023
  **/
 
 pragma solidity ^0.8.17;
-
-// File contracts/mapping-token/interfaces/IGuard.sol
-// License-Identifier: MIT
-
-
-interface IGuard {
-  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
-}
-
-// File contracts/mapping-token/interfaces/IWToken.sol
-// License-Identifier: MIT
-
-
-interface IWToken {
-    function deposit() external payable;
-    function withdraw(uint wad) external;
-}
 
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
@@ -160,27 +143,21 @@ library TokenTransferHelper {
     }
 }
 
-// File contracts/mapping-token/v3/interfaces/IxTokenIssuing.sol
+// File contracts/mapping-token/interfaces/IGuard.sol
 // License-Identifier: MIT
 
-interface IxTokenIssuing {
-    function handleIssuingForUnlockFailureFromRemote(
-        uint256 originalChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        uint256 amount,
-        uint256 nonce
-    ) external;
 
-    function issuexToken(
-        uint256 remoteChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        uint256 amount,
-        uint256 nonce
-    ) external;
+interface IGuard {
+  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
+}
+
+// File contracts/mapping-token/interfaces/IWToken.sol
+// License-Identifier: MIT
+
+
+interface IWToken {
+    function deposit() external payable;
+    function withdraw(uint wad) external;
 }
 
 // File contracts/interfaces/IMessager.sol
@@ -194,11 +171,6 @@ interface ILowLevelMessageSender {
 interface ILowLevelMessageReceiver {
     function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
     function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
-}
-
-interface IMessageId {
-    function latestSentMessageId() external view returns(bytes32);
-    function latestRecvMessageId() external view returns(bytes32);
 }
 
 // File contracts/utils/AccessController.sol
@@ -323,135 +295,6 @@ contract DailyLimit {
         }
 
         return dailyLimit[token] - lastspent;
-    }
-}
-
-// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
-
-
-/**
- * @dev Provides information about the current execution context, including the
- * sender of the transaction and its data. While these are generally available
- * via msg.sender and msg.data, they should not be accessed in such a direct
- * manner, since when dealing with meta-transactions the account sending and
- * paying for execution may not be the actual sender (as far as an application
- * is concerned).
- *
- * This contract is only required for intermediate, library-like contracts.
- */
-abstract contract Context {
-    function _msgSender() internal view virtual returns (address) {
-        return msg.sender;
-    }
-
-    function _msgData() internal view virtual returns (bytes calldata) {
-        return msg.data;
-    }
-}
-
-// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
-
-
-/**
- * @dev Contract module which allows children to implement an emergency stop
- * mechanism that can be triggered by an authorized account.
- *
- * This module is used through inheritance. It will make available the
- * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
- * the functions of your contract. Note that they will not be pausable by
- * simply including this module, only once the modifiers are put in place.
- */
-abstract contract Pausable is Context {
-    /**
-     * @dev Emitted when the pause is triggered by `account`.
-     */
-    event Paused(address account);
-
-    /**
-     * @dev Emitted when the pause is lifted by `account`.
-     */
-    event Unpaused(address account);
-
-    bool private _paused;
-
-    /**
-     * @dev Initializes the contract in unpaused state.
-     */
-    constructor() {
-        _paused = false;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is not paused.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    modifier whenNotPaused() {
-        _requireNotPaused();
-        _;
-    }
-
-    /**
-     * @dev Modifier to make a function callable only when the contract is paused.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    modifier whenPaused() {
-        _requirePaused();
-        _;
-    }
-
-    /**
-     * @dev Returns true if the contract is paused, and false otherwise.
-     */
-    function paused() public view virtual returns (bool) {
-        return _paused;
-    }
-
-    /**
-     * @dev Throws if the contract is paused.
-     */
-    function _requireNotPaused() internal view virtual {
-        require(!paused(), "Pausable: paused");
-    }
-
-    /**
-     * @dev Throws if the contract is not paused.
-     */
-    function _requirePaused() internal view virtual {
-        require(paused(), "Pausable: not paused");
-    }
-
-    /**
-     * @dev Triggers stopped state.
-     *
-     * Requirements:
-     *
-     * - The contract must not be paused.
-     */
-    function _pause() internal virtual whenNotPaused {
-        _paused = true;
-        emit Paused(_msgSender());
-    }
-
-    /**
-     * @dev Returns to normal state.
-     *
-     * Requirements:
-     *
-     * - The contract must be paused.
-     */
-    function _unpause() internal virtual whenPaused {
-        _paused = false;
-        emit Unpaused(_msgSender());
     }
 }
 
@@ -815,6 +658,135 @@ abstract contract Initializable {
     }
 }
 
+// File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
+
+
+/**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+// File @zeppelin-solidity/contracts/security/Pausable.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.0) (security/Pausable.sol)
+
+
+/**
+ * @dev Contract module which allows children to implement an emergency stop
+ * mechanism that can be triggered by an authorized account.
+ *
+ * This module is used through inheritance. It will make available the
+ * modifiers `whenNotPaused` and `whenPaused`, which can be applied to
+ * the functions of your contract. Note that they will not be pausable by
+ * simply including this module, only once the modifiers are put in place.
+ */
+abstract contract Pausable is Context {
+    /**
+     * @dev Emitted when the pause is triggered by `account`.
+     */
+    event Paused(address account);
+
+    /**
+     * @dev Emitted when the pause is lifted by `account`.
+     */
+    event Unpaused(address account);
+
+    bool private _paused;
+
+    /**
+     * @dev Initializes the contract in unpaused state.
+     */
+    constructor() {
+        _paused = false;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is not paused.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    modifier whenNotPaused() {
+        _requireNotPaused();
+        _;
+    }
+
+    /**
+     * @dev Modifier to make a function callable only when the contract is paused.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    modifier whenPaused() {
+        _requirePaused();
+        _;
+    }
+
+    /**
+     * @dev Returns true if the contract is paused, and false otherwise.
+     */
+    function paused() public view virtual returns (bool) {
+        return _paused;
+    }
+
+    /**
+     * @dev Throws if the contract is paused.
+     */
+    function _requireNotPaused() internal view virtual {
+        require(!paused(), "Pausable: paused");
+    }
+
+    /**
+     * @dev Throws if the contract is not paused.
+     */
+    function _requirePaused() internal view virtual {
+        require(paused(), "Pausable: not paused");
+    }
+
+    /**
+     * @dev Triggers stopped state.
+     *
+     * Requirements:
+     *
+     * - The contract must not be paused.
+     */
+    function _pause() internal virtual whenNotPaused {
+        _paused = true;
+        emit Paused(_msgSender());
+    }
+
+    /**
+     * @dev Returns to normal state.
+     *
+     * Requirements:
+     *
+     * - The contract must be paused.
+     */
+    function _unpause() internal virtual whenPaused {
+        _paused = false;
+        emit Unpaused(_msgSender());
+    }
+}
+
 // File contracts/mapping-token/v3/base/xTokenBridgeBase.sol
 // License-Identifier: MIT
 
@@ -905,7 +877,7 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         bytes memory _payload,
         uint256 _feePrepaid,
         bytes memory _extParams
-    ) internal whenNotPaused returns(bytes32 messageId) {
+    ) internal whenNotPaused {
         MessagerService memory service = messagers[_remoteChainId];
         require(service.sendService != address(0), "bridge not configured");
         uint256 _protocolFee = protocolFee;
@@ -915,7 +887,6 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
             _payload,
             _extParams
         );
-        messageId = IMessageId(service.sendService).latestSentMessageId();
     }
 
     // request a cross-chain transfer
@@ -960,13 +931,14 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
 
     function getTransferId(
         uint256 _nonce,
+        uint256 _sourceChainId,
         uint256 _targetChainId,
         address _originalToken,
         address _originalSender,
         address _recipient,
         uint256 _amount
     ) public pure returns(bytes32) {
-        return keccak256(abi.encodePacked(_nonce, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
+        return keccak256(abi.encodePacked(_nonce, _sourceChainId, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
     }
 
     // settings
@@ -977,6 +949,29 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     function setDailyLimit(address _token, uint256 _dailyLimit) external onlyDao {
         _setDailyLimit(_token, _dailyLimit);
     }
+}
+
+// File contracts/mapping-token/v3/interfaces/IxTokenIssuing.sol
+// License-Identifier: MIT
+
+interface IxTokenIssuing {
+    function handleIssuingForUnlockFailureFromRemote(
+        uint256 originalChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        uint256 amount,
+        uint256 nonce
+    ) external;
+
+    function issuexToken(
+        uint256 remoteChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        uint256 amount,
+        uint256 nonce
+    ) external;
 }
 
 // File contracts/mapping-token/v3/base/xTokenBacking.sol
@@ -998,7 +993,6 @@ contract xTokenBacking is xTokenBridgeBase {
 
     event TokenLocked(
         bytes32 transferId,
-        bytes32 messageId,
         uint256 nonce,
         uint256 remoteChainId,
         address token,
@@ -1008,7 +1002,7 @@ contract xTokenBacking is xTokenBridgeBase {
         uint256 fee
     );
     event TokenUnlocked(bytes32 transferId, uint256 remoteChainId, address token, address recipient, uint256 amount);
-    event RemoteIssuingFailure(bytes32 transferId, bytes32 messageId, address xToken, address originalSender, uint256 amount, uint256 fee);
+    event RemoteIssuingFailure(bytes32 transferId, address xToken, address originalSender, uint256 amount, uint256 fee);
     event TokenUnlockedForFailed(bytes32 transferId, uint256 remoteChainId, address token, address recipient, uint256 amount);
 
     // the wToken is the wrapped native token's address
@@ -1046,7 +1040,7 @@ contract xTokenBacking is xTokenBridgeBase {
         bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _originalToken));
         require(originalToken2xTokens[key] != address(0), "token not registered");
 
-        bytes32 transferId = getTransferId(_nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, msg.sender, _recipient, _amount);
         _requestTransfer(transferId);
 
         uint256 prepaid = msg.value;
@@ -1071,8 +1065,8 @@ contract xTokenBacking is xTokenBridgeBase {
             _amount,
             _nonce
         );
-        bytes32 messageId = _sendMessage(_remoteChainId, issuxToken, prepaid, _extParams);
-        emit TokenLocked(transferId, messageId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, prepaid);
+        _sendMessage(_remoteChainId, issuxToken, prepaid, _extParams);
+        emit TokenLocked(transferId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, prepaid);
     }
 
     function encodeIssuexToken(
@@ -1104,7 +1098,7 @@ contract xTokenBacking is xTokenBridgeBase {
     ) external calledByMessager(_remoteChainId) whenNotPaused {
         expendDailyLimit(_originalToken, _amount);
 
-        bytes32 transferId = getTransferId(_nonce, block.chainid, _originalToken, _originSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originSender, _recipient, _amount);
         _handleTransfer(transferId);
 
         // native token do not use guard
@@ -1161,7 +1155,7 @@ contract xTokenBacking is xTokenBridgeBase {
         bytes memory _extParams
     ) external payable {
         require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
-        bytes32 transferId = getTransferId(_nonce, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
         _requestRefund(transferId);
         bytes memory unlockForFailed = encodeIssuingForUnlockFailureFromRemote(
             _originalToken,
@@ -1170,8 +1164,8 @@ contract xTokenBacking is xTokenBridgeBase {
             _amount,
             _nonce
         );
-        bytes32 messageId = _sendMessage(_remoteChainId, unlockForFailed, msg.value, _extParams);
-        emit RemoteIssuingFailure(transferId, messageId, _originalToken, _originalSender, _amount, msg.value);
+        _sendMessage(_remoteChainId, unlockForFailed, msg.value, _extParams);
+        emit RemoteIssuingFailure(transferId, _originalToken, _originalSender, _amount, msg.value);
     }
 
     function encodeIssuingForUnlockFailureFromRemote(
@@ -1205,7 +1199,7 @@ contract xTokenBacking is xTokenBridgeBase {
         uint256 _amount,
         uint256 _nonce
     ) external calledByMessager(_remoteChainId) whenNotPaused {
-        bytes32 transferId = keccak256(abi.encodePacked(_nonce, _remoteChainId, _originalToken, _originalSender, _recipient, _amount));
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
         _handleRefund(transferId);
         if (_originalToken == address(0)) {
             TokenTransferHelper.safeTransferNative(_originalSender, _amount);

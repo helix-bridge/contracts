@@ -12,7 +12,7 @@ const crabNetwork = {
     url: "https://crab-rpc.darwinia.network",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
-    msgline: "0x000000000EFcBAdA3793cC59c62D79b9f56Ae48F",
+    msgline: "0x0000000000D2de3e2444926c4577b0A59F1DD8BC",
 };
 
 const sepoliaNetwork = {
@@ -20,7 +20,7 @@ const sepoliaNetwork = {
     url: "https://rpc-sepolia.rockx.com",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
-    msgline: "0x000000000EFcBAdA3793cC59c62D79b9f56Ae48F",
+    msgline: "0x0000000000D2de3e2444926c4577b0A59F1DD8BC",
 };
 
 function wallet(url) {

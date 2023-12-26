@@ -29,5 +29,8 @@
     },
     "xToken": {
         "tron": "TRXTkfGxTL8CjuGgz55BYkTAyVyiEMFY6F"
+    },
+    "guard": {
+        "sepolia": "0x8F207f0e9Ed3CC1487C5C8981213AD4482d4a972"
     }
 }

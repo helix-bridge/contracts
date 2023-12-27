@@ -11,10 +11,10 @@ import "../interfaces/IWToken.sol";
 contract GuardV3 is GuardRegistryV3, Pausable {
     using SafeMath for uint256;
 
-    mapping(uint256 => bytes32) deposits;
+    mapping(uint256 => bytes32) public deposits;
 
     uint256 public maxUnclaimableTime;
-    mapping(address => bool) depositors;
+    mapping(address => bool) public depositors;
     address public operator;
 
     event TokenDeposit(address sender, uint256 id, uint256 timestamp, address token, address recipient, uint256 amount);

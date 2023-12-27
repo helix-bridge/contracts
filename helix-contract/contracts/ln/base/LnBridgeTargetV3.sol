@@ -5,7 +5,7 @@ import "../interface/ILnBridgeSourceV3.sol";
 import "./LnBridgeHelper.sol";
 
 contract LnBridgeTargetV3 {
-    // timestamp: the time when transfer filled
+    // timestamp: the time when transfer filled, this is also the flag that the transfer is filled(relayed or slashed)
     // provider: the transfer lnProvider
     struct FillTransfer {
         uint64 timestamp;
@@ -13,6 +13,7 @@ contract LnBridgeTargetV3 {
     }
 
     // lockTimestamp: the time when the transfer start from source chain
+    // the lockTimestamp is verified on source chain, if slasher falsify this timestamp, then it can't be verified on source chain
     // sourceAmount: the send amount on source chain
     struct SlashInfo {
         uint256 remoteChainId;
@@ -143,6 +144,7 @@ contract LnBridgeTargetV3 {
         _sendMessageToSource(slashInfo.remoteChainId, message, _extParams);
     }
 
+    // can't withdraw for different providers each time
     function requestWithdrawLiquidity(
         uint256 _remoteChainId,
         bytes32[] calldata _transferIds,

@@ -366,31 +366,33 @@ describe("lnv3 bridge tests", () => {
           return slashTransaction;
       }
 
-      async function withdraw(direction, lastTransferId, amount) {
+      async function withdraw(direction, transferIds, result) {
           const chainInfo = await getChainInfo(direction);
-          const providerKey = getProviderKey(chainInfo.dstChainId, relayer.address, chainInfo.srcToken.address, chainInfo.dstToken.address);
-          const marginBefore = (await chainInfo.srcBridge.srcProviders(providerKey)).config.margin;
+
+          let totalWithdrawAmount = 0;
+          for (const transferId of transferIds) {
+              const lockInfo = await chainInfo.srcBridge.lockInfos(transferId);
+              totalWithdrawAmount += Number(lockInfo.amountWithFeeAndPenalty) - penalty;
+          }
 
           const balanceOfRelayerBefore = await chainInfo.srcToken.balanceOf(relayer.address);
-          const withdrawTransaction = await chainInfo.dstBridge.connect(relayer).requestWithdrawMargin(
+          const balanceOfBackingBefore = await chainInfo.srcToken.balanceOf(chainInfo.srcBridge.address);
+          const withdrawTransaction = await chainInfo.dstBridge.connect(relayer).requestWithdrawLiquidity(
               chainInfo.srcChainId,
-              lastTransferId,
-              chainInfo.srcToken.address,
-              chainInfo.dstToken.address,
-              amount,
+              transferIds,
+              relayer.address,
               chainInfo.extParams,
           );
           const balanceOfRelayerAfter = await chainInfo.srcToken.balanceOf(relayer.address);
-          const marginAfter = (await chainInfo.srcBridge.srcProviders(providerKey)).config.margin;
+          const balanceOfBackingAfter = await chainInfo.srcToken.balanceOf(chainInfo.srcBridge.address);
 
-          let successWithdrawAmount = amount;
-          if (marginBefore.lt(amount)) {
-              // if withdraw failed
-              successWithdrawAmount = 0;
+          if (result) {
+              expect(balanceOfRelayerAfter - balanceOfRelayerBefore).to.equal(totalWithdrawAmount);
+              expect(balanceOfBackingBefore - balanceOfBackingAfter).to.equal(totalWithdrawAmount);
+          } else {
+              expect(balanceOfRelayerAfter - balanceOfRelayerBefore).to.equal(0);
+              expect(balanceOfBackingBefore - balanceOfBackingAfter).to.equal(0);
           }
-          expect(balanceOfRelayerAfter - balanceOfRelayerBefore).to.equal(successWithdrawAmount);
-          expect(marginBefore - marginAfter).to.equal(successWithdrawAmount);
-          return successWithdrawAmount > 0;
       }
 
       // eth -> arb
@@ -419,6 +421,13 @@ describe("lnv3 bridge tests", () => {
           });
           // 2.2. slashed
           await slash("eth2arb", 2, transferId02, blockTimestamp02);
+
+          // withdraw
+          await withdraw('eth2arb', [transferId01], true);
+          // withdraw twice failed
+          await withdraw('eth2arb', [transferId01], false);
+          // withdraw a slashed transfer failed
+          await withdraw('eth2arb', [transferId02], false);
       }
 
       // test arb2eth direction

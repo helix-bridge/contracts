@@ -23,6 +23,7 @@ describe("lnv3 bridge tests", () => {
       const protocolFee = 100;
       const penalty = 200;
       const nullAddress = "0x0000000000000000000000000000000000000000";
+      const nativeTokenAddress = nullAddress;
       const baseFee = 300;
       const liquidityFeeRate = 1;
       const initTokenBalance = 1000000;
@@ -45,6 +46,11 @@ describe("lnv3 bridge tests", () => {
       const arbToken = await ethContract.deploy(tokenNameOnArbitrum, tokenSymbolOnArbitrum, 17);
       await arbToken.deployed();
       console.log("contract deploy erc20 finished");
+
+      const tokenNameNativeOnEthereum = "Ethereum Native Token";
+      const tokenSymbolNativeOnEthereum = "ETH";
+      const tokenNameNativeOnArbitrum = "Arbitrum Native Token";
+      const tokenSymbolNativeOnArbitrum = "aETH";
 
       // mint some tokens on source chain and target chain for relayer
       await ethToken.mint(relayer.address, initTokenBalance);
@@ -140,6 +146,29 @@ describe("lnv3 bridge tests", () => {
           1
       );
 
+      // native token
+      await ethBridge.registerTokenInfo(
+          arbChainId,
+          nativeTokenAddress,
+          nativeTokenAddress,
+          protocolFee,
+          penalty,
+          18,
+          18,
+          2
+      );
+
+      await arbBridge.registerTokenInfo(
+          ethChainId,
+          nativeTokenAddress,
+          nativeTokenAddress,
+          protocolFee,
+          penalty,
+          18,
+          18,
+          2
+      );
+
       console.log("provider register");
       // provider 
       await ethToken.connect(relayer).approve(ethBridge.address, initTokenBalance);
@@ -174,23 +203,65 @@ describe("lnv3 bridge tests", () => {
           initPenalty
       );
 
-      async function getChainInfo(direction) {
+      await arbBridge.connect(relayer).registerLnProvider(
+          ethChainId,
+          nativeTokenAddress,
+          nativeTokenAddress,
+          baseFee,
+          liquidityFeeRate,
+          transferLimit
+      );
+      // deposit penalty reserve
+      await arbBridge.connect(relayer).depositPenaltyReserve(
+          nativeTokenAddress,
+          initPenalty,
+          { value: initPenalty }
+      );
+
+      await ethBridge.connect(relayer).registerLnProvider(
+          arbChainId,
+          nativeTokenAddress,
+          nativeTokenAddress,
+          baseFee,
+          liquidityFeeRate,
+          transferLimit
+      );
+      // deposit penalty reserve
+      await ethBridge.connect(relayer).depositPenaltyReserve(
+          nativeTokenAddress,
+          initPenalty,
+          { value: initPenalty }
+      );
+
+      async function getChainInfo(direction, isNative) {
           if (direction === 'eth2arb') {
+              let srcToken = ethToken.address;
+              let dstToken = arbToken.address;
+              if (isNative) {
+                  srcToken = nativeTokenAddress;
+                  dstToken = nativeTokenAddress;
+              }
               return {
                   srcChainId: ethChainId,
                   dstChainId: arbChainId,
-                  srcToken: ethToken,
-                  dstToken: arbToken,
+                  srcToken: srcToken,
+                  dstToken: dstToken,
                   srcBridge: ethBridge,
                   dstBridge: arbBridge,
                   extParams: relayer.address,
               };
           } else {
+              let srcToken = arbToken.address;
+              let dstToken = ethToken.address;
+              if (isNative) {
+                  srcToken = nativeTokenAddress;
+                  dstToken = nativeTokenAddress;
+              }
               return {
                   srcChainId: arbChainId,
                   dstChainId: ethChainId,
-                  srcToken: arbToken,
-                  dstToken: ethToken,
+                  srcToken: srcToken,
+                  dstToken: dstToken,
                   srcBridge: arbBridge,
                   dstBridge: ethBridge,
                   extParams: await eth2arbSendService.encodeParams(0, 200, 200, relayer.address),
@@ -198,7 +269,10 @@ describe("lnv3 bridge tests", () => {
           }
       }
 
-      async function getTargetAmount(direction, sourceAmount) {
+      async function getTargetAmount(direction, sourceAmount, isNative) {
+          if (isNative) {
+              return sourceAmount;
+          }
           if (direction === 'eth2arb') {
               return sourceAmount/(10);
           } else {
@@ -206,68 +280,59 @@ describe("lnv3 bridge tests", () => {
           }
       }
 
-      async function getCurrentTransferId(direction, lastTransferId) {
-          const chainInfo = await getChainInfo(direction);
-
-          const srcProvider = await chainInfo.srcBridge.srcProviderStates(
-              await chainInfo.srcBridge.getProviderStateKey(
-                  chainInfo.srcToken.address,
-                  relayer.address
-              )
-          );
-
-          const targetAmount = await getTargetAmount(direction, transferAmount);
-          const transferId = await chainInfo.srcBridge.getTransferId(
-              [
-                  chainInfo.dstChainId,
-                  relayer.address, // provider
-                  chainInfo.srcToken.address, // sourceToken
-                  chainInfo.dstToken.address, // targetToken
-                  0,
-                  transferAmount, // amount
-                  user.address, // receiver
-              ],
-              srcProvider.nonce,
-              targetAmount
-          );
-
-          // check transferId exist on source chain
-          const lockInfo = await chainInfo.srcBridge.lockInfos(transferId);
-          expect(lockInfo.timestamp).to.equal(blockTimestamp);
-          return transferId;
+      async function balanceOf(tokenAddress, account) {
+          if (tokenAddress == nativeTokenAddress) {
+              return await ethers.provider.getBalance(account);
+          } else {
+              const token = await ethers.getContractAt("Erc20", tokenAddress);
+              return await token.balanceOf(account);
+          }
       }
 
       // balance
       // srcChain: user -> source bridge contract [amount + providerFee + protocolFee]
-      async function transfer(direction, nonce) {
-          const chainInfo = await getChainInfo(direction);
+      async function transfer(direction, nonce, isNative) {
+          const chainInfo = await getChainInfo(direction, isNative);
           const totalFee = Number(await chainInfo.srcBridge.totalFee(
               chainInfo.dstChainId,
               relayer.address,
-              chainInfo.srcToken.address,
-              chainInfo.dstToken.address,
+              chainInfo.srcToken,
+              chainInfo.dstToken,
               transferAmount
           ));
-          const balanceOfUser = await chainInfo.srcToken.balanceOf(user.address);
+          const balanceOfUser = await balanceOf(chainInfo.srcToken, user.address);
+          const balanceOfBackingBefore = await balanceOf(chainInfo.srcToken, chainInfo.srcBridge.address);
           const params = [
               chainInfo.dstChainId,
               relayer.address,
-              chainInfo.srcToken.address,
-              chainInfo.dstToken.address,
+              chainInfo.srcToken,
+              chainInfo.dstToken,
               totalFee,
               transferAmount,
               user.address,
               nonce,
           ];
+          let value = 0;
+          if (isNative) {
+              value = totalFee + transferAmount;
+          }
           const tx = await chainInfo.srcBridge.connect(user).lockAndRemoteRelease(
               params,
+              { value: value }
           );
-          const balanceOfUserAfter = await chainInfo.srcToken.balanceOf(user.address);
-          expect(balanceOfUser - balanceOfUserAfter).to.equal(totalFee + transferAmount);
+          const balanceOfUserAfter = await balanceOf(chainInfo.srcToken, user.address);
+          const balanceOfBackingAfter = await balanceOf(chainInfo.srcToken, chainInfo.srcBridge.address);
           let lockReceipt = await tx.wait();
           let lockGasUsed = lockReceipt.cumulativeGasUsed;
-          console.log("transferAndLockMargin gas used", lockGasUsed);
-          const targetAmount = await getTargetAmount(direction, transferAmount);
+          let gasFee = lockReceipt.cumulativeGasUsed.mul(lockReceipt.effectiveGasPrice);
+          console.log("transferAndLockMargin gas used", lockGasUsed, lockReceipt.effectiveGasPrice, gasFee);
+          if (!isNative) {
+              expect(balanceOfUser.sub(balanceOfUserAfter)).to.equal(totalFee + transferAmount);
+          } else {
+              expect(balanceOfUser.sub(balanceOfUserAfter).sub(gasFee)).to.equal(totalFee + transferAmount);
+          }
+          expect(balanceOfBackingAfter - balanceOfBackingBefore).to.equal(totalFee + transferAmount);
+          const targetAmount = await getTargetAmount(direction, transferAmount, isNative);
           return await chainInfo.srcBridge.getTransferId(
               params,
               targetAmount
@@ -276,24 +341,29 @@ describe("lnv3 bridge tests", () => {
 
       // balance
       // on target: relayer -> user
-      async function relay(direction, transferId, nonce) {
-          const chainInfo = await getChainInfo(direction);
-          const balanceOfUser = await chainInfo.dstToken.balanceOf(user.address);
-          const balanceOfRelayer = await chainInfo.dstToken.balanceOf(relayer.address);
-          const targetAmount = await getTargetAmount(direction, transferAmount);
-          const relayTransaction = await chainInfo.dstBridge.connect(relayer).transferAndReleaseMargin(
+      async function relay(direction, transferId, nonce, isNative) {
+          const chainInfo = await getChainInfo(direction, isNative);
+          const balanceOfUser = await balanceOf(chainInfo.dstToken, user.address);
+          const balanceOfRelayer = await balanceOf(chainInfo.dstToken, relayer.address);
+          const targetAmount = await getTargetAmount(direction, transferAmount, isNative);
+          let value = 0;
+          if (isNative) {
+              value = targetAmount;
+          }
+          const relayTransaction = await chainInfo.dstBridge.connect(relayer).relay(
               [
                   chainInfo.srcChainId,
                   relayer.address, // provider
-                  chainInfo.srcToken.address, // sourceToken
-                  chainInfo.dstToken.address, // targetToken
+                  chainInfo.srcToken, // sourceToken
+                  chainInfo.dstToken, // targetToken
                   transferAmount,
                   targetAmount,
                   user.address,
                   nonce,
               ],
               transferId,
-              true
+              true,
+              { value: value }
           );
 
           // check relay result
@@ -301,28 +371,35 @@ describe("lnv3 bridge tests", () => {
           //expect(fillInfo.timestamp).to.equal(relayTimestamp);
           const slashInfo = await chainInfo.dstBridge.slashInfos(transferId);
           expect(slashInfo.slasher).to.equal(nullAddress);
-          const balanceOfUserAfter = await chainInfo.dstToken.balanceOf(user.address);
-          const balanceOfRelayerAfter = await chainInfo.dstToken.balanceOf(relayer.address);
-          expect(balanceOfUserAfter - balanceOfUser).to.equal(targetAmount);
-          expect(balanceOfRelayer - balanceOfRelayerAfter).to.equal(targetAmount);
+          const balanceOfUserAfter = await balanceOf(chainInfo.dstToken, user.address);
+          const balanceOfRelayerAfter = await balanceOf(chainInfo.dstToken, relayer.address);
+          expect(balanceOfUserAfter.sub(balanceOfUser)).to.equal(targetAmount);
 
           let relayReceipt = await relayTransaction.wait();
           let relayGasUsed = relayReceipt.cumulativeGasUsed;
+          let gasFee = relayReceipt.cumulativeGasUsed.mul(relayReceipt.effectiveGasPrice);
+          if (!isNative) {
+              expect(balanceOfRelayer - balanceOfRelayerAfter).to.equal(targetAmount);
+          } else {
+              expect(balanceOfRelayer.sub(balanceOfRelayerAfter).sub(gasFee)).to.equal(targetAmount);
+          }
+
           console.log("relay gas used", relayGasUsed);
       }
 
-      async function slash(direction, nonce, expectedTransferId, timestamp) {
-          const chainInfo = await getChainInfo(direction);
+      async function slash(direction, nonce, expectedTransferId, timestamp, isNative) {
+          const chainInfo = await getChainInfo(direction, isNative);
           let blockTimestamp = timestamp;
           if (blockTimestamp === null) { 
               blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
           }
-          const balanceOfUser = await chainInfo.dstToken.balanceOf(user.address);
-          const balanceOfSlasher = await chainInfo.dstToken.balanceOf(slasher.address);
-          const balanceOfSlasherOnSrc = await chainInfo.srcToken.balanceOf(slasher.address);
-          const targetAmount = await getTargetAmount(direction, transferAmount);
+          const dstToken = await ethers.getContractAt("Erc20", chainInfo.dstToken);
+          await dstToken.connect(slasher).approve(chainInfo.dstBridge.address, initTokenBalance);
 
-          await chainInfo.dstToken.connect(slasher).approve(chainInfo.dstBridge.address, initTokenBalance);
+          const balanceOfUser = await balanceOf(chainInfo.dstToken, user.address);
+          const balanceOfSlasher = await balanceOf(chainInfo.dstToken, slasher.address);
+          const balanceOfSlasherOnSrc = await balanceOf(chainInfo.srcToken, slasher.address);
+          const targetAmount = await getTargetAmount(direction, transferAmount, isNative);
 
           const encoded = ethers.utils.solidityPack([
               "bytes32",
@@ -330,12 +407,18 @@ describe("lnv3 bridge tests", () => {
           ], [expectedTransferId, blockTimestamp]);
           const expectedIdWithTimestamp = ethUtil.keccak256(encoded);
 
+          const feePrepaid = ethers.utils.parseEther("0.01");
+          let value = feePrepaid;
+          if (isNative) {
+              value = feePrepaid.add(targetAmount);
+          }
+
           const slashTransaction = await chainInfo.dstBridge.connect(slasher).requestSlashAndRemoteRelease(
               [
                   chainInfo.srcChainId,
                   relayer.address,
-                  chainInfo.srcToken.address,
-                  chainInfo.dstToken.address,
+                  chainInfo.srcToken,
+                  chainInfo.dstToken,
                   transferAmount,
                   targetAmount,
                   user.address,
@@ -344,30 +427,39 @@ describe("lnv3 bridge tests", () => {
               blockTimestamp,
               expectedTransferId,
               expectedIdWithTimestamp,
-              chainInfo.extParams
+              feePrepaid,
+              chainInfo.extParams,
+              {value: value}
           );
           
+          let slashReceipt = await slashTransaction.wait();
+          let slashGasUsed = slashReceipt.cumulativeGasUsed;
+          let gasFee = slashReceipt.cumulativeGasUsed.mul(slashReceipt.effectiveGasPrice);
 
           const slashInfo = await chainInfo.dstBridge.slashInfos(expectedTransferId);
-          const balanceOfUserAfter = await chainInfo.dstToken.balanceOf(user.address);
-          const balanceOfSlasherAfter = await chainInfo.dstToken.balanceOf(slasher.address);
-          const balanceOfSlasherAfterOnSrc = await chainInfo.srcToken.balanceOf(slasher.address);
+          const balanceOfUserAfter = await balanceOf(chainInfo.dstToken, user.address);
+          const balanceOfSlasherAfter = await balanceOf(chainInfo.dstToken, slasher.address);
+          const balanceOfSlasherAfterOnSrc = await balanceOf(chainInfo.srcToken, slasher.address);
           const totalFee = Number(await chainInfo.srcBridge.totalFee(
               chainInfo.dstChainId,
               relayer.address,
-              chainInfo.srcToken.address,
-              chainInfo.dstToken.address,
+              chainInfo.srcToken,
+              chainInfo.dstToken,
               transferAmount
           ));
-          expect(balanceOfUserAfter - balanceOfUser).to.equal(targetAmount);
-          expect(balanceOfSlasher - balanceOfSlasherAfter).to.equal(targetAmount);
+          expect(balanceOfUserAfter.sub(balanceOfUser)).to.equal(targetAmount);
+          if (!isNative) {
+              expect(balanceOfSlasher - balanceOfSlasherAfter).to.equal(targetAmount);
+              expect(balanceOfSlasherAfterOnSrc - balanceOfSlasherOnSrc).to.equal(transferAmount + penalty + totalFee - protocolFee);
+          } else {
+              expect(balanceOfSlasherAfter.sub(balanceOfSlasher).add(feePrepaid).add(gasFee)).to.equal(penalty + totalFee - protocolFee);
+          }
           expect(slashInfo.slasher).to.equal(slasher.address);
-          expect(balanceOfSlasherAfterOnSrc - balanceOfSlasherOnSrc).to.equal(transferAmount + penalty + totalFee - protocolFee);
           return slashTransaction;
       }
 
-      async function withdraw(direction, transferIds, result) {
-          const chainInfo = await getChainInfo(direction);
+      async function withdraw(direction, transferIds, result, isNative) {
+          const chainInfo = await getChainInfo(direction, isNative);
 
           let totalWithdrawAmount = 0;
           for (const transferId of transferIds) {
@@ -375,16 +467,18 @@ describe("lnv3 bridge tests", () => {
               totalWithdrawAmount += Number(lockInfo.amountWithFeeAndPenalty) - penalty;
           }
 
-          const balanceOfRelayerBefore = await chainInfo.srcToken.balanceOf(relayer.address);
-          const balanceOfBackingBefore = await chainInfo.srcToken.balanceOf(chainInfo.srcBridge.address);
+          const balanceOfRelayerBefore = await balanceOf(chainInfo.srcToken, relayer.address);
+          const balanceOfBackingBefore = await balanceOf(chainInfo.srcToken, chainInfo.srcBridge.address);
+          const feePrepaid = ethers.utils.parseEther("0.01");
           const withdrawTransaction = await chainInfo.dstBridge.connect(relayer).requestWithdrawLiquidity(
               chainInfo.srcChainId,
               transferIds,
               relayer.address,
               chainInfo.extParams,
+              {value: feePrepaid}
           );
-          const balanceOfRelayerAfter = await chainInfo.srcToken.balanceOf(relayer.address);
-          const balanceOfBackingAfter = await chainInfo.srcToken.balanceOf(chainInfo.srcBridge.address);
+          const balanceOfRelayerAfter = await balanceOf(chainInfo.srcToken, relayer.address);
+          const balanceOfBackingAfter = await balanceOf(chainInfo.srcToken, chainInfo.srcBridge.address);
 
           if (result) {
               expect(balanceOfRelayerAfter - balanceOfRelayerBefore).to.equal(totalWithdrawAmount);
@@ -400,53 +494,72 @@ describe("lnv3 bridge tests", () => {
           await ethToken.connect(user).approve(ethBridge.address, initTokenBalance);
           // test normal transfer and relay
           // 1. transfer from eth to arb
-          const transferId01 = await transfer('eth2arb', 1);
+          const transferId01 = await transfer('eth2arb', 1, false);
           const blockTimestamp01 = (await ethers.provider.getBlock("latest")).timestamp;
           // 2. relay "transfer from eth to arb"
-          await relay('eth2arb', transferId01, 1);
+          await relay('eth2arb', transferId01, 1, false);
           // 3. repeat relay
-          await expect(relay('eth2arb', transferId01, 1)).to.be.revertedWith("transfer has been filled");
+          await expect(relay('eth2arb', transferId01, 1, false)).to.be.revertedWith("transfer has been filled");
 
           // test slash
           // 1. slash a relayed tx
-          await expect(slash("eth2arb", 1, transferId01, blockTimestamp01)).to.be.revertedWith("transfer has been filled");
+          await expect(slash("eth2arb", 1, transferId01, blockTimestamp01, false)).to.be.revertedWith("transfer has been filled");
           // 2. slash a normal unrelayed tx
-          const transferId02 = await transfer('eth2arb', 2);
+          const transferId02 = await transfer('eth2arb', 2, false);
           const blockTimestamp02 = (await ethers.provider.getBlock("latest")).timestamp;
           // 2.1. slash when not expired
-          await expect(slash("eth2arb", 2, transferId02, blockTimestamp02)).to.be.revertedWith("time not expired");
+          await expect(slash("eth2arb", 2, transferId02, blockTimestamp02, false)).to.be.revertedWith("time not expired");
           await hre.network.provider.request({
               method: "evm_increaseTime",
               params: [18001],
           });
           // 2.2. slashed
-          await slash("eth2arb", 2, transferId02, blockTimestamp02);
+          await slash("eth2arb", 2, transferId02, blockTimestamp02, false);
 
           // withdraw
-          await withdraw('eth2arb', [transferId01], true);
+          await withdraw('eth2arb', [transferId01], true, false);
           // withdraw twice failed
-          await withdraw('eth2arb', [transferId01], false);
+          await withdraw('eth2arb', [transferId01], false, false);
           // withdraw a slashed transfer failed
-          await withdraw('eth2arb', [transferId02], false);
+          await withdraw('eth2arb', [transferId02], false, false);
       }
 
       // test arb2eth direction
       {
           await arbToken.connect(user).approve(arbBridge.address, initTokenBalance);
-          const transferId11 = await transfer('arb2eth', 1);
+          const transferId11 = await transfer('arb2eth', 1, false);
           const blockTimestamp11 = (await ethers.provider.getBlock("latest")).timestamp;
-          await relay('arb2eth', transferId11, 1);
-          await expect(relay('arb2eth', transferId11, 1)).to.be.revertedWith("transfer has been filled");
+          await relay('arb2eth', transferId11, 1, false);
+          await expect(relay('arb2eth', transferId11, 1, false)).to.be.revertedWith("transfer has been filled");
 
-          await expect(slash("arb2eth", 1, transferId11, blockTimestamp11)).to.be.revertedWith("transfer has been filled");
-          const transferId12 = await transfer('arb2eth', 2);
+          await expect(slash("arb2eth", 1, transferId11, blockTimestamp11, false)).to.be.revertedWith("transfer has been filled");
+          const transferId12 = await transfer('arb2eth', 2, false);
           const blockTimestamp12 = (await ethers.provider.getBlock("latest")).timestamp;
-          await expect(slash("arb2eth", 2, transferId12, blockTimestamp12)).to.be.revertedWith("time not expired");
+          await expect(slash("arb2eth", 2, transferId12, blockTimestamp12, false)).to.be.revertedWith("time not expired");
           await hre.network.provider.request({
               method: "evm_increaseTime",
               params: [18001],
           });
-          await slash("arb2eth", 2, transferId12, blockTimestamp12);
+          await slash("arb2eth", 2, transferId12, blockTimestamp12, false);
+          console.log("test finished");
+      }
+
+      // test native token
+      {
+          const transferId21 = await transfer('arb2eth', 1, true);
+          const blockTimestamp21 = (await ethers.provider.getBlock("latest")).timestamp;
+          await relay('arb2eth', transferId21, 1, true);
+          await expect(relay('arb2eth', transferId21, 1, true)).to.be.revertedWith("transfer has been filled");
+
+          await expect(slash("arb2eth", 1, transferId21, blockTimestamp21, true)).to.be.revertedWith("transfer has been filled");
+          const transferId22 = await transfer('arb2eth', 2, true);
+          const blockTimestamp22 = (await ethers.provider.getBlock("latest")).timestamp;
+          await expect(slash("arb2eth", 2, transferId22, blockTimestamp22, true)).to.be.revertedWith("time not expired");
+          await hre.network.provider.request({
+              method: "evm_increaseTime",
+              params: [18001],
+          });
+          await slash("arb2eth", 2, transferId22, blockTimestamp22, true);
           console.log("test finished");
       }
   });

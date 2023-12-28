@@ -41,9 +41,9 @@ contract LnBridgeTargetV3 {
     event TransferFilled(bytes32 transferId, address provider);
     event SlashRequest(bytes32 transferId, uint256 remoteChainId, address provider, address sourceToken, address targetToken, address slasher);
 
-    function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) internal virtual {}
+    function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, uint256 feePrepaid, bytes memory _extParams) internal virtual {}
 
-    function transferAndReleaseMargin(
+    function relay(
         RelayParams calldata _params,
         bytes32 _expectedTransferId,
         bool _relayBySelf
@@ -82,6 +82,7 @@ contract LnBridgeTargetV3 {
         uint64 _timestamp,
         bytes32 _expectedTransferId,
         bytes32 _expectedIdWithTimestamp,
+        uint256 _feePrepaid,
         bytes memory _extParams
     ) external payable {
         bytes32 transferId = keccak256(abi.encodePacked(
@@ -107,10 +108,10 @@ contract LnBridgeTargetV3 {
         slashInfos[transferId] = SlashInfo(_params.remoteChainId, _timestamp, _params.sourceAmount, msg.sender);
 
         if (_params.targetToken == address(0)) {
-            require(msg.value == _params.targetAmount, "invalid value");
+            require(msg.value == _params.targetAmount + _feePrepaid, "invalid value");
             LnBridgeHelper.safeTransferNative(_params.receiver, _params.targetAmount);
         } else {
-            require(msg.value == 0, "value not need");
+            require(msg.value == _feePrepaid, "value too large");
             LnBridgeHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
         }
         bytes memory message = abi.encodeWithSelector(
@@ -122,11 +123,11 @@ contract LnBridgeTargetV3 {
            _timestamp,
            msg.sender
         );
-        _sendMessageToSource(_params.remoteChainId, message, _extParams);
+        _sendMessageToSource(_params.remoteChainId, message, _feePrepaid, _extParams);
         emit SlashRequest(transferId, _params.remoteChainId, _params.provider, _params.sourceToken, _params.targetToken, msg.sender);
     }
 
-    function retrySlash(bytes32 transferId, bytes memory _extParams) external {
+    function retrySlash(bytes32 transferId, bytes memory _extParams) external payable {
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.timestamp > 0, "transfer not filled");
         SlashInfo memory slashInfo = slashInfos[transferId];
@@ -141,7 +142,7 @@ contract LnBridgeTargetV3 {
            slashInfo.lockTimestamp,
            slashInfo.slasher
         );
-        _sendMessageToSource(slashInfo.remoteChainId, message, _extParams);
+        _sendMessageToSource(slashInfo.remoteChainId, message, msg.value, _extParams);
     }
 
     // can't withdraw for different providers each time
@@ -150,7 +151,7 @@ contract LnBridgeTargetV3 {
         bytes32[] calldata _transferIds,
         address _provider,
         bytes memory _extParams
-    ) external {
+    ) external payable {
         for (uint i = 0; i < _transferIds.length; i++) {
             bytes32 transferId = _transferIds[i];
             FillTransfer memory fillTransfer = fillTransfers[transferId];
@@ -162,7 +163,7 @@ contract LnBridgeTargetV3 {
            block.chainid,
            _provider
         );
-        _sendMessageToSource(_remoteChainId, message, _extParams);
+        _sendMessageToSource(_remoteChainId, message, msg.value, _extParams);
     }
 }
 

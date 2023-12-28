@@ -32,10 +32,10 @@ contract HelixLnBridgeV3 is Initializable, LnBridgeSourceV3, LnBridgeTargetV3 {
         ILowLevelMessageReceiver(_service).registerRemoteSender(_remoteChainId, _remoteBridge);
     }
 
-    function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, bytes memory _extParams) whenNotPaused internal override {
+    function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, uint256 feePrepaid, bytes memory _extParams) whenNotPaused internal override {
         address sendService = messagers[_remoteChainId].sendService;
         require(sendService != address(0), "invalid messager");
-        ILowLevelMessageSender(sendService).sendMessage{value: msg.value}(_remoteChainId, _payload, _extParams);
+        ILowLevelMessageSender(sendService).sendMessage{value: feePrepaid}(_remoteChainId, _payload, _extParams);
     }
 
     function _verifyRemote(uint256 _remoteChainId) whenNotPaused internal view override {

@@ -51,6 +51,14 @@
     },
     "LnOppositeBridgeLogic": "0x3CFe649a4d5530AA2c716F0ca279b937687684f9",
     "LnOppositeBridgeProxy": "0x4C538EfA6e3f9Dfb939AA4F0B224577DA665923a",
+    "LnV3BridgeLogic": {
+        "zkSync": "0xa480d54af27d65cc485f7c11ec2F072F2d671863",
+        "others": "0x3B3Ad62319CAc1C1872C0370d84C60F816d4B69B"
+    },
+    "LnV3BridgeProxy": {
+        "zkSync": "0xab38D0030cC28e413C4DD2B7D0ac2b6984e6d3f0",
+        "others": "0xb0Ce2498C2526cceA1D7792e4B62C3066Eb5529B"
+    },
     "deployer": "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
     "usdt": {
         "goerli": "0xa39cffE89567eBfb5c306a07dfb6e5B3ba41F358",

@@ -103,7 +103,8 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
         address sourceToken,
         address targetToken,
         uint112 baseFee,
-        uint16 liquidityfeeRate
+        uint16 liquidityfeeRate,
+        uint112 transferLimit
     );
     event PenaltyReserveUpdated(address provider, address sourceToken, uint256 updatedPanaltyReserve);
     event LiquidityWithdrawn(bytes32 transferId, address provider, uint112 amount);
@@ -227,7 +228,7 @@ contract LnBridgeSourceV3 is Pausable, LnAccessController {
         // if the provider has not been registered, then this line will register, otherwise update fee
         srcProviders[providerKey] = providerInfo;
 
-        emit LnProviderUpdated(_remoteChainId, msg.sender, _sourceToken, _targetToken, _baseFee, _liquidityFeeRate);
+        emit LnProviderUpdated(_remoteChainId, msg.sender, _sourceToken, _targetToken, _baseFee, _liquidityFeeRate, _transferLimit);
     }
 
     function depositPenaltyReserve(

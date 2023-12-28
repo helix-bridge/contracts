@@ -11,4 +11,5 @@ cp -r ../helix-contract/contracts/ln/messager/interface ./contracts/ln/messager/
 cp -r ../helix-contract/contracts/ln/messager/LayerZeroMessager.sol ./contracts/ln/messager/
 cp -r ../helix-contract/contracts/ln/LnDefaultBridge.sol ./contracts/ln/
 cp -r ../helix-contract/contracts/ln/LnOppositeBridge.sol ./contracts/ln/
+cp -r ../helix-contract/contracts/ln/HelixLnBridgeV3.sol ./contracts/ln/
 cp -r ../helix-contract/contracts/ln/test/TestToken.sol ./contracts/ln/test/

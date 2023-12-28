@@ -340,6 +340,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
               chainInfo.srcChainId,
               expectedTransferId,
               chainInfo.extParams,
+              { value: ethers.utils.parseEther("0.01") }
           );
           const slashInfo = await chainInfo.dstBridge.slashInfos(expectedTransferId);
           const balanceOfUserAfter = await chainInfo.dstToken.balanceOf(user.address);
@@ -372,6 +373,7 @@ describe("eth->arb lnv2 positive bridge tests", () => {
               chainInfo.dstToken.address,
               amount,
               chainInfo.extParams,
+              { value: ethers.utils.parseEther("0.01") }
           );
           const balanceOfRelayerAfter = await chainInfo.srcToken.balanceOf(relayer.address);
           const marginAfter = (await chainInfo.srcBridge.srcProviders(providerKey)).config.margin;
@@ -555,6 +557,8 @@ describe("eth->arb lnv2 positive bridge tests", () => {
           await expect(withdraw('arb2eth', transferId03, 15000)).to.be.revertedWith("arbitrum mock call failed");
           expect(await withdraw('arb2eth', transferId03, 5000)).to.equal(true);
           console.log("ln bridge test finished");
+
+          // !warning there is a bug for lnv2 to slash a native token cross transfer with opposite bridge
       }
   });
 });

@@ -43,6 +43,7 @@ async function getDefaultBridgeBytecode(networkUrl, version) {
 async function getLnProxyBridgeBytecode(w, version, logicFactory, logicAddress, proxyAdminAddress, args) {
     const salt = ethers.utils.hexZeroPad(ethers.utils.hexlify(ethers.utils.toUtf8Bytes(version)), 32);
     const calldata = ProxyDeployer.getInitializerData(logicFactory.interface, args, "initialize");
+    console.log(calldata);
     const proxyContract = await ethers.getContractFactory("TransparentUpgradeableProxy", w);
     const bytecode = Create2.getDeployedBytecode(proxyContract, ["address", "address", "bytes"], [logicAddress, proxyAdminAddress, calldata]);
     console.log(`get helix proxy bridge bytecode, salt ${salt}, bytecode ${bytecode}`);
@@ -63,13 +64,21 @@ async function getLnOppositeProxyBridgeBytecode(networkUrl, version, logicAddres
     return;
 }
 
+async function getxTokenIssuingProxyBridgeBytecode(networkUrl, version, logicAddress, proxyAdminAddress) {
+    const w = wallet(networkUrl);
+    const xTokenBaseFactory = await ethers.getContractFactory("xTokenBridgeBase", w);
+    await getLnProxyBridgeBytecode(w, version, xTokenBaseFactory, logicAddress, proxyAdminAddress, [w.address, version]);
+    return;
+}
+
 // 2. deploy mapping token factory
 async function main() {
     //await getHelixProxyAdminBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0');
     //await getOppositeBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0');
     //await getDefaultBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0');
-    await getLnDefaultProxyBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0', '0x8af688056c6614acb5A78c62e1f9f49022C0452f', '0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB');
+    //await getLnDefaultProxyBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0', '0x8af688056c6614acb5A78c62e1f9f49022C0452f', '0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB');
     //await getLnOppositeProxyBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0', '0x90873fa1bbd028F22277567530A22E05f7721D37', '0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB');
+    await getxTokenIssuingProxyBridgeBytecode('https://rpc.ankr.com/eth_goerli', 'v1.0.0', "0x2279B98741D66ccbB1a9e8c80A571378a29afCf0", "0xa3D85134B8f8dB225D54AA4C5E4A25Bda3bD50eA");
 }
 
 main()

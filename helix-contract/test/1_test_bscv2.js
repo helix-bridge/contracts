@@ -425,7 +425,7 @@ describe("darwinia<>bsc mapping token tests", () => {
           ethUtil.keccak256(
               abi.rawEncode(
                   ['bytes4', 'bytes'],
-                  [abi.methodID('claim', [ 'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
+                  [abi.methodID('claim', ['uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
                   abi.rawEncode(['uint256', 'uint256', 'address', 'address', 'uint256'],
                       [1, timestamp01, originalToken.address, wallets[1].address, 100])
                   ]

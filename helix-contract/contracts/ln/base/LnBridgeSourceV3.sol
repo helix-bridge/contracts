@@ -2,13 +2,13 @@
 pragma solidity ^0.8.17;
 
 import "@zeppelin-solidity/contracts/security/Pausable.sol";
-import "./LnAccessController.sol";
-import "./TokenTransferHelper.sol";
+import "../../utils/AccessController.sol";
+import "../../utils/TokenTransferHelper.sol";
 
 /// @title LnBridgeSourceV3
 /// @notice LnBridgeSourceV3 is a contract to help user lock token and then trigger remote chain relay
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract LnBridgeSourceV3 is Pausable, LnAccessController {
+contract LnBridgeSourceV3 is Pausable, AccessController {
     uint256 constant public SLASH_EXPIRE_TIME = 60 * 60;
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     // liquidity fee base rate

@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "./base/LnBridgeSourceV3.sol";
 import "./base/LnBridgeTargetV3.sol";
-import "./interface/ILowLevelMessager.sol";
+import "../interfaces/IMessager.sol";
 
 contract HelixLnBridgeV3 is Initializable, LnBridgeSourceV3, LnBridgeTargetV3 {
     struct MessagerService {

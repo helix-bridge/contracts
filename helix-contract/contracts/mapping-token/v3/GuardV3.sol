@@ -85,6 +85,7 @@ contract GuardV3 is GuardRegistryV3, Pausable {
     ) internal {
         require(hash(abi.encodePacked(from, timestamp, token, recipient, amount)) == deposits[id], "Guard: Invalid id to claim");
         require(amount > 0, "Guard: Invalid amount to claim");
+        delete deposits[id];
         if (isNative) {
             require(IERC20(token).transferFrom(from, address(this), amount), "Guard: claim native token failed");
             uint256 balanceBefore = address(this).balance;
@@ -94,7 +95,6 @@ contract GuardV3 is GuardRegistryV3, Pausable {
         } else {
             require(IERC20(token).transferFrom(from, recipient, amount), "Guard: claim token failed");
         }
-        delete deposits[id];
         emit TokenClaimed(id);
     }
 

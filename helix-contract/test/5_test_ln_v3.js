@@ -401,12 +401,6 @@ describe("lnv3 bridge tests", () => {
           const balanceOfSlasherOnSrc = await balanceOf(chainInfo.srcToken, slasher.address);
           const targetAmount = await getTargetAmount(direction, transferAmount, isNative);
 
-          const encoded = ethers.utils.solidityPack([
-              "bytes32",
-              "uint64",
-          ], [expectedTransferId, blockTimestamp]);
-          const expectedIdWithTimestamp = ethUtil.keccak256(encoded);
-
           const feePrepaid = ethers.utils.parseEther("0.01");
           let value = feePrepaid;
           if (isNative) {
@@ -426,7 +420,6 @@ describe("lnv3 bridge tests", () => {
               ],
               blockTimestamp,
               expectedTransferId,
-              expectedIdWithTimestamp,
               feePrepaid,
               chainInfo.extParams,
               {value: value}

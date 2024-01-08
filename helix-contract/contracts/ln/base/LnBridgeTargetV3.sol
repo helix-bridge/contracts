@@ -13,7 +13,9 @@ contract LnBridgeTargetV3 {
     }
 
     // lockTimestamp: the time when the transfer start from source chain
-    // the lockTimestamp is verified on source chain, if slasher falsify this timestamp, then it can't be verified on source chain
+    // the lockTimestamp is verified on source chain
+    // 1. lockTimestamp verified successed: slasher get the transfer amount, fee and penalty on source chain
+    // 2. lockTimestamp verified failed:    slasher get the transfer amount, but the fee and penalty back to the provider
     // sourceAmount: the send amount on source chain
     struct SlashInfo {
         uint256 remoteChainId;
@@ -43,6 +45,9 @@ contract LnBridgeTargetV3 {
 
     function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, uint256 feePrepaid, bytes memory _extParams) internal virtual {}
 
+    // relay a tx, usually called by lnProvider
+    // 1. update the fillTransfers storage to save the relay proof
+    // 2. transfer token from lnProvider to the receiver
     function relay(
         RelayParams calldata _params,
         bytes32 _expectedTransferId,
@@ -72,16 +77,20 @@ contract LnBridgeTargetV3 {
             require(msg.value == _params.targetAmount, "invalid amount");
             LnBridgeHelper.safeTransferNative(_params.receiver, _params.targetAmount);
         } else {
+            require(msg.value == 0, "value not need");
             LnBridgeHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
         }
         emit TransferFilled(transferId, _params.provider);
     }
 
+    // slash a tx when timeout
+    // 1. update fillTransfers and slashInfos storage to save slash proof
+    // 2. transfer tokens from slasher to receiver for this tx
+    // 3. send a cross-chain message to source chain to withdraw the amount, fee and penalty from lnProvider
     function requestSlashAndRemoteRelease(
         RelayParams calldata _params,
         uint64 _timestamp,
         bytes32 _expectedTransferId,
-        bytes32 _expectedIdWithTimestamp,
         uint256 _feePrepaid,
         bytes memory _extParams
     ) external payable {
@@ -97,12 +106,12 @@ contract LnBridgeTargetV3 {
            _params.nonce
         ));
         require(_expectedTransferId == transferId, "check expected transferId failed");
-        bytes32 idWithTimestamp = keccak256(abi.encodePacked(transferId, _timestamp));
-        require(idWithTimestamp == _expectedIdWithTimestamp, "check timestamp failed");
 
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.timestamp == 0, "transfer has been filled");
 
+        // suppose source chain and target chain has the same block timestamp
+        // event the timestamp is not sync exactly, this TIMEOUT is also verified on source chain
         require(_timestamp < block.timestamp - LnBridgeHelper.SLASH_EXPIRE_TIME, "time not expired");
         fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _params.provider);
         slashInfos[transferId] = SlashInfo(_params.remoteChainId, _timestamp, _params.sourceAmount, msg.sender);
@@ -127,6 +136,8 @@ contract LnBridgeTargetV3 {
         emit SlashRequest(transferId, _params.remoteChainId, _params.provider, _params.sourceToken, _params.targetToken, msg.sender);
     }
 
+    // it's allowed to retry a slash tx because the cross-chain message may fail on source chain
+    // But it's required that the params must not be modified, it read from the storage saved
     function retrySlash(bytes32 transferId, bytes memory _extParams) external payable {
         FillTransfer memory fillTransfer = fillTransfers[transferId];
         require(fillTransfer.timestamp > 0, "transfer not filled");
@@ -146,6 +157,7 @@ contract LnBridgeTargetV3 {
     }
 
     // can't withdraw for different providers each time
+    // the size of the _transferIds should not be too large to be processed outof gas on source chain
     function requestWithdrawLiquidity(
         uint256 _remoteChainId,
         bytes32[] calldata _transferIds,
@@ -155,6 +167,7 @@ contract LnBridgeTargetV3 {
         for (uint i = 0; i < _transferIds.length; i++) {
             bytes32 transferId = _transferIds[i];
             FillTransfer memory fillTransfer = fillTransfers[transferId];
+            // make sure that each transfer has the same provider
             require(fillTransfer.provider == _provider, "provider invalid");
         }
         bytes memory message = abi.encodeWithSelector(

@@ -45,6 +45,7 @@ async function lockAndRemoteRelease(
         targetToken,
         amount);
     console.log("expect fee is", expectedFee);
+    const value = sourceToken == '0x0000000000000000000000000000000000000000' ? amount.add(expectedFee) : 0;
     //const tx = await bridge.callStatic.lockAndRemoteRelease(
     const tx = await bridge.lockAndRemoteRelease(
         [
@@ -56,7 +57,8 @@ async function lockAndRemoteRelease(
             amount,
             wallet.address,
             nonce
-        ]
+        ],
+        { value: value }
     );
     console.log(tx);
 }
@@ -173,16 +175,23 @@ async function main() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    /*
+    //const sourceToken = configure.usdc['goerli'];
+    //const targetToken = configure.usdc['zksync-goerli'];
+    //const sourceToken = '0x0000000000000000000000000000000000000000';
+    //const targetToken = '0x0000000000000000000000000000000000000000';
+    const sourceToken = configure.usdt['goerli'];
+    const targetToken = configure.usdt['zksync-goerli'];
+
     await lockAndRemoteRelease(
         goerliWallet,
         provider,
         configure.LnV3BridgeProxy.others,
         zkSyncNetwork.chainId,
-        configure.usdc['goerli'],
-        configure.usdc['zksync-goerli'],
-        200000000, 3);
-        */
+        sourceToken,
+        targetToken,
+        1050000,
+        //ethers.utils.parseEther("0.01"),
+        7);
     
     /*
     await relay(
@@ -211,6 +220,7 @@ async function main() {
     );
     */
 
+    /*
     await slash(
         zksyncWallet,
         configure.LnV3BridgeProxy.zkSync,
@@ -226,6 +236,7 @@ async function main() {
         "0x61d342e0db087243d311b3e107680fdbb98ed951093cfff34b7087d9422e0e26",
         "0x9f70fef04636178fd7a1d871525d28a91543b985cfae52f02d831cdfdad6f0a0",
     );
+    */
  
     return;
 }

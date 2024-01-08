@@ -13,6 +13,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     // liquidity fee base rate
     // liquidityFee = liquidityFeeRate / LIQUIDITY_FEE_RATE_BASE * sendAmount
+    // totalProviderFee = baseFee + liquidityFee
     uint256 constant public LIQUIDITY_FEE_RATE_BASE = 100000;
     uint8 constant public LOCK_STATUS_LOCKED = 1;
     uint8 constant public LOCK_STATUS_WITHDRAWN = 2;
@@ -30,6 +31,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     struct TokenInfo {
         TokenConfigure config;
         // zero index is invalid
+        // use this index to indict the token info to save gas
         uint32 index;
         address sourceToken;
         address targetToken;
@@ -51,11 +53,13 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     // the token index is used to be stored in lockInfo to save gas
     mapping(uint32=>bytes32) public tokenIndexer;
     // amountWithFeeAndPenalty = transferAmount + providerFee + penalty < type(uint112).max
-    // status == 0: lockInfo not exist
-    // status == 1: lockInfo confirmed on source chain(has not been withdrawn or slashed)
-    // status == 2: lockInfo has been withdrawn
-    // status == 3: lockInfo has been slashed
+    // the status only has the following 4 values
+    // status == 0: lockInfo not exist -> can update to status 1
+    // status == 1: lockInfo confirmed on source chain(has not been withdrawn or slashed) -> can update to status 2 or 3
+    // status == 2: lockInfo has been withdrawn -> can't update anymore
+    // status == 3: lockInfo has been slashed -> can't update anymore
     // we don't clean lockInfo after withdraw or slash to avoid the hash collision(generate the same transferId)
+    // when we wan't to get tokenInfo from lockInfo, we should get the key(bytes32) from tokenIndex, then get tokenInfo from key
     struct LockInfo {
         uint112 amountWithFeeAndPenalty;
         uint64 timestamp;
@@ -75,6 +79,9 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     // hash(remoteChainId, provider, sourceToken, targetToken) => SourceProviderInfo
     mapping(bytes32=>SourceProviderInfo) public srcProviders;
     // for a special source token, all the path start from this chain use the same panaltyReserve
+    // 1. when a lock tx sent, the penaltyReserves decrease and the penalty move to lockInfo.amountWithFeeAndPenalty
+    // 2. when withdraw liquidity, it tries to move this penalty lockInfo.amountWithFeeAndPenalty back to penaltyReserves
+    // 3. when the penaltyReserves is not enough to support one lock tx, the provider is paused to work
     // hash(sourceToken, provider) => penalty reserve
     mapping(bytes32=>uint256) public penaltyReserves;
 
@@ -92,7 +99,6 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     event TokenLocked(
         TransferParams params,
         bytes32 transferId,
-        bytes32 idWithTimestamp,
         uint112 targetAmount,
         uint112 fee,
         uint64  timestamp
@@ -126,6 +132,9 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         _pause();
     }
 
+    // register a new token pair by Helix Dao
+    // if the token pair has been registered, it will revert
+    // select an unused _index to save the tokenInfo, it's not required that the _index is continous or increased
     function registerTokenInfo(
         uint256 _remoteChainId,
         address _sourceToken,
@@ -158,6 +167,8 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         emit TokenRegistered(key, _remoteChainId, _sourceToken, _targetToken, _protocolFee, _penalty, _index);
     }
 
+    // update a registered token pair
+    // the key or index cannot be updated
     function updateTokenInfo(
         uint256 _remoteChainId,
         address _sourceToken,
@@ -179,7 +190,9 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         emit TokenInfoUpdated(key, _protocolFee, _penalty, _sourceDecimals, _targetDecimals);
     }
 
+    // delete a token pair by Helix Dao
     // This interface should be called with exceptional caution, only when correcting registration errors, to conserve index resources.
+    // Attention! DON'T delete a used token pair
     function deleteTokenInfo(bytes32 key) onlyDao external {
         TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.index > 0, "token not registered");
@@ -188,6 +201,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         delete tokenIndexer[tokenInfo.index];
     }
 
+    // claim the protocol fee
     function claimProtocolFeeIncome(
         bytes32 _tokenInfoKey,
         uint256 _amount,
@@ -205,6 +219,8 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         emit FeeIncomeClaimed(_tokenInfoKey, _amount, _receiver);
     }
 
+    // called by lnProvider
+    // this func can be called to register a new or update an exist LnProvider info
     function registerLnProvider(
         uint256 _remoteChainId,
         address _sourceToken,
@@ -324,12 +340,11 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
 
         // save lock info
         uint256 remoteAmount = uint256(_params.amount) * 10**tokenInfo.config.targetDecimals / 10**tokenInfo.config.sourceDecimals;
-        require(remoteAmount < MAX_TRANSFER_AMOUNT, "overflow amount");
+        require(remoteAmount < MAX_TRANSFER_AMOUNT && remoteAmount > 0, "overflow amount");
         bytes32 transferId = getTransferId(_params, uint112(remoteAmount));
         require(lockInfos[transferId].status == 0, "transferId exist");
         lockInfos[transferId] = LockInfo(amountWithFeeAndPenalty, uint64(block.timestamp), tokenInfo.index, LOCK_STATUS_LOCKED);
-        bytes32 idWithTimestamp = keccak256(abi.encodePacked(transferId, uint64(block.timestamp)));
-        emit TokenLocked(_params, transferId, idWithTimestamp, uint112(remoteAmount), uint112(providerFee), uint64(block.timestamp));
+        emit TokenLocked(_params, transferId, uint112(remoteAmount), uint112(providerFee), uint64(block.timestamp));
 
         // update protocol fee income
         // leave the protocol fee into contract, and admin can withdraw this fee anytime

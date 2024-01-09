@@ -189,7 +189,7 @@ describe("lnv3 bridge tests", () => {
           initPenalty
       );
 
-      await ethBridge.connect(relayer).registerLnProvider(
+      const tx = await ethBridge.connect(relayer).registerLnProvider(
           arbChainId,
           ethToken.address,
           arbToken.address,
@@ -197,6 +197,9 @@ describe("lnv3 bridge tests", () => {
           liquidityFeeRate,
           transferLimit
       );
+      let lockReceipt = await tx.wait();
+      let lockGasUsed = lockReceipt.cumulativeGasUsed;
+      console.log("register lnProvider usedGas", lockGasUsed);
       // deposit penalty reserve
       await ethBridge.connect(relayer).depositPenaltyReserve(
           ethToken.address,

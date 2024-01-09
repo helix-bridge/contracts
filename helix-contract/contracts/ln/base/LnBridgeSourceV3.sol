@@ -113,7 +113,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint112 transferLimit
     );
     event PenaltyReserveUpdated(address provider, address sourceToken, uint256 updatedPanaltyReserve);
-    event LiquidityWithdrawn(bytes32 transferId, address provider, uint112 amount);
+    event LiquidityWithdrawn(bytes32[] transferIds, address provider, uint256 amount);
     event TransferSlashed(bytes32 transferId, address provider, address slasher, uint112 slashAmount);
     event LnProviderPaused(address provider, uint256 remoteChainId, address sourceToken, address targetToken,  bool paused);
 
@@ -169,6 +169,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
 
     // update a registered token pair
     // the key or index cannot be updated
+    // Attention! source decimals and target decimals
     function updateTokenInfo(
         uint256 _remoteChainId,
         address _sourceToken,
@@ -212,7 +213,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         tokenInfos[_tokenInfoKey].protocolFeeIncome = tokenInfo.protocolFeeIncome - _amount;
         
         if (tokenInfo.sourceToken == address(0)) {
-            TokenTransferHelper.safeTransferNative(msg.sender, _amount);
+            TokenTransferHelper.safeTransferNative(_receiver, _amount);
         } else {
             TokenTransferHelper.safeTransfer(tokenInfo.sourceToken, _receiver, _amount);
         }
@@ -235,14 +236,13 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         bytes32 providerKey = getProviderKey(_remoteChainId, msg.sender, _sourceToken, _targetToken);
 
         require(_liquidityFeeRate < LIQUIDITY_FEE_RATE_BASE, "liquidity fee too large");
-        SourceProviderInfo memory providerInfo = srcProviders[providerKey];
-        providerInfo.baseFee = _baseFee;
-        providerInfo.liquidityFeeRate = _liquidityFeeRate;
-        providerInfo.transferLimit = _transferLimit;
 
         // we only update the field fee of the provider info
         // if the provider has not been registered, then this line will register, otherwise update fee
-        srcProviders[providerKey] = providerInfo;
+        SourceProviderInfo storage providerInfo = srcProviders[providerKey];
+        providerInfo.baseFee = _baseFee;
+        providerInfo.liquidityFeeRate = _liquidityFeeRate;
+        providerInfo.transferLimit = _transferLimit;
 
         emit LnProviderUpdated(_remoteChainId, msg.sender, _sourceToken, _targetToken, _baseFee, _liquidityFeeRate, _transferLimit);
     }
@@ -329,6 +329,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         require(providerFee < type(uint112).max, "overflow fee");
         uint112 amountWithFeeAndPenalty = _params.amount + uint112(providerFee) + tokenInfo.config.penalty;
         require(_params.totalFee >= providerFee + tokenInfo.config.protocolFee, "fee not matched");
+        require(!providerInfo.pause, "provider paused");
 
         // update provider state
         bytes32 stateKey = getProviderStateKey(_params.sourceToken, _params.provider);
@@ -383,8 +384,8 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
 
             totalAmount += lockInfo.amountWithFeeAndPenalty;
             lockInfos[transferId].status = LOCK_STATUS_WITHDRAWN;
-            emit LiquidityWithdrawn(transferId, _provider, lockInfo.amountWithFeeAndPenalty);
         }
+        emit LiquidityWithdrawn(_transferIds, _provider, totalAmount);
         bytes32 key = tokenIndexer[tokenIndex];
         TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.index == tokenIndex, "invalid token info");

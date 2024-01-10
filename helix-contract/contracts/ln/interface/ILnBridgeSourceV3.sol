@@ -5,9 +5,7 @@ interface ILnBridgeSourceV3 {
     function slash(
         uint256 _remoteChainId,
         bytes32 _transferId,
-        uint112 _sourceAmount,
         address _lnProvider,
-        uint64 _timestamp,
         address _slasher
     ) external;
     function withdrawLiquidity(

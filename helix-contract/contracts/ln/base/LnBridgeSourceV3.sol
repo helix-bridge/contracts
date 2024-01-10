@@ -9,7 +9,8 @@ import "../../utils/TokenTransferHelper.sol";
 /// @notice LnBridgeSourceV3 is a contract to help user lock token and then trigger remote chain relay
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
 contract LnBridgeSourceV3 is Pausable, AccessController {
-    uint256 constant public SLASH_EXPIRE_TIME = 60 * 60;
+    uint256 constant public LOCK_TIME_DISTANCE = 15 minutes;
+    uint256 constant public SLASH_EXPIRE_TIME = 1 hours;
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     // liquidity fee base rate
     // liquidityFee = liquidityFeeRate / LIQUIDITY_FEE_RATE_BASE * sendAmount
@@ -46,7 +47,10 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint112 totalFee;
         uint112 amount;
         address receiver;
-        uint256 nonce;
+        // use this timestamp as the lock time
+        // can't be too far from the block that the transaction confirmed
+        // This timestamp can also be adjusted to produce different transferId
+        uint256 timestamp;
     }
     // hash(remoteChainId, sourceToken, targetToken) => TokenInfo
     mapping(bytes32=>TokenInfo) public tokenInfos;
@@ -62,7 +66,6 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     // when we wan't to get tokenInfo from lockInfo, we should get the key(bytes32) from tokenIndex, then get tokenInfo from key
     struct LockInfo {
         uint112 amountWithFeeAndPenalty;
-        uint64 timestamp;
         uint32 tokenIndex;
         uint8 status;
     }
@@ -100,8 +103,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         TransferParams params,
         bytes32 transferId,
         uint112 targetAmount,
-        uint112 fee,
-        uint64  timestamp
+        uint112 fee
     );
     event LnProviderUpdated(
         uint256 remoteChainId,
@@ -115,7 +117,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     event PenaltyReserveUpdated(address provider, address sourceToken, uint256 updatedPanaltyReserve);
     event LiquidityWithdrawn(bytes32[] transferIds, address provider, uint256 amount);
     event TransferSlashed(bytes32 transferId, address provider, address slasher, uint112 slashAmount);
-    event LnProviderPaused(address provider, uint256 remoteChainId, address sourceToken, address targetToken,  bool paused);
+    event LnProviderPaused(address provider, uint256 remoteChainId, address sourceToken, address targetToken, bool paused);
 
     modifier allowRemoteCall(uint256 _remoteChainId) {
         _verifyRemote(_remoteChainId);
@@ -320,6 +322,12 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     }
 
     function lockAndRemoteRelease(TransferParams calldata _params) whenNotPaused external payable {
+        // timestamp must be close to the block time
+        require(
+            _params.timestamp >= block.timestamp - LOCK_TIME_DISTANCE && _params.timestamp <= block.timestamp + LOCK_TIME_DISTANCE,
+            "timestamp is too far from block time"
+        );
+
         // check transfer info
         bytes32 tokenKey = getTokenKey(_params.remoteChainId, _params.sourceToken, _params.targetToken);
         TokenInfo memory tokenInfo = tokenInfos[tokenKey];
@@ -344,8 +352,8 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         require(remoteAmount < MAX_TRANSFER_AMOUNT && remoteAmount > 0, "overflow amount");
         bytes32 transferId = getTransferId(_params, uint112(remoteAmount));
         require(lockInfos[transferId].status == 0, "transferId exist");
-        lockInfos[transferId] = LockInfo(amountWithFeeAndPenalty, uint64(block.timestamp), tokenInfo.index, LOCK_STATUS_LOCKED);
-        emit TokenLocked(_params, transferId, uint112(remoteAmount), uint112(providerFee), uint64(block.timestamp));
+        lockInfos[transferId] = LockInfo(amountWithFeeAndPenalty, tokenInfo.index, LOCK_STATUS_LOCKED);
+        emit TokenLocked(_params, transferId, uint112(remoteAmount), uint112(providerFee));
 
         // update protocol fee income
         // leave the protocol fee into contract, and admin can withdraw this fee anytime
@@ -413,40 +421,27 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint256 _remoteChainId,
         bytes32 _transferId,
         // slasher, amount and lnProvider is verified on the target chain
-        uint112 _sourceAmount,
         address _lnProvider,
-        uint64 _timestamp,
         address _slasher
     ) external allowRemoteCall(_remoteChainId) {
         LockInfo memory lockInfo = lockInfos[_transferId];
         require(lockInfo.status == LOCK_STATUS_LOCKED, "invalid lock status");
-        require(lockInfo.amountWithFeeAndPenalty >= _sourceAmount, "invalid amount");
         bytes32 tokenKey = tokenIndexer[lockInfo.tokenIndex];
         TokenInfo memory tokenInfo = tokenInfos[tokenKey];
         lockInfos[_transferId].status = LOCK_STATUS_SLASHED;
 
-        uint112 slashAmount = _sourceAmount;
-        // recheck the timestamp
-        // expired
-        if (_timestamp == lockInfo.timestamp && lockInfo.timestamp + SLASH_EXPIRE_TIME < block.timestamp) {
-            slashAmount = lockInfo.amountWithFeeAndPenalty;
-            // pause this provider if slashed
-            bytes32 providerKey = getProviderKey(_remoteChainId, _lnProvider, tokenInfo.sourceToken, tokenInfo.targetToken);
-            srcProviders[providerKey].pause = true;
-            emit LnProviderPaused(_lnProvider, _remoteChainId, tokenInfo.sourceToken, tokenInfo.targetToken, true);
-        } else {
-            // this means the slasher help the provider relay message and get no reward
-            // redeposit penalty(the fee and penalty) for lnProvider
-            bytes32 key = getProviderStateKey(tokenInfo.sourceToken, _lnProvider);
-            penaltyReserves[key] = penaltyReserves[key] + lockInfo.amountWithFeeAndPenalty - slashAmount;
-        }
-        // transfer slashAmount to slasher
+        // pause this provider if slashed
+        bytes32 providerKey = getProviderKey(_remoteChainId, _lnProvider, tokenInfo.sourceToken, tokenInfo.targetToken);
+        srcProviders[providerKey].pause = true;
+        emit LnProviderPaused(_lnProvider, _remoteChainId, tokenInfo.sourceToken, tokenInfo.targetToken, true);
+
+        // transfer token to slasher
         if (tokenInfo.sourceToken == address(0)) {
-            TokenTransferHelper.safeTransferNative(_slasher, slashAmount);
+            TokenTransferHelper.safeTransferNative(_slasher, lockInfo.amountWithFeeAndPenalty);
         } else {
-            TokenTransferHelper.safeTransfer(tokenInfo.sourceToken, _slasher, slashAmount);
+            TokenTransferHelper.safeTransfer(tokenInfo.sourceToken, _slasher, lockInfo.amountWithFeeAndPenalty);
         }
-        emit TransferSlashed(_transferId, _lnProvider, _slasher, slashAmount);
+        emit TransferSlashed(_transferId, _lnProvider, _slasher, lockInfo.amountWithFeeAndPenalty);
     }
 
     function getProviderKey(uint256 _remoteChainId, address _provider, address _sourceToken, address _targetToken) pure public returns(bytes32) {
@@ -474,7 +469,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
             _params.receiver,
             _params.amount,
             _remoteAmount,
-            _params.nonce
+            _params.timestamp
         ));
     }
 

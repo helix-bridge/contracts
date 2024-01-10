@@ -7,12 +7,6 @@ var ProxyDeployer = require("./proxy.js");
 
 const privateKey = process.env.PRIKEY
 
-const goerliNetwork = {
-    name: "goerli",
-    url: "https://rpc.ankr.com/eth_goerli",
-    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-};
-
 function wallet(url) {
     const provider = new ethers.providers.JsonRpcProvider(url);
     const wallet = new ethers.Wallet(privateKey, provider);
@@ -28,7 +22,9 @@ async function deployLnBridgeV3Proxy(wallet, salt, dao, proxyAdminAddress, logic
         bridgeContract,
         logicAddress,
         [dao],
-        wallet);
+        wallet,
+        { gasLimit: 5000000 }
+    );
     console.log("finish to deploy lnv3 bridge proxy, address:", lnBridgeProxy);
     return lnBridgeProxy;
 }
@@ -40,14 +36,15 @@ async function deploy() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    const w = wallet(goerliNetwork.url);
+    const network = configure.chains['arbitrum-sepolia'];
+    const w = wallet(network.url);
     const proxyAdmin = configure.ProxyAdmin.others;
     const logicAddress = configure.LnV3BridgeLogic.others;
     const deployer = configure.deployer;
     let proxyAddress = await deployLnBridgeV3Proxy(
         w,
         "lnv3-v1.0.0",
-        goerliNetwork.dao,
+        network.dao,
         proxyAdmin,
         logicAddress,
         deployer,

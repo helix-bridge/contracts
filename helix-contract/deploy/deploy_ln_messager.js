@@ -1,6 +1,7 @@
 const ethUtil = require('ethereumjs-util');
 const abi = require('ethereumjs-abi');
 const secp256k1 = require('secp256k1');
+const fs = require("fs");
 
 var ProxyDeployer = require("./proxy.js");
 
@@ -78,9 +79,9 @@ const arbitrumSepoliaNetwork = {
     chainId: 421614,
     msglineChainId: 421614,
     msglineAddress: "0x000C61ca18583C9504691f43Ea43C2c638772487",
+    lzChainId: 10231,
+    endpoint: "0x6098e96a28E02f27B1e6BD381f870F1C8Bd169d3",
 };
-
-
 
 const scrollNetwork = {
     url: "https://sepolia-rpc.scroll.io/",
@@ -94,6 +95,8 @@ const sepoliaNetwork = {
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     chainId: 11155111,
     scrollMessager: "0x50c7d3e7f7c656493D1D76aaa1a836CedfCBB16A",
+    lzChainId: 10161,
+    endpoint: "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1",
 }
 
 function wait(ms) {
@@ -126,8 +129,8 @@ async function main() {
     const scrollWallet = wallet(scrollNetwork.url);
     const sepoliaWallet = wallet(sepoliaNetwork.url);
 
-    /*
     // deploy arb<>eth
+    /*
     console.log("deploy arb <> eth messager");
     const Eth2ArbReceiveService = await deployContract(arbWallet, "Eth2ArbReceiveService", arbitrumNetwork.dao, goerliNetwork.chainId);
     const Eth2ArbSendService = await deployContract(goerliWallet, "Eth2ArbSendService", goerliNetwork.dao, goerliNetwork.inbox, arbitrumNetwork.chainId);
@@ -143,15 +146,23 @@ async function main() {
     await Eth2LineaReceiveService.setRemoteMessager(Eth2LineaSendService.address);
     await Eth2LineaSendService.setRemoteMessager(Eth2LineaReceiveService.address);
     await wait(10000);
+    */
     // deploy layerZero
-    console.log("deploy layerzero messager");
-    const lzGoerli = await deployContract(goerliWallet, "LayerZeroMessager", goerliNetwork.dao, goerliNetwork.endpoint);
-    const lzArbitrum = await deployContract(arbWallet, "LayerZeroMessager", arbitrumNetwork.dao, arbitrumNetwork.endpoint);
-    const lzLinea = await deployContract(lineaWallet, "LayerZeroMessager", lineaNetwork.dao, lineaNetwork.endpoint);
-    const lzMantle = await deployContract(mantleWallet, "LayerZeroMessager", mantleNetwork.dao, mantleNetwork.endpoint);
-    // zkSync has been deployed
-    const lzZkSync = await ethers.getContractAt("LayerZeroMessager", zkSyncNetwork.layerzeroMessager, zkSyncWallet);
+    //console.log("deploy layerzero messager");
+    //const lzGoerli = await deployContract(goerliWallet, "LayerZeroMessager", goerliNetwork.dao, goerliNetwork.endpoint);
+    //const lzArbitrum = await deployContract(arbWallet, "LayerZeroMessager", arbitrumNetwork.dao, arbitrumNetwork.endpoint);
+    //const lzLinea = await deployContract(lineaWallet, "LayerZeroMessager", lineaNetwork.dao, lineaNetwork.endpoint);
+    //const lzMantle = await deployContract(mantleWallet, "LayerZeroMessager", mantleNetwork.dao, mantleNetwork.endpoint);
+    //// zkSync has been deployed
+    //const lzZkSync = await ethers.getContractAt("LayerZeroMessager", zkSyncNetwork.layerzeroMessager, zkSyncWallet);
+
+    const lzSepolia = await deployContract(sepoliaWallet, "LayerZeroMessager", sepoliaNetwork.dao, sepoliaNetwork.endpoint);
+    const lzArbitrumSepolia = await deployContract(arbSepoliaWallet, "LayerZeroMessager", arbitrumSepoliaNetwork.dao, arbitrumSepoliaNetwork.endpoint);
+    await lzSepolia.setRemoteMessager(arbitrumSepoliaNetwork.chainId, arbitrumSepoliaNetwork.lzChainId, lzArbitrumSepolia.address);
+    await lzArbitrumSepolia.setRemoteMessager(sepoliaNetwork.chainId, sepoliaNetwork.lzChainId, lzSepolia.address);
+
     console.log("confgure layerzero messager");
+    /*
     await lzGoerli.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
     await lzLinea.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
     await lzMantle.setRemoteMessager(arbitrumNetwork.chainId, arbitrumNetwork.lzChainId, lzArbitrum.address);
@@ -176,7 +187,9 @@ async function main() {
     await lzLinea.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
     await lzMantle.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
     await lzZkSync.setRemoteMessager(goerliNetwork.chainId, goerliNetwork.lzChainId, lzGoerli.address);
+    */
     // deploy axelar
+    /*
     console.log("deploy axelar messager");
     const axGoerli = await deployContract(goerliWallet, "AxelarMessager", goerliNetwork.dao, goerliNetwork.axGateway, goerliNetwork.axGasService);
     const axArbitrum = await deployContract(arbWallet, "AxelarMessager", arbitrumNetwork.dao, arbitrumNetwork.axGateway, arbitrumNetwork.axGasService);
@@ -200,6 +213,7 @@ async function main() {
     */
 
     // deploy crab<>arbitrum sepolia
+    /*
     const msglineCrab = await deployContract(crabWallet, "DarwiniaMsglineMessager", crabNetwork.dao, arbitrumSepoliaNetwork.msglineAddress);
     const msglineArbSepolia = await deployContract(arbSepoliaWallet, "DarwiniaMsglineMessager", arbitrumSepoliaNetwork.dao, crabNetwork.msglineAddress);
     await msglineCrab.setRemoteMessager(arbitrumSepoliaNetwork.chainId, arbitrumSepoliaNetwork.msglineChainId, msglineArbSepolia.address);
@@ -213,6 +227,7 @@ async function main() {
     await Eth2ScrollReceiveService.setRemoteMessager(Eth2ScrollSendService.address);
     await Eth2ScrollSendService.setRemoteMessager(Eth2ScrollReceiveService.address);
     await wait(10000);
+    */
     /*
     // deploy debug messager
     await deployContract(goerliWallet, "DebugMessager");

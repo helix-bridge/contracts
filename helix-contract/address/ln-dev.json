@@ -1,4 +1,24 @@
 {
+    "chains": {
+        "sepolia": {
+            "name": "sepolia",
+            "url": "https://rpc2.sepolia.org",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 11155111,
+            "lzChainId": 10161,
+            "lzEndpoint": "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "arbitrum-sepolia": {
+            "name": "arbitrum-sepolia",
+            "url": "https://sepolia-rollup.arbitrum.io/rpc",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 421614,
+            "lzChainId": 10231,
+            "lzEndpoint": "0x6098e96a28E02f27B1e6BD381f870F1C8Bd169d3",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        }
+    },
     "messagers": {
         "zksync-goerli": {
             "layerzeroMessager": "0x7e303b0A3F08F9fa5F5629Abb998B8Deba89049B"
@@ -11,7 +31,9 @@
             "debugMessager": "0x2e8D237226041FAFe3F66b6cfc54b064923D454E"
         },
         "sepolia": {
-            "Eth2ScrollSendService": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
+            "chainId": 11155111,
+            "Eth2ScrollSendService": "0x89AF830781A2C1d3580Db930bea11094F55AfEae",
+            "layerzeroMessager": "0x33C9916a43507aa0a89a3e889522f840aa1245fE"
         },
         "arbitrum-goerli": {
             "Eth2ArbReceiveService": "0x102F8D7Cfe692AA79c17E3958aB00D060Df0B88f",
@@ -34,7 +56,9 @@
             "layerzeroMessager": "0x463D1730a8527CA58d48EF70C7460B9920346567"
         },
         "arbitrum-sepolia": {
-            "darwiniaMsglineMessager": "0xCddD3e43dA1e9485d4FcD3782DFba04aADCfC9B2"
+            "chainId": "421614",
+            "darwiniaMsglineMessager": "0xCddD3e43dA1e9485d4FcD3782DFba04aADCfC9B2",
+            "layerzeroMessager": "0x87A649246974732f7AbBe01F2DD81E3D829EF0B7"
         }
     },
     "ProxyAdmin": {
@@ -53,11 +77,11 @@
     "LnOppositeBridgeProxy": "0x4C538EfA6e3f9Dfb939AA4F0B224577DA665923a",
     "LnV3BridgeLogic": {
         "zkSync": "0xa480d54af27d65cc485f7c11ec2F072F2d671863",
-        "others": "0x3B3Ad62319CAc1C1872C0370d84C60F816d4B69B"
+        "others": "0xC4Cecb7d4c0eA6c7AA88CbdE56612Cdc2DE2E756"
     },
     "LnV3BridgeProxy": {
         "zkSync": "0xab38D0030cC28e413C4DD2B7D0ac2b6984e6d3f0",
-        "others": "0xb0Ce2498C2526cceA1D7792e4B62C3066Eb5529B"
+        "others": "0x38627Cb033De66a1E07e73f5D0a7a7adFB6741fa"
     },
     "deployer": "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
     "usdt": {
@@ -68,7 +92,8 @@
         "zksync-goerli": "0xb5372ed3bb2CbA63e7908066ac10ee94d30eA839",
         "base-goerli": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB",
         "sepolia": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB",
-        "scroll-sepolia": "0x9C80EdD342b5D179c3a87946fC1F0963BfcaAa09"
+        "scroll-sepolia": "0x9C80EdD342b5D179c3a87946fC1F0963BfcaAa09",
+        "arbitrum-sepolia": "0x3b8Bb7348D4F581e67E2498574F73e4B9Fc51855"
     },
     "usdc": {
         "goerli": "0xe9784E0d9A939dbe966b021DE3cd877284DB1B99",

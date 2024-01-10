@@ -294,7 +294,7 @@ describe("lnv3 bridge tests", () => {
 
       // balance
       // srcChain: user -> source bridge contract [amount + providerFee + protocolFee]
-      async function transfer(direction, nonce, isNative) {
+      async function transfer(direction, timestamp, isNative) {
           const chainInfo = await getChainInfo(direction, isNative);
           const totalFee = Number(await chainInfo.srcBridge.totalFee(
               chainInfo.dstChainId,
@@ -313,7 +313,7 @@ describe("lnv3 bridge tests", () => {
               totalFee,
               transferAmount,
               user.address,
-              nonce,
+              timestamp,
           ];
           let value = 0;
           if (isNative) {
@@ -344,7 +344,7 @@ describe("lnv3 bridge tests", () => {
 
       // balance
       // on target: relayer -> user
-      async function relay(direction, transferId, nonce, isNative) {
+      async function relay(direction, transferId, timestamp, isNative) {
           const chainInfo = await getChainInfo(direction, isNative);
           const balanceOfUser = await balanceOf(chainInfo.dstToken, user.address);
           const balanceOfRelayer = await balanceOf(chainInfo.dstToken, relayer.address);
@@ -362,7 +362,7 @@ describe("lnv3 bridge tests", () => {
                   transferAmount,
                   targetAmount,
                   user.address,
-                  nonce,
+                  timestamp,
               ],
               transferId,
               true,
@@ -390,12 +390,8 @@ describe("lnv3 bridge tests", () => {
           console.log("relay gas used", relayGasUsed);
       }
 
-      async function slash(direction, nonce, expectedTransferId, timestamp, isNative) {
+      async function slash(direction, expectedTransferId, timestamp, isNative) {
           const chainInfo = await getChainInfo(direction, isNative);
-          let blockTimestamp = timestamp;
-          if (blockTimestamp === null) { 
-              blockTimestamp = (await ethers.provider.getBlock("latest")).timestamp;
-          }
           const dstToken = await ethers.getContractAt("Erc20", chainInfo.dstToken);
           await dstToken.connect(slasher).approve(chainInfo.dstBridge.address, initTokenBalance);
 
@@ -419,9 +415,8 @@ describe("lnv3 bridge tests", () => {
                   transferAmount,
                   targetAmount,
                   user.address,
-                  nonce,
+                  timestamp,
               ],
-              blockTimestamp,
               expectedTransferId,
               feePrepaid,
               chainInfo.extParams,
@@ -490,27 +485,28 @@ describe("lnv3 bridge tests", () => {
           await ethToken.connect(user).approve(ethBridge.address, initTokenBalance);
           // test normal transfer and relay
           // 1. transfer from eth to arb
-          const transferId01 = await transfer('eth2arb', 1, false);
+          let timestamp = (await ethers.provider.getBlock("latest")).timestamp;
+          const transferId01 = await transfer('eth2arb', timestamp, false);
           const blockTimestamp01 = (await ethers.provider.getBlock("latest")).timestamp;
           // 2. relay "transfer from eth to arb"
-          await relay('eth2arb', transferId01, 1, false);
+          await relay('eth2arb', transferId01, timestamp, false);
           // 3. repeat relay
-          await expect(relay('eth2arb', transferId01, 1, false)).to.be.revertedWith("transfer has been filled");
+          await expect(relay('eth2arb', transferId01, timestamp, false)).to.be.revertedWith("transfer has been filled");
 
           // test slash
           // 1. slash a relayed tx
-          await expect(slash("eth2arb", 1, transferId01, blockTimestamp01, false)).to.be.revertedWith("transfer has been filled");
+          await expect(slash("eth2arb", transferId01, timestamp, false)).to.be.revertedWith("transfer has been filled");
           // 2. slash a normal unrelayed tx
-          const transferId02 = await transfer('eth2arb', 2, false);
+          const transferId02 = await transfer('eth2arb', blockTimestamp01, false);
           const blockTimestamp02 = (await ethers.provider.getBlock("latest")).timestamp;
           // 2.1. slash when not expired
-          await expect(slash("eth2arb", 2, transferId02, blockTimestamp02, false)).to.be.revertedWith("time not expired");
+          await expect(slash("eth2arb", transferId02, blockTimestamp01, false)).to.be.revertedWith("time not expired");
           await hre.network.provider.request({
               method: "evm_increaseTime",
-              params: [18001],
+              params: [3601],
           });
           // 2.2. slashed
-          await slash("eth2arb", 2, transferId02, blockTimestamp02, false);
+          await slash("eth2arb", transferId02, blockTimestamp01, false);
 
           // withdraw
           await withdraw('eth2arb', [transferId01], true, false);
@@ -518,44 +514,47 @@ describe("lnv3 bridge tests", () => {
           await withdraw('eth2arb', [transferId01], false, false);
           // withdraw a slashed transfer failed
           await withdraw('eth2arb', [transferId02], false, false);
+          console.log("eth2arb test finished");
       }
 
       // test arb2eth direction
       {
+          let timestamp = (await ethers.provider.getBlock("latest")).timestamp;
           await arbToken.connect(user).approve(arbBridge.address, initTokenBalance);
-          const transferId11 = await transfer('arb2eth', 1, false);
+          const transferId11 = await transfer('arb2eth', timestamp, false);
           const blockTimestamp11 = (await ethers.provider.getBlock("latest")).timestamp;
-          await relay('arb2eth', transferId11, 1, false);
-          await expect(relay('arb2eth', transferId11, 1, false)).to.be.revertedWith("transfer has been filled");
+          await relay('arb2eth', transferId11, timestamp, false);
+          await expect(relay('arb2eth', transferId11, timestamp, false)).to.be.revertedWith("transfer has been filled");
 
-          await expect(slash("arb2eth", 1, transferId11, blockTimestamp11, false)).to.be.revertedWith("transfer has been filled");
-          const transferId12 = await transfer('arb2eth', 2, false);
+          await expect(slash("arb2eth", transferId11, timestamp, false)).to.be.revertedWith("transfer has been filled");
+          const transferId12 = await transfer('arb2eth', blockTimestamp11, false);
           const blockTimestamp12 = (await ethers.provider.getBlock("latest")).timestamp;
-          await expect(slash("arb2eth", 2, transferId12, blockTimestamp12, false)).to.be.revertedWith("time not expired");
+          await expect(slash("arb2eth", transferId12, blockTimestamp11, false)).to.be.revertedWith("time not expired");
           await hre.network.provider.request({
               method: "evm_increaseTime",
-              params: [18001],
+              params: [3601],
           });
-          await slash("arb2eth", 2, transferId12, blockTimestamp12, false);
-          console.log("test finished");
+          await slash("arb2eth", transferId12, blockTimestamp11, false);
+          console.log("arb2eth test finished");
       }
 
       // test native token
       {
-          const transferId21 = await transfer('arb2eth', 1, true);
+          let timestamp = (await ethers.provider.getBlock("latest")).timestamp;
+          const transferId21 = await transfer('arb2eth', timestamp, true);
           const blockTimestamp21 = (await ethers.provider.getBlock("latest")).timestamp;
-          await relay('arb2eth', transferId21, 1, true);
-          await expect(relay('arb2eth', transferId21, 1, true)).to.be.revertedWith("transfer has been filled");
+          await relay('arb2eth', transferId21, timestamp, true);
+          await expect(relay('arb2eth', transferId21, timestamp, true)).to.be.revertedWith("transfer has been filled");
 
-          await expect(slash("arb2eth", 1, transferId21, blockTimestamp21, true)).to.be.revertedWith("transfer has been filled");
-          const transferId22 = await transfer('arb2eth', 2, true);
+          await expect(slash("arb2eth", transferId21, timestamp, true)).to.be.revertedWith("transfer has been filled");
+          const transferId22 = await transfer('arb2eth', blockTimestamp21, true);
           const blockTimestamp22 = (await ethers.provider.getBlock("latest")).timestamp;
-          await expect(slash("arb2eth", 2, transferId22, blockTimestamp22, true)).to.be.revertedWith("time not expired");
+          await expect(slash("arb2eth", transferId22, blockTimestamp21, true)).to.be.revertedWith("time not expired");
           await hre.network.provider.request({
               method: "evm_increaseTime",
-              params: [18001],
+              params: [3601],
           });
-          await slash("arb2eth", 2, transferId22, blockTimestamp22, true);
+          await slash("arb2eth", transferId22, blockTimestamp21, true);
           console.log("test finished");
       }
   });

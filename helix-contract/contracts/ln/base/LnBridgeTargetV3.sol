@@ -19,8 +19,6 @@ contract LnBridgeTargetV3 {
     // sourceAmount: the send amount on source chain
     struct SlashInfo {
         uint256 remoteChainId;
-        uint64 lockTimestamp;
-        uint112 sourceAmount;
         address slasher;
     }
 
@@ -32,7 +30,7 @@ contract LnBridgeTargetV3 {
         uint112 sourceAmount;
         uint112 targetAmount;
         address receiver;
-        uint256 nonce;
+        uint256 timestamp;
     }
 
     // transferId => FillTransfer
@@ -65,7 +63,7 @@ contract LnBridgeTargetV3 {
            _params.receiver,
            _params.sourceAmount,
            _params.targetAmount,
-           _params.nonce
+           _params.timestamp
         ));
         require(_expectedTransferId == transferId, "check expected transferId failed");
         FillTransfer memory fillTransfer = fillTransfers[transferId];
@@ -89,7 +87,6 @@ contract LnBridgeTargetV3 {
     // 3. send a cross-chain message to source chain to withdraw the amount, fee and penalty from lnProvider
     function requestSlashAndRemoteRelease(
         RelayParams calldata _params,
-        uint64 _timestamp,
         bytes32 _expectedTransferId,
         uint256 _feePrepaid,
         bytes memory _extParams
@@ -103,7 +100,7 @@ contract LnBridgeTargetV3 {
            _params.receiver,
            _params.sourceAmount,
            _params.targetAmount,
-           _params.nonce
+           _params.timestamp
         ));
         require(_expectedTransferId == transferId, "check expected transferId failed");
 
@@ -112,9 +109,9 @@ contract LnBridgeTargetV3 {
 
         // suppose source chain and target chain has the same block timestamp
         // event the timestamp is not sync exactly, this TIMEOUT is also verified on source chain
-        require(_timestamp < block.timestamp - LnBridgeHelper.SLASH_EXPIRE_TIME, "time not expired");
+        require(_params.timestamp < block.timestamp - LnBridgeHelper.SLASH_EXPIRE_TIME, "time not expired");
         fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _params.provider);
-        slashInfos[transferId] = SlashInfo(_params.remoteChainId, _timestamp, _params.sourceAmount, msg.sender);
+        slashInfos[transferId] = SlashInfo(_params.remoteChainId, msg.sender);
 
         if (_params.targetToken == address(0)) {
             require(msg.value == _params.targetAmount + _feePrepaid, "invalid value");
@@ -127,9 +124,7 @@ contract LnBridgeTargetV3 {
            ILnBridgeSourceV3.slash.selector,
            block.chainid,
            transferId,
-           _params.sourceAmount,
            _params.provider,
-           _timestamp,
            msg.sender
         );
         _sendMessageToSource(_params.remoteChainId, message, _feePrepaid, _extParams);
@@ -148,9 +143,7 @@ contract LnBridgeTargetV3 {
            ILnBridgeSourceV3.slash.selector,
            block.chainid,
            transferId,
-           slashInfo.sourceAmount,
            fillTransfer.provider,
-           slashInfo.lockTimestamp,
            slashInfo.slasher
         );
         _sendMessageToSource(slashInfo.remoteChainId, message, msg.value, _extParams);

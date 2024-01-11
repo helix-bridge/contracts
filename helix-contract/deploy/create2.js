@@ -3,6 +3,7 @@ var Create2 = {
     getDeployedBytecode: function(factory, constructorTypes, constructorArgs) {
         const abiCoder = ethers.utils.defaultAbiCoder;
         const encodedParams = abiCoder.encode(constructorTypes, constructorArgs);
+        console.log(`constructor bytes: ${encodedParams.slice(2)}`);
         const bytecode = `${factory.bytecode}${encodedParams.slice(2)}`;
         return bytecode;
     },

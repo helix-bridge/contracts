@@ -109,7 +109,6 @@ async function slash(
     receiver,
     timestamp,
     expectedTransferId,
-    expectedIdWithTimestamp,
 ) {
     const bridge = await ethers.getContractAt("LnBridgeTargetV3", bridgeAddress, wallet);
     const cost = ethers.utils.parseEther("0.0003");
@@ -127,7 +126,6 @@ async function slash(
             timestamp
         ],
         expectedTransferId,
-        expectedIdWithTimestamp,
         cost,
         wallet.address,
         {value: cost },
@@ -171,18 +169,18 @@ async function main() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    const sourceNetwork = configure.chains['sepolia'];
-    const targetNetwork = configure.chains['arbitrum-sepolia'];
+    const sourceNetwork = configure.chains['arbitrum-sepolia'];
+    const targetNetwork = configure.chains['sepolia'];
     const sourceWallet = wallet(sourceNetwork);
     const targetWallet = wallet(targetNetwork);
 
     //const sourceToken = '0x0000000000000000000000000000000000000000';
     //const targetToken = '0x0000000000000000000000000000000000000000';
-    const sourceToken = configure.usdt['sepolia'];
-    const targetToken = configure.usdt['arbitrum-sepolia'];
+    const sourceToken = configure.usdt['arbitrum-sepolia'];
+    const targetToken = configure.usdt['sepolia'];
 
     const timestamp = Date.parse(new Date().toString())/1000;
-    const amount = ethers.utils.parseEther("106");
+    const amount = ethers.utils.parseEther("111");
 
     const transferId = await lockAndRemoteRelease(
         sourceWallet,
@@ -195,8 +193,8 @@ async function main() {
         timestamp
         );
     console.log(timestamp, transferId);
+    return;
 
-    /*
     await relay(
         sourceNetwork.chainId,
         targetWallet,
@@ -210,7 +208,6 @@ async function main() {
         1704960830,
         "0x110db54735ca7a73984ec654686c7ea9d6fa572fcee138ca109dda58c75d2142" //expectedTransferId,
     );
-    */
     
     /*
     await requestWithdrawLiquidity(
@@ -223,23 +220,19 @@ async function main() {
     );
     */
 
-    /*
     await slash(
-        zksyncWallet,
-        configure.LnV3BridgeProxy.zkSync,
-        goerliNetwork.chainId,
+        targetWallet,
+        configure.LnV3BridgeProxy.others,
+        sourceNetwork.chainId,
         provider,
-        configure.usdc['goerli'],
-        configure.usdc['zksync-goerli'],
-        200000000,
-        ethers.utils.parseEther("200"),
+        sourceToken,
+        targetToken,
+        amount,
+        amount,
         "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-        "0x658d2248",
-        3,
-        "0x61d342e0db087243d311b3e107680fdbb98ed951093cfff34b7087d9422e0e26",
-        "0x9f70fef04636178fd7a1d871525d28a91543b985cfae52f02d831cdfdad6f0a0",
+        "0x659fa7da", // timestamp
+        "0x01e40aad095d9a381f3870f288e5977d8ccc5c0bc3ece780fde5cada26fcb8ca",
     );
-    */
  
     return;
 }

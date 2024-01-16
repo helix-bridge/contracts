@@ -14,18 +14,18 @@ const zkSyncTestnet =
       }
     : {
         //url: "https://zksync2-testnet.zksync.dev",
-        url: "https://testnet.era.zksync.dev",
+        url: "https://sepolia.era.zksync.dev",
         //url: "https://mainnet.era.zksync.io",
-        ethNetwork: "goerli",
+        ethNetwork: "sepolia",
         //ethNetwork: "mainnet",
         zksync: true,
-        verifyURL: 'https://zksync2-testnet-explorer.zksync.dev/contract_verification',
+        verifyURL: 'https://explorer.sepolia.era.zksync.dev/contract_verification',
         //verifyURL: 'https://zksync2-mainnet-explorer.zksync.io/contract_verification',
       };
 
 const config: HardhatUserConfig = {
   zksolc: {
-    version: "1.3.13",
+    version: "1.3.19",
     compilerSource: "binary",
     settings: {
       "compilerPath": "/usr/local/bin/zksolc",

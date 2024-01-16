@@ -34,7 +34,7 @@ async function main() {
 
     const network = chainInfo(configure, "arbitrum-sepolia");
     const w = wallet(configure, network);
-    const logicAddress = await deployLnBridgeV3(w, network.deployer, "lnv3-logic-v1.0.0");
+    const logicAddress = await deployLnBridgeV3(w, network.deployer, "lnv3-logic-v1.0.1");
 }
 
 main()

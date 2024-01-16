@@ -27,8 +27,8 @@ async function connectUsingLayerzero(configure, pair) {
     const rightWallet = pair.wallets[1];
     const leftMessagerAddess = configure.messagers[leftNetwork.name].layerzeroMessager;
     const rightMessagerAddress = configure.messagers[rightNetwork.name].layerzeroMessager;
-    const leftBridgeProxy = leftNetwork.chainId === 280 ? configure.LnV3BridgeProxy.zkSync : configure.LnV3BridgeProxy.others;
-    const rightBridgeProxy = rightNetwork.chainId === 280 ? configure.LnV3BridgeProxy.zkSync : configure.LnV3BridgeProxy.others;
+    const leftBridgeProxy = leftNetwork.chainId === 300 ? configure.LnV3BridgeProxy.zksync : configure.LnV3BridgeProxy.others;
+    const rightBridgeProxy = rightNetwork.chainId === 300 ? configure.LnV3BridgeProxy.zksync : configure.LnV3BridgeProxy.others;
     const leftMessager = await ethers.getContractAt("LayerZeroMessager", leftMessagerAddess, leftWallet);
     const rightMessager = await ethers.getContractAt("LayerZeroMessager", rightMessagerAddress, rightWallet);
     console.log("start to connect network by using layerzero");
@@ -70,7 +70,7 @@ async function registerToken(configure, srcWallet, dstWallet, srcNetwork, dstNet
         penalty = ethers.utils.parseUnits("0.01", penaltyDecimals);
     }
 
-    const proxyAddress = srcNetwork.chainId === 280 ? configure.LnV3BridgeProxy.zkSync : configure.LnV3BridgeProxy.others;
+    const proxyAddress = srcNetwork.chainId === 300 ? configure.LnV3BridgeProxy.zksync : configure.LnV3BridgeProxy.others;
 
     const source = await ethers.getContractAt("HelixLnBridgeV3", proxyAddress, srcWallet);
     await source.registerTokenInfo(
@@ -91,8 +91,8 @@ async function registerAllToken(configure, pair) {
     const leftWallet = pair.wallets[0];
     const rightWallet = pair.wallets[1];
     // zkSync<>eth
-    let leftTokenIndex = 1;
-    let rightTokenIndex = 1;
+    let leftTokenIndex = 4;
+    let rightTokenIndex = 4;
     await registerToken(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "usdc", "usdc", leftTokenIndex++);
     await registerToken(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdc", "usdc", rightTokenIndex++);
     await registerToken(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "usdt", "usdt", leftTokenIndex++);
@@ -127,7 +127,7 @@ async function registerRelayer(configure, srcWallet, dstWallet, srcNetwork, dstN
     let baseFee = ethers.utils.parseUnits(baseFeeAmount, srcDecimals);
     const liquidityFeeRate = 30;
 
-    const proxyAddress = srcNetwork.chainId === 280 ? configure.LnV3BridgeProxy.zkSync : configure.LnV3BridgeProxy.others;
+    const proxyAddress = srcNetwork.chainId === 300 ? configure.LnV3BridgeProxy.zksync : configure.LnV3BridgeProxy.others;
     // set source network
     let penalty = ethers.utils.parseUnits("100000", srcDecimals);
     let value = 0;
@@ -165,11 +165,11 @@ async function registerAllRelayer(configure, pair) {
     const rightWallet = pair.wallets[1];
     // eth<>zkSync
     await registerRelayer(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "usdc", "usdc");
-    await registerRelayer(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdc", "usdc");
+    //await registerRelayer(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdc", "usdc");
     await registerRelayer(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "usdt", "usdt");
-    await registerRelayer(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdt", "usdt");
+    //await registerRelayer(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdt", "usdt");
     await registerRelayer(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "eth", "eth");
-    await registerRelayer(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "eth", "eth");
+    //await registerRelayer(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "eth", "eth");
 }
 
 async function mintToken(configure, tokenSymbol, network, wallet, to) {
@@ -187,7 +187,7 @@ async function approveToken(configure, tokenSymbol, network, wallet) {
     const decimals = await token.decimals();
     console.log("start to approve", tokenSymbol);
 
-    const proxyAddress = network.chainId === 280 ? configure.LnV3BridgeProxy.zkSync : configure.LnV3BridgeProxy.others;
+    const proxyAddress = network.chainId === 300 ? configure.LnV3BridgeProxy.zksync : configure.LnV3BridgeProxy.others;
 
     await token.approve(proxyAddress, ethers.utils.parseUnits("10000000000000", decimals), {gasLimit: 1000000});
     await wait(5000);
@@ -207,7 +207,7 @@ async function main() {
     );
 
     const network01 = configure.chains['sepolia'];
-    const network02 = configure.chains['arbitrum-sepolia'];
+    const network02 = configure.chains['zksync'];
 
     const wallet01 = wallet(network01.url);
     const wallet02 = wallet(network02.url);
@@ -225,8 +225,8 @@ async function main() {
     //await approveAll(configure, network01, wallet01);
     //await approveAll(configure, network02, wallet02);
 
-    //await mintToken(configure, 'usdc', network01, wallet01, '0xB2a0654C6b2D0975846968D5a3e729F5006c2894');
-    await registerAllRelayer(configure, pair);
+    await mintToken(configure, 'usdc', network01, wallet01, wallet01.address);
+    //await registerAllRelayer(configure, pair);
     console.log("finished!");
 }
 

@@ -1,4 +1,4 @@
-import { Wallet, utils } from "zksync-web3";
+import { Wallet } from "zksync-ethers";
 import * as ethers from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
@@ -21,7 +21,7 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   const proxyAdminContract = await deployer.deploy(artifact, []);
 
   // Show the contract info.
-  const contractAddress = proxyAdminContract.address;
+  const contractAddress = proxyAdminContract.target;
   //const contractAddress = await ProxyDeployer.deployProxyAdmin(deployer);
   console.log(`deployed to ${contractAddress}`);
   

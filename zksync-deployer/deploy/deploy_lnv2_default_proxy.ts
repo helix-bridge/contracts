@@ -1,4 +1,4 @@
-import { Wallet, utils, ContractFactory } from "zksync-web3";
+import { Wallet, ContractFactory } from "zksync-ethers";
 import * as ethers from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
@@ -7,10 +7,9 @@ import { ProxyDeployer } from "./proxy.ts";
 const privateKey = process.env.PRIKEY
 
 const zkSyncNetwork = {
-    url: "https://zksync2-testnet.zksync.dev",
-    proxyAdmin: "0xd7b3aC0c9E99e9B2EF1C9D2a5ff397867c8c8A3E",
+    proxyAdmin: "0x57E8fcaAfDE61b179BAe86cDAbfaca99E2A16484",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    logicAddress: "0x6213E3bc566f7d7A73Fd7565c97ac5Ffb8624674",
+    logicAddress: "0xa1C2a266Ba82ce80243B975090016EE68C6d125B",
 };
 
 export default async function (hre: HardhatRuntimeEnvironment) {

@@ -10,7 +10,6 @@ import "../../utils/TokenTransferHelper.sol";
 /// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
 contract LnBridgeSourceV3 is Pausable, AccessController {
     uint256 constant public LOCK_TIME_DISTANCE = 15 minutes;
-    uint256 constant public SLASH_EXPIRE_TIME = 1 hours;
     uint256 constant public MAX_TRANSFER_AMOUNT = type(uint112).max;
     // liquidity fee base rate
     // liquidityFee = liquidityFeeRate / LIQUIDITY_FEE_RATE_BASE * sendAmount

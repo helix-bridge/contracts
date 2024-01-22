@@ -55,8 +55,8 @@
     "LnOppositeBridgeLogic": "0x08F2a6B3F8f67E6604aBb731FC318cf1f3EAaF53",
     "LnOppositeBridgeProxy": "0xbA96d83E2A04c4E50F2D6D7eCA03D70bA2426e5f",
     "LnV3BridgeLogic": {
-        "zksync": "0x93944493105771aaa13B93fcb6c9a0642118d675",
-        "others": "0xC4Cecb7d4c0eA6c7AA88CbdE56612Cdc2DE2E756"
+        "zksync": "0x67C3C81113Afb9A73d7ce5868046D97D0e44db59",
+        "others": "0x6719A06B38829Ddad83B0Ec5e69bf7C47b6a0E72"
     },
     "LnV3BridgeProxy": {
         "zksync": "0xDc55fF59F82AA50D8A4A61dB8CcaDffD26Fb7dD2",

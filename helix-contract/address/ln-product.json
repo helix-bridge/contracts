@@ -1,4 +1,33 @@
 {
+    "chains": {
+        "arbitrum": {
+            "name": "arbitrum",
+            "url": "https://arb1.arbitrum.io/rpc",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 42161,
+            "lzChainId": 110,
+            "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "polygon-pos": {
+            "name": "polygon-pos",
+            "url": "https://polygon-rpc.com",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 137,
+            "lzChainId": 109,
+            "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "bsc": {
+            "name": "bsc",
+            "url": "https://bsc-dataseed1.defibit.io",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 56,
+            "lzChainId": 102,
+            "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        }
+    },
     "messagers": {
         "ethereum": {
             "Eth2ArbSendService": "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119"
@@ -63,6 +92,12 @@
     "LnDefaultBridgeProxy": {
         "common": "0x94C614DAeFDbf151E1BB53d6A201ae5fF56A9337",
         "zkSync": "0x767Bc046c989f5e63683fB530f939DD34b91ceAC"
+    },
+    "LnV3BridgeLogic": {
+        "common": "0xdf383487CB33a3C78a884494e2456910d79d361c"
+    },
+    "LnV3BridgeProxy": {
+        "common": "0xbA5D580B18b6436411562981e02c8A9aA1776D10"
     },
     "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
     "ring": {

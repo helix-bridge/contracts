@@ -62,7 +62,7 @@ async function registerToken(configure, srcWallet, dstWallet, srcNetwork, dstNet
         const targetToken = await ethers.getContractAt("Erc20", dstTokenAddress, dstWallet);
         dstDecimals = await targetToken.decimals();
     }
-    let fee = ethers.utils.parseUnits("100", srcDecimals);
+    let fee = ethers.utils.parseUnits("0.01", srcDecimals);
     const penaltyDecimals = srcDecimals;
     let penalty = ethers.utils.parseUnits("1000", penaltyDecimals);
     if (srcTokenAddress == kNativeTokenAddress || dstTokenAddress == kNativeTokenAddress) {
@@ -73,15 +73,27 @@ async function registerToken(configure, srcWallet, dstWallet, srcNetwork, dstNet
     const proxyAddress = srcNetwork.chainId === 300 ? configure.LnV3BridgeProxy.zksync : configure.LnV3BridgeProxy.others;
 
     const source = await ethers.getContractAt("HelixLnBridgeV3", proxyAddress, srcWallet);
-    await source.registerTokenInfo(
-        dstNetwork.chainId,
-        srcTokenAddress,
-        dstTokenAddress,
-        fee,
-        penalty,
-        srcDecimals,
-        dstDecimals,
-        tokenIndex);
+
+    if (tokenIndex > 0) {
+      await source.registerTokenInfo(
+          dstNetwork.chainId,
+          srcTokenAddress,
+          dstTokenAddress,
+          fee,
+          penalty,
+          srcDecimals,
+          dstDecimals,
+          tokenIndex);
+    } else {
+      await source.updateTokenInfo(
+          dstNetwork.chainId,
+          srcTokenAddress,
+          dstTokenAddress,
+          fee,
+          penalty,
+          srcDecimals,
+          dstDecimals);
+    }
     console.log(`finished register token bridge: ${srcNetwork.chainId}->${dstNetwork.chainId}, ${srcToken}->${dstToken}`);
 }
 
@@ -91,14 +103,14 @@ async function registerAllToken(configure, pair) {
     const leftWallet = pair.wallets[0];
     const rightWallet = pair.wallets[1];
     // zkSync<>eth
-    let leftTokenIndex = 4;
-    let rightTokenIndex = 4;
-    await registerToken(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "usdc", "usdc", leftTokenIndex++);
-    await registerToken(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdc", "usdc", rightTokenIndex++);
-    await registerToken(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "usdt", "usdt", leftTokenIndex++);
-    await registerToken(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdt", "usdt", rightTokenIndex++);
-    await registerToken(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "eth", "eth", leftTokenIndex++);
-    await registerToken(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "eth", "eth", rightTokenIndex++);
+    let leftTokenIndex = 0;
+    let rightTokenIndex = 0;
+    //await registerToken(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "usdc", "usdc", leftTokenIndex++);
+    //await registerToken(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdc", "usdc", rightTokenIndex++);
+    await registerToken(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "usdt", "usdt", leftTokenIndex);
+    await registerToken(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "usdt", "usdt", rightTokenIndex);
+    await registerToken(configure, leftWallet, rightWallet, leftNetwork, rightNetwork, "eth", "eth", leftTokenIndex);
+    await registerToken(configure, rightWallet, leftWallet, rightNetwork, leftNetwork, "eth", "eth", rightTokenIndex);
 }
 
 async function registerRelayer(configure, srcWallet, dstWallet, srcNetwork, dstNetwork, srcToken, dstToken) {
@@ -206,8 +218,8 @@ async function main() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    const network01 = configure.chains['sepolia'];
-    const network02 = configure.chains['zksync'];
+    const network01 = configure.chains['zksync'];
+    const network02 = configure.chains['sepolia'];
 
     const wallet01 = wallet(network01.url);
     const wallet02 = wallet(network02.url);
@@ -220,12 +232,12 @@ async function main() {
     // connect
     //await connectUsingLayerzero(configure, pair);
     // register tokens
-    //await registerAllToken(configure, pair);
+    await registerAllToken(configure, pair);
     // approve
     //await approveAll(configure, network01, wallet01);
     //await approveAll(configure, network02, wallet02);
 
-    await mintToken(configure, 'usdc', network01, wallet01, wallet01.address);
+    //await mintToken(configure, 'usdc', network01, wallet01, wallet01.address);
     //await registerAllRelayer(configure, pair);
     console.log("finished!");
 }

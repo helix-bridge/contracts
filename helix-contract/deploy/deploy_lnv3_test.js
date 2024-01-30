@@ -182,6 +182,7 @@ async function main() {
     const timestamp = Date.parse(new Date().toString())/1000;
     const amount = ethers.utils.parseEther("111");
 
+    /*
     const transferId = await lockAndRemoteRelease(
         sourceWallet,
         provider,
@@ -208,18 +209,18 @@ async function main() {
         1704960830,
         "0x110db54735ca7a73984ec654686c7ea9d6fa572fcee138ca109dda58c75d2142" //expectedTransferId,
     );
+    */
     
-    /*
     await requestWithdrawLiquidity(
         targetWallet,
         provider,
         sourceNetwork.chainId,
         configure.LnV3BridgeProxy.others,
-        ["0x110db54735ca7a73984ec654686c7ea9d6fa572fcee138ca109dda58c75d2142", "0x82CA1BBCFCB03E55C7F7938EFC6DF9636C72E0F628CF94488E31ED328BDF6FE4"],
+        ["0x326597a3bcd3017f8d5c4e7eddfcec7d64667f999f3060ac4d9940ee10e13b20"],
         "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     );
-    */
 
+    /*
     await slash(
         targetWallet,
         configure.LnV3BridgeProxy.others,
@@ -233,6 +234,7 @@ async function main() {
         "0x659fa7da", // timestamp
         "0x01e40aad095d9a381f3870f288e5977d8ccc5c0bc3ece780fde5cada26fcb8ca",
     );
+    */
  
     return;
 }

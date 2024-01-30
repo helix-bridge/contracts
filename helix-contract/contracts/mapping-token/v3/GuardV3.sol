@@ -7,6 +7,7 @@ import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
 import "./GuardRegistryV3.sol";
 import "../interfaces/IWToken.sol";
+import "../../utils/TokenTransferHelper.sol";
 
 contract GuardV3 is GuardRegistryV3, Pausable {
     using SafeMath for uint256;
@@ -87,13 +88,13 @@ contract GuardV3 is GuardRegistryV3, Pausable {
         require(amount > 0, "Guard: Invalid amount to claim");
         delete deposits[id];
         if (isNative) {
-            require(IERC20(token).transferFrom(from, address(this), amount), "Guard: claim native token failed");
+            TokenTransferHelper.safeTransferFrom(token, from, address(this), amount);
             uint256 balanceBefore = address(this).balance;
             IWToken(token).withdraw(amount);
             require(address(this).balance == balanceBefore.add(amount), "Guard: token is not wrapped by native token");
-            payable(recipient).transfer(amount);
+            TokenTransferHelper.safeTransferNative(recipient, amount);
         } else {
-            require(IERC20(token).transferFrom(from, recipient, amount), "Guard: claim token failed");
+            TokenTransferHelper.safeTransferFrom(token, from, recipient, amount);
         }
         emit TokenClaimed(id);
     }

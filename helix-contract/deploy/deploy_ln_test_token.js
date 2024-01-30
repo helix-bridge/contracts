@@ -86,6 +86,11 @@ const arbitrumSepoliaNetwork = {
             name: "Helix Test Token USDC",
             symbol: "USDC",
             decimals: 18
+        },
+        {
+            name: "Helix Test Token USDT",
+            symbol: "USDT",
+            decimals: 18
         }
     ]
 };
@@ -130,6 +135,14 @@ function wallet(url) {
 
 // 2. deploy mapping token factory
 async function main() {
+    const w = wallet(arbitrumSepoliaNetwork.url);
+    const tokenInfo = arbitrumSepoliaNetwork.tokens[1];
+    const tokenContract = await ethers.getContractFactory("HelixTestErc20", w);
+    const token = await tokenContract.deploy(tokenInfo.name, tokenInfo.symbol, tokenInfo.decimals);
+    await token.deployed();
+    console.log(`finish to deploy test token contract, network is: ${network.url}, address is: ${token.address}`);
+    return;
+
     const networks = [goerliNetwork, mantleNetwork, arbitrumNetwork, lineaNetwork, sepoliaNetwork, scrollSepoliaNetwork];
     for (const network of networks) {
         const w = wallet(network.url);

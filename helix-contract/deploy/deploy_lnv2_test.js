@@ -1,10 +1,12 @@
 const ethUtil = require('ethereumjs-util');
 const abi = require('ethereumjs-abi');
 const secp256k1 = require('secp256k1');
+const fs = require("fs");
 
 const privateKey = process.env.PRIKEY
 
 const initTransferId = "0x0000000000000000000000000000000000000000000000000000000000000000";
+const relayer = '0xB2a0654C6b2D0975846968D5a3e729F5006c2894';
 
 const networks = {
     "goerli": {
@@ -83,19 +85,19 @@ async function defaultTransferAndLockMargin(
     const bridge = await ethers.getContractAt("LnDefaultBridge", bridgeAddress, wallet);
     const expectedFee = await bridge.totalFee(
         remoteChainId,
-        wallet.address,
+        relayer,
         sourceToken,
         targetToken,
         amount);
     console.log("expect fee is", expectedFee);
-    const providerInfo = await bridge.srcProviders(getProviderKey(remoteChainId, wallet.address, sourceToken, targetToken));
+    const providerInfo = await bridge.srcProviders(getProviderKey(remoteChainId, relayer, sourceToken, targetToken));
     const expectedWithdrawNonce = providerInfo.config.withdrawNonce;
     console.log("expect withdraw nonce is", expectedWithdrawNonce);
     //const tx = await bridge.callStatic.transferAndLockMargin(
     const tx = await bridge.transferAndLockMargin(
         [
             remoteChainId,
-            wallet.address,
+            relayer,
             sourceToken,
             targetToken,
             providerInfo.lastTransferId,
@@ -118,19 +120,19 @@ async function oppositeTransferAndLockMargin(
     const bridge = await ethers.getContractAt("LnOppositeBridge", bridgeAddress, wallet);
     const expectedFee = await bridge.totalFee(
         remoteChainId,
-        wallet.address,
+        relayer,
         sourceToken,
         targetToken,
         amount);
     console.log("expect fee is", expectedFee);
-    const providerInfo = await bridge.srcProviders(getProviderKey(remoteChainId, wallet.address, sourceToken, targetToken));
+    const providerInfo = await bridge.srcProviders(getProviderKey(remoteChainId, relayer, sourceToken, targetToken));
     const expectedMargin = providerInfo.config.margin;
     console.log("expect margin is", expectedMargin);
     //const tx = await bridge.callStatic.transferAndLockMargin(
     const tx = await bridge.transferAndLockMargin(
         [
             remoteChainId,
-            wallet.address,
+            relayer,
             sourceToken,
             targetToken,
             providerInfo.lastTransferId,
@@ -299,17 +301,23 @@ async function withdraw(bridgeType, from, to, sourceToken, targetToken, amount, 
     }
 }
 
-async function transfer(bridgeType, from, to, sourceToken, targetToken, amount) {
+async function transfer(configure, bridgeType, from, to, token, amount) {
+    const sourceToken = configure[token][from.chain];
+    const targetToken = configure[token][to.chain];
+    const toChainId = configure.chains[to.chain].chainId;
+
     const sourceTokenContract = await ethers.getContractAt("Erc20", sourceToken, from.wallet);
     const decimals = await sourceTokenContract.decimals();
     const formatedAmount = ethers.utils.parseUnits(amount, decimals);
     if (bridgeType == "default") {
-        const bridge = await ethers.getContractAt("LnDefaultBridge", from.defaultBridge, from.wallet);
-        const previousInfo = await bridge.srcProviders(getProviderKey(to.chainId, from.wallet.address, sourceToken, targetToken));
+        const key = from.chain == 'zksync' ? 'zksync' : 'others';
+        const fromBridge = configure.LnDefaultBridgeProxy[key];
+        const bridge = await ethers.getContractAt("LnDefaultBridge", fromBridge, from.wallet);
+        const previousInfo = await bridge.srcProviders(getProviderKey(toChainId, relayer, sourceToken, targetToken));
         await defaultTransferAndLockMargin(
             from.wallet,
-            from.defaultBridge, 
-            to.chainId,
+            fromBridge, 
+            toChainId,
             sourceToken,
             targetToken,
             formatedAmount
@@ -335,12 +343,13 @@ async function transfer(bridgeType, from, to, sourceToken, targetToken, amount) 
         console.log("[default] relay and release margin successed");
         */
     } else {
-        const bridge = await ethers.getContractAt("LnOppositeBridge", from.oppositeBridge, from.wallet);
-        const previousInfo = await bridge.srcProviders(getProviderKey(to.chainId, from.wallet.address, sourceToken, targetToken));
+        const fromBridge = configure.LnOppositeBridgeProxy;
+        const bridge = await ethers.getContractAt("LnOppositeBridge", fromBridge, from.wallet);
+        const previousInfo = await bridge.srcProviders(getProviderKey(toChainId, from.wallet.address, sourceToken, targetToken));
         await oppositeTransferAndLockMargin(
             from.wallet,
-            from.oppositeBridge, 
-            to.chainId,
+            fromBridge, 
+            toChainId,
             sourceToken,
             targetToken,
             formatedAmount
@@ -405,17 +414,26 @@ async function eth2arbFee(arb, eth, sourceToken, targetToken) {
 
 // 2. deploy mapping token factory
 async function main() {
-    for (let network in networks) {
-        networks[network]['wallet'] = wallet(networks[network]);
-    }
+    const pathConfig = "./address/ln-dev.json";
+    const configure = JSON.parse(
+        fs.readFileSync(pathConfig, "utf8")
+    );
+    
+    const network01 = configure.chains['sepolia'];
+    const network02 = configure.chains['zksync'];
 
-    //await transfer("default", networks.goerli, networks.linea, networks.goerli.usdt, networks.linea.usdt, "320");
-    //await transfer("opposite", networks.linea, networks.goerli, networks.linea.usdt, networks.goerli.usdt, "500");
-    await transfer("default", networks.goerli, networks.mantle, networks.goerli.usdc, networks.mantle.usdc, "500");
+    const from = {
+      chain: network01.name,
+      wallet: wallet(network01),
+    };
+    const to = {
+      chain: network02.name,
+      wallet: wallet(network02),
+    };
+
+    //await transfer(configure, "opposite", from, to, 'usdc', "500");
+    await transfer(configure, "default", from, to, 'usdc', "101");
     return;
-    //await transfer("default",networks.mantle, networks.goerli, networks.mantle.usdc, networks.goerli.usdc, "132");
-    //console.log("transfer and relay successed");
-    //return;
 
     /*
     const fee = await lzFee(networks.arbitrum, networks.linea);

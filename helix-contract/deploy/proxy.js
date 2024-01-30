@@ -27,13 +27,14 @@ var ProxyDeployer = {
         await proxy.deployed();
         return proxy;
     },
-    deployProxyContract2: async function(deployerAddress, salt, proxyAdminAdder, logicFactory, logicAddress, args, wallet) {
+    deployProxyContract2: async function(deployerAddress, salt, proxyAdminAdder, logicFactory, logicAddress, args, wallet, gasLimit) {
         const calldata = ProxyDeployer.getInitializerData(logicFactory.interface, args, "initialize");
         const proxyContract = await ethers.getContractFactory("TransparentUpgradeableProxy", wallet);
         const deployedBytecode = Create2.getDeployedBytecode(
             proxyContract, 
             ["address", "address", "bytes"],
-            [logicAddress, proxyAdminAdder, calldata]
+            [logicAddress, proxyAdminAdder, calldata],
+            { gasLimit: gasLimit }
         );
         return await Create2.deploy(deployerAddress, wallet, deployedBytecode, salt);
     }

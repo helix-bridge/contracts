@@ -1,6 +1,7 @@
 const ethUtil = require('ethereumjs-util');
 const abi = require('ethereumjs-abi');
 const secp256k1 = require('secp256k1');
+const fs = require("fs");
 
 var Create2 = require("./create2.js");
 
@@ -21,8 +22,9 @@ async function deployCreate2Deployer(networkUrl, version) {
         from: w.address,
         to: "0x914d7Fec6aaC8cd542e72Bca78B30650d45643d7",
         data: `${salt}${bytecode.slice(2)}`,
-        gasPrice: 2100000000,
-        nonce: 0,
+        gasLimit: 2000000,
+        //gasPrice: 2100000000,
+        //nonce: 0,
     };
     const tx = await w.sendTransaction(unsignedTransaction);
     console.log(`deploy create2 tx: ${tx.hash}, salt: ${salt}`);
@@ -31,17 +33,13 @@ async function deployCreate2Deployer(networkUrl, version) {
 
 // 2. deploy mapping token factory
 async function main() {
-    //await deployCreate2Deployer('https://rpc.ankr.com/eth_goerli', 'v1.0.0');
-    //await deployCreate2Deployer('https://goerli-rollup.arbitrum.io/rpc', 'v1.0.0');
-    //await deployCreate2Deployer('https://rpc.testnet.mantle.xyz', 'v1.0.0');
-    //await deployCreate2Deployer('https://rpc.goerli.linea.build', 'v1.0.0');
-    //await deployCreate2Deployer('https://arb1.arbitrum.io/rpc', 'v1.0.0');
-    //await deployCreate2Deployer('https://rpc.mantle.xyz', 'v1.0.0');
-    //await deployCreate2Deployer('https://crab-rpc.darwinia.network', 'v1.0.0');
-    //await deployCreate2Deployer('https://binance.llamarpc.com', 'v1.0.0');
-    //await deployCreate2Deployer('https://mainnet.base.org', 'v1.0.0');
-    //await deployCreate2Deployer('https://optimism.llamarpc.com', 'v1.0.0');
-    await deployCreate2Deployer('https://rpc.linea.build', 'v1.0.0');
+    const pathConfig = "./address/ln-dev.json";
+    const configure = JSON.parse(
+        fs.readFileSync(pathConfig, "utf8")
+    );
+
+    const network = configure.chains['arbitrum-sepolia'];
+    await deployCreate2Deployer(network.url, 'v1.0.0');
 }
 
 main()

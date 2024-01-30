@@ -1,4 +1,4 @@
-import { Wallet } from "zksync-web3";
+import { Wallet } from "zksync-ethers";
 import * as ethers from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
@@ -17,7 +17,7 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   // deploy create2 tool contract
   const artifact = await deployer.loadArtifact("LnDefaultBridge");
   const contract = await deployer.deploy(artifact, []);
-  const contractAddress = contract.address;
+  const contractAddress = contract.target;
   console.log(`ln default bridge logic contract was deployed to ${contractAddress}`);
   const verificationId = await hre.run("verify:verify", {
       address: contractAddress,

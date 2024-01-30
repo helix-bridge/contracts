@@ -1,4 +1,4 @@
-import { Wallet } from "zksync-web3";
+import { Wallet } from "zksync-ethers";
 import * as ethers from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
@@ -9,12 +9,12 @@ const tokens = [
   {
     name: "Helix Test Token USDT",
     symbol: "USDT",
-    decimals: 18
+    decimals: 6
   },
   {
     name: "Helix Test Token USDC",
     symbol: "USDC",
-    decimals: 18
+    decimals: 6
   }
 ];
 
@@ -32,7 +32,7 @@ export default async function (hre: HardhatRuntimeEnvironment) {
 
   for (const token of tokens) {
     const contract = await deployer.deploy(artifact, [token.name, token.symbol, token.decimals]);
-    const contractAddress = contract.address;
+    const contractAddress = contract.target;
     console.log(`ln test token contract was deployed to ${contractAddress}`);
     const verificationId = await hre.run("verify:verify", {
         address: contractAddress,

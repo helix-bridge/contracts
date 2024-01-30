@@ -23,7 +23,7 @@ var ProxyDeployer = {
         const artifact = await deployer.loadArtifact("TransparentUpgradeableProxy");
         const proxyContract = await deployer.deploy(artifact, [logicAddress, proxyAdminAddr, calldata]);
         console.log("proxy args", logicAddress, proxyAdminAddr, calldata);
-        return proxyContract.address;
+        return proxyContract.target;
     }
 }
 

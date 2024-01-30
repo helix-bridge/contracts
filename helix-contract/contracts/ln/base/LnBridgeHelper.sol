@@ -6,7 +6,7 @@ import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 library LnBridgeHelper {
     // the time(seconds) for liquidity provider to delivery message
     // if timeout, slasher can work.
-    uint256 constant public SLASH_EXPIRE_TIME = 30 * 60;
+    uint256 constant public SLASH_EXPIRE_TIME = 60 * 60;
     bytes32 constant public INIT_SLASH_TRANSFER_ID = bytes32(uint256(1));
     // liquidity fee base rate
     // liquidityFee = liquidityFeeRate / LIQUIDITY_FEE_RATE_BASE * sendAmount

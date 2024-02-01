@@ -8,12 +8,12 @@ const privateKey = process.env.PRIKEY
 
 const crabNetwork = {
     url: "https://crab-rpc.darwinia.network",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
+    deployer: "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
 };
 
 const sepoliaNetwork = {
     url: "https://rpc-sepolia.rockx.com",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
+    deployer: "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
 }
 
 function wallet(url) {
@@ -41,12 +41,12 @@ async function deployxTokenIssuing(wallet, deployerAddress, salt) {
 // 2. deploy mapping token factory
 async function main() {
     // deploy backing on crab
-    const walletCrab = wallet(crabNetwork.url);
-    const backingLogic = await deployxTokenBacking(walletCrab, crabNetwork.deployer, "xTokenBacking-logic-v1.0.3");
+    //const walletCrab = wallet(crabNetwork.url);
+    //const backingLogic = await deployxTokenBacking(walletCrab, crabNetwork.deployer, "xTokenBacking-logic-v1.0.3");
 
     // deploy issuing on sepolia
     const walletSpeolia = wallet(sepoliaNetwork.url);
-    const issuingLogic = await deployxTokenIssuing(walletSpeolia, sepoliaNetwork.deployer, "xTokenIssuing-logic-v1.0.3");
+    const issuingLogic = await deployxTokenIssuing(walletSpeolia, sepoliaNetwork.deployer, "xtoken-issuing-logic-v1.0.0");
 }
 
 main()

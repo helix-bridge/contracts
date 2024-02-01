@@ -21,9 +21,14 @@ contract GuardV3 is GuardRegistryV3, Pausable {
     event TokenDeposit(address sender, uint256 id, uint256 timestamp, address token, address recipient, uint256 amount);
     event TokenClaimed(uint256 id);
 
-    constructor(address[] memory _guards, uint256 _threshold, uint256 _maxUnclaimableTime) {
+    constructor(
+        address[] memory _guards,
+        address _operator,
+        uint256 _threshold,
+        uint256 _maxUnclaimableTime
+    ) {
         maxUnclaimableTime = _maxUnclaimableTime;
-        operator = msg.sender;
+        operator = _operator;
         initialize(_guards, _threshold);
     }
 

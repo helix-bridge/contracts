@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/26/2023
+ * 1/30/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -143,14 +143,6 @@ library TokenTransferHelper {
     }
 }
 
-// File contracts/mapping-token/interfaces/IGuard.sol
-// License-Identifier: MIT
-
-
-interface IGuard {
-  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
-}
-
 // File contracts/mapping-token/interfaces/IWToken.sol
 // License-Identifier: MIT
 
@@ -158,6 +150,14 @@ interface IGuard {
 interface IWToken {
     function deposit() external payable;
     function withdraw(uint wad) external;
+}
+
+// File contracts/mapping-token/interfaces/IGuard.sol
+// License-Identifier: MIT
+
+
+interface IGuard {
+  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
 }
 
 // File contracts/mapping-token/v3/interfaces/IxTokenIssuing.sol

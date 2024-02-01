@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/26/2023
+ * 1/30/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -151,17 +151,46 @@ interface IGuard {
   function deposit(uint256 id, address token, address recipient, uint256 amount) external;
 }
 
-// File contracts/interfaces/IMessager.sol
+// File contracts/utils/AccessController.sol
 // License-Identifier: MIT
 
-interface ILowLevelMessageSender {
-    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
-    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
-}
+/// @title AccessController
+/// @notice AccessController is a contract to control the access permission 
+/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
+contract AccessController {
+    address public dao;
+    address public operator;
+    address public pendingDao;
 
-interface ILowLevelMessageReceiver {
-    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
-    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
+    modifier onlyDao() {
+        require(msg.sender == dao, "!dao");
+        _;
+    }
+
+    modifier onlyOperator() {
+        require(msg.sender == operator, "!operator");
+        _;
+    }
+
+    function _initialize(address _dao) internal {
+        dao = _dao;
+        operator = _dao;
+    }
+
+    function setOperator(address _operator) onlyDao external {
+        operator = _operator;
+    }
+
+    function transferOwnership(address _dao) onlyDao external {
+        pendingDao = _dao;
+    }
+
+    function acceptOwnership() external {
+        address newDao = msg.sender;
+        require(pendingDao == newDao, "!pendingDao");
+        delete pendingDao;
+        dao = newDao;
+    }
 }
 
 // File contracts/utils/DailyLimit.sol
@@ -247,46 +276,17 @@ contract DailyLimit {
     }
 }
 
-// File contracts/utils/AccessController.sol
+// File contracts/interfaces/IMessager.sol
 // License-Identifier: MIT
 
-/// @title AccessController
-/// @notice AccessController is a contract to control the access permission 
-/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract AccessController {
-    address public dao;
-    address public operator;
-    address public pendingDao;
+interface ILowLevelMessageSender {
+    function registerRemoteReceiver(uint256 remoteChainId, address remoteBridge) external;
+    function sendMessage(uint256 remoteChainId, bytes memory message, bytes memory params) external payable;
+}
 
-    modifier onlyDao() {
-        require(msg.sender == dao, "!dao");
-        _;
-    }
-
-    modifier onlyOperator() {
-        require(msg.sender == operator, "!operator");
-        _;
-    }
-
-    function _initialize(address _dao) internal {
-        dao = _dao;
-        operator = _dao;
-    }
-
-    function setOperator(address _operator) onlyDao external {
-        operator = _operator;
-    }
-
-    function transferOwnership(address _dao) onlyDao external {
-        pendingDao = _dao;
-    }
-
-    function acceptOwnership() external {
-        address newDao = msg.sender;
-        require(pendingDao == newDao, "!pendingDao");
-        delete pendingDao;
-        dao = newDao;
-    }
+interface ILowLevelMessageReceiver {
+    function registerRemoteSender(uint256 remoteChainId, address remoteBridge) external;
+    function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
 // File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3
@@ -942,6 +942,29 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     }
 }
 
+// File contracts/mapping-token/v3/interfaces/IxTokenBacking.sol
+// License-Identifier: MIT
+
+interface IxTokenBacking {
+    function unlockFromRemote(
+        uint256 remoteChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        uint256 amount,
+        uint256 nonce
+    ) external;
+
+    function handleUnlockForIssuingFailureFromRemote(
+        uint256 remoteChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        uint256 amount,
+        uint256 nonce
+    ) external;
+}
+
 // File @zeppelin-solidity/contracts/utils/math/SafeMath.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (utils/math/SafeMath.sol)
@@ -1309,29 +1332,6 @@ contract xTokenErc20 is IERC20 {
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
-}
-
-// File contracts/mapping-token/v3/interfaces/IxTokenBacking.sol
-// License-Identifier: MIT
-
-interface IxTokenBacking {
-    function unlockFromRemote(
-        uint256 remoteChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        uint256 amount,
-        uint256 nonce
-    ) external;
-
-    function handleUnlockForIssuingFailureFromRemote(
-        uint256 remoteChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        uint256 amount,
-        uint256 nonce
-    ) external;
 }
 
 // File contracts/mapping-token/v3/base/xTokenIssuing.sol

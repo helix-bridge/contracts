@@ -26,6 +26,60 @@
             "lzChainId": 102,
             "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
             "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "linea": {
+            "name": "linea",
+            "url": "https://rpc.linea.build",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 59144,
+            "lzChainId": 183,
+            "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "base": {
+            "name": "base",
+            "url": "https://mainnet.base.org",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 8453,
+            "lzChainId": 184,
+            "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "op": {
+            "name": "op",
+            "url": "https://mainnet.optimism.io",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 10,
+            "lzChainId": 111,
+            "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "gnosis": {
+            "name": "gnosis",
+            "url": "https://rpc.gnosischain.com",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 100,
+            "lzChainId": 145,
+            "lzEndpoint": "0x9740FF91F1985D8d2B71494aE1A2f723bb3Ed9E4",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "mantle": {
+            "name": "mantle",
+            "url": "https://rpc.mantle.xyz",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 5000,
+            "lzChainId": 181,
+            "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "scroll": {
+            "name": "scroll",
+            "url": "https://rpc.scroll.io",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 534352,
+            "lzChainId": 214,
+            "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
         }
     },
     "messagers": {

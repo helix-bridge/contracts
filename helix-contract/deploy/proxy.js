@@ -34,9 +34,8 @@ var ProxyDeployer = {
             proxyContract, 
             ["address", "address", "bytes"],
             [logicAddress, proxyAdminAdder, calldata],
-            { gasLimit: gasLimit }
         );
-        return await Create2.deploy(deployerAddress, wallet, deployedBytecode, salt);
+        return await Create2.deploy(deployerAddress, wallet, deployedBytecode, salt, gasLimit);
     }
 }
 

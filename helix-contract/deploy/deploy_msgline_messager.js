@@ -2,26 +2,9 @@ const ethUtil = require('ethereumjs-util');
 const abi = require('ethereumjs-abi');
 const secp256k1 = require('secp256k1');
 const fs = require("fs");
-
-var ProxyDeployer = require("./proxy.js");
+var Create2 = require("./create2.js");
 
 const privateKey = process.env.PRIKEY
-
-const crabNetwork = {
-    name: "crab",
-    url: "https://crab-rpc.darwinia.network",
-    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
-    msgline: "0x0000000000D2de3e2444926c4577b0A59F1DD8BC",
-};
-
-const sepoliaNetwork = {
-    name: "sepolia",
-    url: "https://rpc-sepolia.rockx.com",
-    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
-    msgline: "0x0000000000D2de3e2444926c4577b0A59F1DD8BC",
-};
 
 function wallet(url) {
     const provider = new ethers.providers.JsonRpcProvider(url);
@@ -29,24 +12,28 @@ function wallet(url) {
     return wallet;
 }
 
-async function deployMessager(wallet, dao, msgline, deployer) {
-    const messagerContract = await ethers.getContractFactory("MsglineMessager", wallet);
-    const messager = await messagerContract.deploy(dao, msgline);
-    await messager.deployed();
-    console.log("finish to deploy messager, address:", messager.address);
-    return messager.address;
+async function deployMessager(wallet, dao, msgport, deployer, salt) {
+    const messagerContract = await ethers.getContractFactory("MsgportMessager", wallet);
+    const bytecode = Create2.getDeployedBytecode(messagerContract, ["address", "address"], [dao, msgport]);
+    const address = await Create2.deploy(deployer, wallet, bytecode, salt, 2000000);
+    console.log("finish to deploy messager, address:", address);
+    return address;
 }
 
-async function deploy() {
-    const walletCrab = wallet(crabNetwork.url);
-    await deployMessager(walletCrab, crabNetwork.dao, crabNetwork.msgline, crabNetwork.deployer);
-
-    const walletSepolia = wallet(sepoliaNetwork.url);
-    await deployMessager(walletSepolia, sepoliaNetwork.dao, sepoliaNetwork.msgline, sepoliaNetwork.deployer);
+function wallet(configure, network) {
+    const provider = new ethers.providers.JsonRpcProvider(network.url);
+    const wallet = new ethers.Wallet(privateKey, provider);
+    return wallet;
 }
 
 async function main() {
-    await deploy();
+    const pathConfig = "./address/ln-dev.json";
+    const configure = JSON.parse(
+        fs.readFileSync(pathConfig, "utf8")
+    );
+    const network = configure.chains['pangolin'];
+    const w = wallet(configure, network);
+    await deployMessager(w, network.dao, network.ormpPort, network.deployer, "msgport-messager-v1.0.0");
 }
 
 main()

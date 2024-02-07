@@ -7,19 +7,19 @@ var ProxyDeployer = require("./proxy.js");
 
 const privateKey = process.env.PRIKEY
 
-const crabNetwork = {
-    name: "crab",
-    url: "https://crab-rpc.darwinia.network",
+const pangolinNetwork = {
+    name: "pangolin",
+    url: "https://pangolin-rpc.darwinia.network",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    backing: "0xbdC7bbF408931C5d666b4F0520E0D9E9A0B04e99",
-    chainid: 44
+    backing: "0x94eAb0CB67AB7edaf9A280aCa097F70e4BD780ac",
+    chainid: 43
 };
 
 const sepoliaNetwork = {
     name: "sepolia",
-    url: "https://rpc-sepolia.rockx.com",
+    url: "https://rpc.sepolia.org",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    issuing: "0xf22D0bb66b39745Ae6e3fEa3E5859d7f0b367Fd1",
+    issuing: "0x371019523b25Ff4F26d977724f976566b08bf741",
     chainid: 11155111
 };
 
@@ -36,11 +36,11 @@ async function registerIssuing() {
     const issuing = await ethers.getContractAt("xTokenIssuing", issuingNetwork.issuing, walletIssuing);
 
     await issuing.registerxToken(
-        44,
+        43,
         "0x0000000000000000000000000000000000000000",
-        "crab",
-        "crab native token",
-        "CRAB",
+        "pangolin",
+        "pangolin native token",
+        "PRING",
         18,
         "0x56bc75e2d63100000",
         { gasLimit: 1000000 }
@@ -48,11 +48,11 @@ async function registerIssuing() {
 }
 
 async function registerBacking() {
-    const backingNetwork = crabNetwork;
-    const walletBacking = wallet(crabNetwork.url);
+    const backingNetwork = pangolinNetwork;
+    const walletBacking = wallet(pangolinNetwork.url);
 
     const backing = await ethers.getContractAt("xTokenBacking", backingNetwork.backing, walletBacking);
-    const xToken = "0x9Da7E18441f26515CC713290BE846E726d41781d";
+    const xToken = "0xBC43cb6175FcC8E577a0846256eA699b87eFcEE5";
 
     await backing.registerOriginalToken(
         11155111,
@@ -63,8 +63,8 @@ async function registerBacking() {
 }
 
 async function lockAndRemoteIssuing() {
-    const backingNetwork = crabNetwork;
-    const walletBacking = wallet(crabNetwork.url);
+    const backingNetwork = pangolinNetwork;
+    const walletBacking = wallet(pangolinNetwork.url);
 
     const backing = await ethers.getContractAt("xTokenBacking", backingNetwork.backing, walletBacking);
 
@@ -73,10 +73,10 @@ async function lockAndRemoteIssuing() {
         11155111,
         "0x0000000000000000000000000000000000000000",
         walletBacking.address,
-        ethers.utils.parseEther("10"),
-        1703247763002,
+        ethers.utils.parseEther("10000"),
+        1703247763006,
         "0x000000000000000000000000000000000000000000000000000000000005f02200000000000000000000000088a39b052d477cfde47600a7c9950a441ce61cb400000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000",
-        { value: ethers.utils.parseEther("15.4") }
+        { value: ethers.utils.parseEther("10005") }
     );
 }
 
@@ -86,7 +86,7 @@ async function burnAndRemoteUnlock() {
 
     const issuing = await ethers.getContractAt("xTokenIssuing", issuingNetwork.issuing, walletIssuing);
 
-    const xTokenAddress = "0x9Da7E18441f26515CC713290BE846E726d41781d";
+    const xTokenAddress = "0xBC43cb6175FcC8E577a0846256eA699b87eFcEE5";
     const xToken = await ethers.getContractAt("xTokenErc20", xTokenAddress, walletIssuing);
     await xToken.approve(issuing.address, ethers.utils.parseEther("10000000"), {gasLimit: 500000});
     await issuing.burnAndRemoteUnlock(
@@ -109,12 +109,12 @@ async function requestRemoteUnlockForIssuingFailure() {
     const issuing = await ethers.getContractAt("xTokenIssuing", issuingNetwork.issuing, walletIssuing);
 
     await issuing.requestRemoteUnlockForIssuingFailure(
-        44,
+        43,
         "0x0000000000000000000000000000000000000000",
         walletIssuing.address,
         walletIssuing.address,
-        ethers.utils.parseEther("91"),
-        1703247763001,
+        ethers.utils.parseEther("12000"),
+        1703247763005,
         "0x000000000000000000000000000000000000000000000000000000000006493c00000000000000000000000088a39b052d477cfde47600a7c9950a441ce61cb400000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000",
         {
             value: ethers.utils.parseEther("0.0000007"),
@@ -124,8 +124,8 @@ async function requestRemoteUnlockForIssuingFailure() {
 }
 
 async function requestRemoteIssuingForUnlockFailure() {
-    const backingNetwork = crabNetwork;
-    const walletBacking = wallet(crabNetwork.url);
+    const backingNetwork = pangolinNetwork;
+    const walletBacking = wallet(pangolinNetwork.url);
 
     const backing = await ethers.getContractAt("xTokenBacking", backingNetwork.backing, walletBacking);
 
@@ -146,8 +146,8 @@ async function main() {
     //await registerBacking();
     //await lockAndRemoteIssuing();
     //await burnAndRemoteUnlock();
-    //await requestRemoteUnlockForIssuingFailure();
-    await requestRemoteIssuingForUnlockFailure();
+    await requestRemoteUnlockForIssuingFailure();
+    //await requestRemoteIssuingForUnlockFailure();
 }
 
 main()

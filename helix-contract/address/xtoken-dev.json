@@ -1,27 +1,27 @@
 {
     "messagers": {
-        "crab": {
-            "msglineMessager": "0xf85638B61E0425D6BB91981190B73246e3AF3CA9"
+        "pangolin": {
+            "msgportMessager": "0xf7F461728DC89de5EF6615715678b5f5b12bb98A"
         },
         "sepolia": {
-            "msglineMessager": "0xc876D0873e4060472334E297b2db200Ca10cc806"
+            "msgportMessager": "0xf7F461728DC89de5EF6615715678b5f5b12bb98A"
         },
         "tron": {
             "msglineMessager": "TR3nibHkcXovd1nsuNrLWigQboj4uduhKT"
         }
     },
     "backingProxy": {
-        "crab": "0xbdC7bbF408931C5d666b4F0520E0D9E9A0B04e99"
+        "pangolin": "0x94eAb0CB67AB7edaf9A280aCa097F70e4BD780ac"
     },
     "backingLogic": {
-        "crab": "0x01F53415adC20a2D058DfF14e295Ab955CafD6d6"
+        "pangolin": "0x1315f7050c66ceBE66983D8981007A1347830310"
     },
     "issuingProxy": {
-        "sepolia": "0xf22D0bb66b39745Ae6e3fEa3E5859d7f0b367Fd1",
+        "sepolia": "0x371019523b25Ff4F26d977724f976566b08bf741",
         "tron": "TJK57bJTvnaNRGFHwbihg1bXtgnyed6sKa"
     },
     "issuingLogic": {
-        "sepolia": "0xCD1c1C799f3914ECFC5e3653D3Cc846355d3dFC9",
+        "sepolia": "0x277d44E8E30cE978F742339C0B8ce22847a0fc00",
         "tron": "TD7VoAQnJDKsWsgZZTeeHvBKY5fogRDVc2"
     },
     "proxyAdmin": {

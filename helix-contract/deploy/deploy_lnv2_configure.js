@@ -164,11 +164,11 @@ async function registerToken(configure, contractName, srcWallet, dstWallet, srcN
         const targetToken = await ethers.getContractAt("Erc20", dstTokenAddress, dstWallet);
         dstDecimals = await targetToken.decimals();
     }
-    let fee = ethers.utils.parseUnits("100", srcDecimals);
+    let fee = ethers.utils.parseUnits("0.1", srcDecimals);
     const penaltyDecimals = contractName == "LnOppositeBridge" ? srcDecimals : dstDecimals;
     let penalty = ethers.utils.parseUnits("1000", penaltyDecimals);
     if (srcTokenAddress == kNativeTokenAddress || dstTokenAddress == kNativeTokenAddress) {
-        fee = ethers.utils.parseUnits("0.001", srcDecimals);
+        fee = ethers.utils.parseUnits("0.0001", srcDecimals);
         penalty = ethers.utils.parseUnits("0.01", penaltyDecimals);
     }
 
@@ -340,8 +340,8 @@ async function main() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    const network01 = configure.chains['arbitrum-sepolia'];
-    const network02 = configure.chains['zksync'];
+    const network01 = configure.chains['zksync'];
+    const network02 = configure.chains['sepolia'];
 
     const wallet01 = wallet(network01.url);
     const wallet02 = wallet(network02.url);
@@ -361,8 +361,8 @@ async function main() {
     //await approveAll(configure, network01, wallet01);
     //await approveAll(configure, network02, wallet02);
 
-    //await registerAllRelayer(configure, pair, "LnDefaultBridge");
-    //await registerAllRelayer(configure, pair, "LnOppositeBridge");
+    await registerAllRelayer(configure, pair, "LnDefaultBridge");
+    await registerAllRelayer(configure, pair, "LnOppositeBridge");
     console.log("finished!");
 }
 

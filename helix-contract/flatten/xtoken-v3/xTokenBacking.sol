@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/26/2023
+ * 2/6/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -158,29 +158,6 @@ interface IGuard {
 interface IWToken {
     function deposit() external payable;
     function withdraw(uint wad) external;
-}
-
-// File contracts/mapping-token/v3/interfaces/IxTokenIssuing.sol
-// License-Identifier: MIT
-
-interface IxTokenIssuing {
-    function handleIssuingForUnlockFailureFromRemote(
-        uint256 originalChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        uint256 amount,
-        uint256 nonce
-    ) external;
-
-    function issuexToken(
-        uint256 remoteChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        uint256 amount,
-        uint256 nonce
-    ) external;
 }
 
 // File contracts/interfaces/IMessager.sol
@@ -972,6 +949,29 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     function setDailyLimit(address _token, uint256 _dailyLimit) external onlyDao {
         _setDailyLimit(_token, _dailyLimit);
     }
+}
+
+// File contracts/mapping-token/v3/interfaces/IxTokenIssuing.sol
+// License-Identifier: MIT
+
+interface IxTokenIssuing {
+    function handleIssuingForUnlockFailureFromRemote(
+        uint256 originalChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        uint256 amount,
+        uint256 nonce
+    ) external;
+
+    function issuexToken(
+        uint256 remoteChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        uint256 amount,
+        uint256 nonce
+    ) external;
 }
 
 // File contracts/mapping-token/v3/base/xTokenBacking.sol

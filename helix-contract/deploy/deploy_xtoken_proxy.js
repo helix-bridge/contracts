@@ -7,24 +7,8 @@ var ProxyDeployer = require("./proxy.js");
 
 const privateKey = process.env.PRIKEY
 
-const crabNetwork = {
-    name: "crab",
-    url: "https://crab-rpc.darwinia.network",
-    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    proxyAdmin: "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
-};
-
-const sepoliaNetwork = {
-    name: "sepolia",
-    url: "https://rpc-sepolia.rockx.com",
-    dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    proxyAdmin: "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
-    deployer: "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
-};
-
-function wallet(url) {
-    const provider = new ethers.providers.JsonRpcProvider(url);
+function wallet(configure, network) {
+    const provider = new ethers.providers.JsonRpcProvider(network.url);
     const wallet = new ethers.Wallet(privateKey, provider);
     return wallet;
 }
@@ -38,19 +22,30 @@ async function deployxTokenProxy(wallet, salt, dao, proxyAdminAddress, logicAddr
         bridgeContract,
         logicAddress,
         [dao, salt],
-        wallet);
+        wallet,
+        5000000
+    );
     console.log("finish to deploy xtoken bridge proxy, address:", proxy);
     return proxy;
 }
 
 async function deploy() {
-    const walletCrab = wallet(crabNetwork.url);
-    const backingLogic = "0x22E50D0511538B78D4E3b94d4D51AFDa924286D0";
-    await deployxTokenProxy(walletCrab, "xtoken-backing-1.0.4", crabNetwork.dao, crabNetwork.proxyAdmin, backingLogic, crabNetwork.deployer);
+    const pathConfig = "./address/ln-dev.json";
+    const configure = JSON.parse(
+        fs.readFileSync(pathConfig, "utf8")
+    );
+    const network = configure.chains['sepolia'];
+    const w = wallet(configure, network);
 
-    const walletSepolia = wallet(sepoliaNetwork.url);
-    const issuingLogic = "0xCD1c1C799f3914ECFC5e3653D3Cc846355d3dFC9";
-    await deployxTokenProxy(walletSepolia, "xtoken-issuing-1.0.4", sepoliaNetwork.dao, sepoliaNetwork.proxyAdmin, issuingLogic, sepoliaNetwork.deployer);
+    const xTokenConfigPath = "./address/xtoken-dev.json";
+    const xTokenConfig = JSON.parse(
+        fs.readFileSync(xTokenConfigPath, "utf8")
+    );
+
+    //const backingLogic = xTokenConfig.backingLogic['pangolin'];
+    //await deployxTokenProxy(w, "xtoken-backing-1.0.0", network.dao, configure.ProxyAdmin.others, backingLogic, network.deployer);
+    const issuingLogic = xTokenConfig.issuingLogic['sepolia'];
+    await deployxTokenProxy(w, "xtoken-issuing-1.0.0", network.dao, configure.ProxyAdmin.others, issuingLogic, network.deployer);
 }
 
 async function main() {

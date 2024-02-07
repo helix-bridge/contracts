@@ -31,7 +31,7 @@ async function main() {
     const configure = JSON.parse(
         fs.readFileSync(pathConfig, "utf8")
     );
-    const network = configure.chains['pangolin'];
+    const network = configure.chains['sepolia'];
     const w = wallet(configure, network);
     await deployMessager(w, network.dao, network.ormpPort, network.deployer, "msgport-messager-v1.0.0");
 }

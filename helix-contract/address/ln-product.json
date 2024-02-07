@@ -80,6 +80,14 @@
             "lzChainId": 214,
             "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
             "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "darwinia-dvm": {
+            "name": "darwinia-dvm",
+            "url": "https://rpc.darwinia.network",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 46,
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+            "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F"
         }
     },
     "messagers": {
@@ -105,7 +113,8 @@
         },
         "darwinia": {
             "DarwiniaMsglineMessager": "0x6035Eb7783d7Aab8d0a57a7b154f5DD5D5477Ff2",
-            "DarwiniaSub2SubMessager": "0x9dF64c435F02fb46bd8eB3757D3dF42dDA912bDe"
+            "DarwiniaSub2SubMessager": "0x9dF64c435F02fb46bd8eB3757D3dF42dDA912bDe",
+            "MsgportMessager": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
         },
         "crab": {
             "DarwiniaSub2SubMessager": "0x9dF64c435F02fb46bd8eB3757D3dF42dDA912bDe"

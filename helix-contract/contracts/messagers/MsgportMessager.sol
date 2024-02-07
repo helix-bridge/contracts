@@ -2,10 +2,10 @@
 pragma solidity ^0.8.17;
 
 import "../utils/AccessController.sol";
-import "../interfaces/IMessageLine.sol";
+import "../interfaces/IMessagePort.sol";
 
 contract MsgportMessager is Application, AccessController {
-    IMessageLine public msgport;
+    IMessagePort public msgport;
 
     struct RemoteMessager {
         uint256 msgportRemoteChainId;
@@ -29,18 +29,18 @@ contract MsgportMessager is Application, AccessController {
         _;
     }
 
-    modifier onlyMsgline() {
+    modifier onlyMsgPort() {
         require(msg.sender == address(msgport), "invalid caller");
         _;
     }
 
     constructor(address _dao, address _msgport) {
         _initialize(_dao);
-        msgport = IMessageLine(_msgport);
+        msgport = IMessagePort(_msgport);
     }
 
-    function setMsgline(address _msgport) onlyDao external {
-        msgport = IMessageLine(_msgport);
+    function setMsgPort(address _msgport) onlyDao external {
+        msgport = IMessagePort(_msgport);
     }
 
     function setRemoteMessager(uint256 _appRemoteChainId, uint256 _msgportRemoteChainId, address _remoteMessager) onlyDao external {
@@ -80,7 +80,7 @@ contract MsgportMessager is Application, AccessController {
         );
     }
 
-    function receiveMessage(uint256 _srcAppChainId, address _remoteAppAddress, address _localAppAddress, bytes memory _message) onlyMsgline external {
+    function receiveMessage(uint256 _srcAppChainId, address _remoteAppAddress, address _localAppAddress, bytes memory _message) onlyMsgPort external {
         uint256 srcChainId = _fromChainId();
         RemoteMessager memory remoteMessager = remoteMessagers[_srcAppChainId];
         require(srcChainId == remoteMessager.msgportRemoteChainId, "invalid remote chainid");

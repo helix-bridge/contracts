@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 2/6/2024
+ * 2/20/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -61,17 +61,17 @@ contract AccessController {
     }
 }
 
-// File contracts/interfaces/IMessageLine.sol
+// File contracts/interfaces/IMessagePort.sol
 // License-Identifier: MIT
 
-interface IMessageLine {
+interface IMessagePort {
     function send(uint256 toChainId, address toDapp, bytes calldata message, bytes calldata params) external payable;
     function fee(uint256 toChainId, address toDapp, bytes calldata message, bytes calldata params) external view returns (uint256);
 }
 
 abstract contract Application {
-    function _msgSender() internal view returns (address payable _line) {
-        _line = payable(msg.sender);
+    function _msgSender() internal view returns (address payable _port) {
+        _port = payable(msg.sender);
     }
 
     function _fromChainId() internal pure returns (uint256 _msgDataFromChainId) {
@@ -82,7 +82,7 @@ abstract contract Application {
     }
 
     function _xmsgSender() internal pure returns (address payable _from) {
-        require(msg.data.length >= 20, "!line");
+        require(msg.data.length >= 20, "!port");
         assembly {
             _from := shr(96, calldataload(sub(calldatasize(), 20)))
         }
@@ -94,7 +94,7 @@ abstract contract Application {
 
 
 contract MsgportMessager is Application, AccessController {
-    IMessageLine public msgport;
+    IMessagePort public msgport;
 
     struct RemoteMessager {
         uint256 msgportRemoteChainId;
@@ -118,18 +118,18 @@ contract MsgportMessager is Application, AccessController {
         _;
     }
 
-    modifier onlyMsgline() {
+    modifier onlyMsgPort() {
         require(msg.sender == address(msgport), "invalid caller");
         _;
     }
 
     constructor(address _dao, address _msgport) {
         _initialize(_dao);
-        msgport = IMessageLine(_msgport);
+        msgport = IMessagePort(_msgport);
     }
 
-    function setMsgline(address _msgport) onlyDao external {
-        msgport = IMessageLine(_msgport);
+    function setMsgPort(address _msgport) onlyDao external {
+        msgport = IMessagePort(_msgport);
     }
 
     function setRemoteMessager(uint256 _appRemoteChainId, uint256 _msgportRemoteChainId, address _remoteMessager) onlyDao external {
@@ -169,7 +169,7 @@ contract MsgportMessager is Application, AccessController {
         );
     }
 
-    function receiveMessage(uint256 _srcAppChainId, address _remoteAppAddress, address _localAppAddress, bytes memory _message) onlyMsgline external {
+    function receiveMessage(uint256 _srcAppChainId, address _remoteAppAddress, address _localAppAddress, bytes memory _message) onlyMsgPort external {
         uint256 srcChainId = _fromChainId();
         RemoteMessager memory remoteMessager = remoteMessagers[_srcAppChainId];
         require(srcChainId == remoteMessager.msgportRemoteChainId, "invalid remote chainid");

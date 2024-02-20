@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 12/26/2023
+ * 1/30/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -94,7 +94,7 @@ abstract contract Application {
 
 
 contract MsglineMessager is Application, AccessController {
-    IMessageLine public immutable msgline;
+    IMessageLine public msgline;
 
     struct RemoteMessager {
         uint256 msglineRemoteChainId;
@@ -125,6 +125,10 @@ contract MsglineMessager is Application, AccessController {
 
     constructor(address _dao, address _msgline) {
         _initialize(_dao);
+        msgline = IMessageLine(_msgline);
+    }
+
+    function setMsgline(address _msgline) onlyDao external {
         msgline = IMessageLine(_msgline);
     }
 

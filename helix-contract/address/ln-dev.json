@@ -7,6 +7,7 @@
             "chainId": 11155111,
             "lzChainId": 10161,
             "lzEndpoint": "0xae92d5aD7583AD66E49A0c67BAd18F6ba52dDDc1",
+            "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F",
             "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
         },
         "arbitrum-sepolia": {
@@ -16,6 +17,15 @@
             "chainId": 421614,
             "lzChainId": 10231,
             "lzEndpoint": "0x6098e96a28E02f27B1e6BD381f870F1C8Bd169d3",
+            "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F",
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "pangolin": {
+            "name": "pangolin",
+            "url": "https://pangolin-rpc.darwinia.network",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 43,
+            "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F",
             "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
         },
         "zksync": {

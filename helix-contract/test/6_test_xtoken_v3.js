@@ -38,7 +38,7 @@ describe("xtoken tests", () => {
       console.log("mock msgline deployed address:", mockBackingMsgline.address, mockIssuingMsgline.address);
 
       // deploy msgline messager
-      const msglineMessagerContract = await ethers.getContractFactory("MsglineMessager");
+      const msglineMessagerContract = await ethers.getContractFactory("MsgportMessager");
       const backingMessager = await msglineMessagerContract.deploy(dao, mockBackingMsgline.address);
       await backingMessager.deployed();
       console.log("backing messager deployed address:", backingMessager.address);
@@ -89,11 +89,11 @@ describe("xtoken tests", () => {
       });
 
       const guardBackingContract = await ethers.getContractFactory("GuardV3");
-      const backingGuard = await guardBackingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60);
+      const backingGuard = await guardBackingContract.deploy([guards[0].address, guards[1].address, guards[2].address], owner.address, 2, 60);
       await backingGuard.deployed();
       await backingGuard.setDepositor(backing.address, true);
       const guardIssuingContract = await ethers.getContractFactory("GuardV3");
-      const issuingGuard = await guardIssuingContract.deploy([guards[0].address, guards[1].address, guards[2].address], 2, 60);
+      const issuingGuard = await guardIssuingContract.deploy([guards[0].address, guards[1].address, guards[2].address], owner.address, 2, 60);
       await issuingGuard.deployed();
       await issuingGuard.setDepositor(issuing.address, true);
 
@@ -355,6 +355,42 @@ describe("xtoken tests", () => {
           expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(amount);
       }
 
+      async function guardSetClaimTime(
+          guard,
+          timestamp,
+          wallets
+      ) {
+          // encode value
+          const nonce = await guard.nonce();
+          console.log(nonce);
+          const structHash =
+              ethUtil.keccak256(
+                  abi.rawEncode(
+                      ['bytes4', 'bytes', 'uint256'],
+                      [abi.methodID('setMaxUnclaimableTime', ['uint256', 'bytes[]' ]),
+                          abi.rawEncode(['uint256'], [timestamp]),
+                          Number(nonce)
+                      ]
+                  )
+              );
+          const dataHash = await guard.encodeDataHash(structHash);
+          const signatures = wallets.map((wallet) => {
+              const address = wallet.address;
+              const privateKey = ethers.utils.arrayify(wallet.privateKey);
+              const signatureECDSA = secp256k1.ecdsaSign(ethers.utils.arrayify(dataHash), privateKey);
+              const ethRecID = signatureECDSA.recid + 27;
+              const signature = Uint8Array.from(
+                  signatureECDSA.signature.join().split(',').concat(ethRecID)
+              );
+              return ethers.utils.hexlify(signature);
+          });
+          const timeBefore = await guard.maxUnclaimableTime();
+          expect((timeBefore.sub(timestamp)).lt(0));
+          await guard.setMaxUnclaimableTime(timestamp, signatures);
+          const timeAfter = await guard.maxUnclaimableTime();
+          expect(timeAfter).to.equal(timestamp);
+      }
+
       await registerToken(
           nativeTokenAddress,
           "ethereum",
@@ -545,6 +581,8 @@ describe("xtoken tests", () => {
           true,
           false
       );
+
+      await guardSetClaimTime(issuingGuard, 110011, [guards[0], guards[1]]);
   });
 });
 

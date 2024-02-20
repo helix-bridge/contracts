@@ -59,7 +59,8 @@ contract GuardV3 is GuardRegistryV3, Pausable {
         depositors[depositor] = enable;
     }
 
-    function setMaxUnclaimableTime(uint256 _maxUnclaimableTime) external onlyOperator {
+    function setMaxUnclaimableTime(uint256 _maxUnclaimableTime, bytes[] memory signatures) external {
+        verifyGuardSignatures(msg.sig, abi.encode(_maxUnclaimableTime), signatures);
         maxUnclaimableTime = _maxUnclaimableTime;
     }
 

@@ -167,6 +167,7 @@ describe("xtoken tests", () => {
               recipient,
               amount,
               nonce,
+              "0x",
               0,
               {value: ethers.utils.parseEther(fee)}
           )
@@ -209,6 +210,7 @@ describe("xtoken tests", () => {
               recipient,
               amount,
               nonce,
+              "0x",
               0,
               {value: ethers.utils.parseEther(fee)}
           );
@@ -329,12 +331,13 @@ describe("xtoken tests", () => {
               ethUtil.keccak256(
                   abi.rawEncode(
                       ['bytes4', 'bytes'],
-                      [abi.methodID('claim', ['address',  'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
-                          abi.rawEncode(['address', 'uint256', 'uint256', 'address', 'address', 'uint256'],
-                              [depositer, id, timestamp, token, recipient, amount])
+                      [abi.methodID('claim', ['address',  'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes', 'bytes[]' ]),
+                          abi.rawEncode(['address', 'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes'],
+                              [depositer, id, timestamp, token, recipient, amount, ethers.utils.arrayify("0x")])
                       ]
                   )
               );
+
           const dataHash = await guard.encodeDataHash(structHash);
           const signatures = wallets.map((wallet) => {
               const address = wallet.address;
@@ -348,7 +351,7 @@ describe("xtoken tests", () => {
           });
           const balanceBackingBefore = await balanceOf(token, depositer);
           const balanceRecipientBefore = await balanceOf(token, recipient);
-          await guard.claim(depositer, id, timestamp, token, recipient, amount, signatures);
+          await guard.claim(depositer, id, timestamp, token, recipient, amount, "0x", signatures);
           const balanceBackingAfter = await balanceOf(token, depositer);
           const balanceRecipientAfter = await balanceOf(token, recipient);
           expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);

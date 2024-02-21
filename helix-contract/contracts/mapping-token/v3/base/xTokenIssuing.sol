@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
 import "./xTokenBridgeBase.sol";
 import "./xTokenErc20.sol";
 import "../interfaces/IxTokenBacking.sol";
-import "../../interfaces/IGuard.sol";
+import "../../interfaces/IGuardV3.sol";
 import "../../../utils/TokenTransferHelper.sol";
+import "../../../interfaces/IUniswapV3SwapCallback.sol";
 
 contract xTokenIssuing is xTokenBridgeBase {
     struct OriginalTokenInfo {
@@ -97,7 +99,8 @@ contract xTokenIssuing is xTokenBridgeBase {
         address _originalSender,
         address _recipient,
         uint256 _amount,
-        uint256 _nonce
+        uint256 _nonce,
+        bytes calldata _extData
     ) external calledByMessager(_remoteChainId) whenNotPaused {
         bytes32 transferId = getTransferId(_nonce, _remoteChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         bytes32 salt = xTokenSalt(_remoteChainId, _originalToken);
@@ -113,9 +116,14 @@ contract xTokenIssuing is xTokenBridgeBase {
             xTokenErc20(xToken).mint(address(this), _amount);
             uint allowance = xTokenErc20(xToken).allowance(address(this), _guard);
             require(xTokenErc20(xToken).approve(_guard, allowance + _amount), "approve token transfer to guard failed");
-            IGuard(_guard).deposit(uint256(transferId), xToken, _recipient, _amount);
+            IGuardV3(_guard).deposit(uint256(transferId), xToken, _recipient, _amount, _extData);
         } else {
             xTokenErc20(xToken).mint(_recipient, _amount);
+            if (ERC165Checker.supportsInterface(_recipient, type(IUniswapV3SwapCallback).interfaceId)) {
+                CallbackInfo memory callbackInfo = CallbackInfo(msg.sig, transferId, xToken, _extData);
+                bytes memory data = abi.encode(callbackInfo);
+                IUniswapV3SwapCallback(_recipient).uniswapV3SwapCallback(int256(_amount), int256(_amount), data);
+            }
         }
         emit xTokenIssued(transferId, _remoteChainId, _originalToken, xToken, _recipient, _amount);
     }
@@ -125,11 +133,12 @@ contract xTokenIssuing is xTokenBridgeBase {
         address _recipient,
         uint256 _amount,
         uint256 _nonce,
+        bytes calldata _extData,
         bytes memory _extParams
-    ) external payable {
+    ) external payable returns(bytes32 transferId) {
         require(_amount > 0, "can not transfer amount zero");
         OriginalTokenInfo memory originalInfo = originalTokens[_xToken];
-        bytes32 transferId = getTransferId(_nonce, originalInfo.chainId, block.chainid, originalInfo.token, msg.sender, _recipient, _amount);
+        transferId = getTransferId(_nonce, originalInfo.chainId, block.chainid, originalInfo.token, msg.sender, _recipient, _amount);
         _requestTransfer(transferId);
         // transfer to this and then burn
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
@@ -140,7 +149,8 @@ contract xTokenIssuing is xTokenBridgeBase {
             msg.sender,
             _recipient,
             _amount,
-            _nonce
+            _nonce,
+            _extData
         );
         _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
         emit BurnAndRemoteUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
@@ -151,7 +161,8 @@ contract xTokenIssuing is xTokenBridgeBase {
         address _originalSender,
         address _recipient,
         uint256 _amount,
-        uint256 _nonce
+        uint256 _nonce,
+        bytes calldata _extData
     ) public view returns(bytes memory) {
         return abi.encodeWithSelector(
             IxTokenBacking.unlockFromRemote.selector,
@@ -160,7 +171,8 @@ contract xTokenIssuing is xTokenBridgeBase {
             _originalSender,
             _recipient,
             _amount,
-            _nonce
+            _nonce,
+            _extData
         );
     }
 
@@ -230,6 +242,11 @@ contract xTokenIssuing is xTokenBridgeBase {
         require(xToken != address(0), "xToken not exist");
 
         xTokenErc20(xToken).mint(_originalSender, _amount);
+        if (ERC165Checker.supportsInterface(_originalSender, type(IUniswapV3SwapCallback).interfaceId)) {
+            CallbackInfo memory callbackInfo = CallbackInfo(msg.sig, transferId, _originalToken, "");
+            bytes memory data = abi.encode(callbackInfo);
+            IUniswapV3SwapCallback(_originalSender).uniswapV3SwapCallback(int256(_amount), int256(_amount), data);
+        }
         emit TokenRemintForFailed(transferId, _originalChainId, _originalToken, xToken, _originalSender, _amount);
     }
 

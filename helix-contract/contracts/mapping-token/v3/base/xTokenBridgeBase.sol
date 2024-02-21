@@ -25,6 +25,13 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         bool hasRefundForFailed;
     }
 
+    struct CallbackInfo {
+        bytes4 sig;
+        bytes32 transferId;
+        address token;
+        bytes extData;
+    }
+
     // the version is to issue different xTokens for different version of bridge.
     string public version;
     // the protocol fee for each time user send transaction

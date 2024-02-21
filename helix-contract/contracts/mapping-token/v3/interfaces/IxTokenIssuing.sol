@@ -17,6 +17,7 @@ interface IxTokenIssuing {
         address originalSender,
         address recipient,
         uint256 amount,
-        uint256 nonce
+        uint256 nonce,
+        bytes calldata extData
     ) external;
 }

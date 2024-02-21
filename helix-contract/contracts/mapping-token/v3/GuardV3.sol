@@ -4,13 +4,19 @@ pragma solidity >=0.8.17;
 
 import "@zeppelin-solidity/contracts/security/Pausable.sol";
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
-import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
+import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
 import "./GuardRegistryV3.sol";
 import "../interfaces/IWToken.sol";
 import "../../utils/TokenTransferHelper.sol";
+import "../../interfaces/IUniswapV3SwapCallback.sol";
 
 contract GuardV3 is GuardRegistryV3, Pausable {
-    using SafeMath for uint256;
+    struct CallbackInfo {
+        bytes4 sig;
+        bytes32 transferId;
+        address token;
+        bytes extData;
+    }
 
     mapping(uint256 => bytes32) public deposits;
 
@@ -18,7 +24,7 @@ contract GuardV3 is GuardRegistryV3, Pausable {
     mapping(address => bool) public depositors;
     address public operator;
 
-    event TokenDeposit(address sender, uint256 id, uint256 timestamp, address token, address recipient, uint256 amount);
+    event TokenDeposit(address sender, uint256 id, uint256 timestamp, address token, address recipient, uint256 amount, bytes extData);
     event TokenClaimed(uint256 id);
 
     constructor(
@@ -50,116 +56,127 @@ contract GuardV3 is GuardRegistryV3, Pausable {
         _pause();
     }
 
-    function setOperator(address newOperator, bytes[] memory signatures) external {
-        verifyGuardSignatures(msg.sig, abi.encode(newOperator), signatures);
-        operator = newOperator;
+    function setOperator(address _operator, bytes[] calldata _signatures) external {
+        verifyGuardSignatures(msg.sig, abi.encode(_operator), _signatures);
+        operator = _operator;
     }
 
-    function setDepositor(address depositor, bool enable) external onlyOperator {
-        depositors[depositor] = enable;
+    function setDepositor(address _depositor, bool _enable) external onlyOperator {
+        depositors[_depositor] = _enable;
     }
 
-    function setMaxUnclaimableTime(uint256 _maxUnclaimableTime, bytes[] memory signatures) external {
-        verifyGuardSignatures(msg.sig, abi.encode(_maxUnclaimableTime), signatures);
+    function setMaxUnclaimableTime(uint256 _maxUnclaimableTime, bytes[] calldata _signatures) external {
+        verifyGuardSignatures(msg.sig, abi.encode(_maxUnclaimableTime), _signatures);
         maxUnclaimableTime = _maxUnclaimableTime;
     }
 
     /**
       * @dev deposit token to guard, waiting to claim, only allowed depositor
-      * @param id the id of the operation, should be siged later by guards
-      * @param token the erc20 token address
-      * @param recipient the recipient of the token
-      * @param amount the amount of the token
+      * @param _id the id of the operation, should be siged later by guards
+      * @param _token the erc20 token address
+      * @param _recipient the recipient of the token
+      * @param _amount the amount of the token
       */
     function deposit(
-        uint256 id,
-        address token,
-        address recipient,
-        uint256 amount
+        uint256 _id,
+        address _token,
+        address _recipient,
+        uint256 _amount,
+        bytes calldata _extData
     ) public onlyDepositor whenNotPaused {
-        deposits[id] = hash(abi.encodePacked(msg.sender, block.timestamp, token, recipient, amount));
-        emit TokenDeposit(msg.sender, id, block.timestamp, token, recipient, amount);
+        require(deposits[_id] == bytes32(0), "Guard: deposit conflit");
+        deposits[_id] = hash(abi.encodePacked(msg.sender, block.timestamp, _token, _recipient, _amount, _extData));
+        emit TokenDeposit(msg.sender, _id, block.timestamp, _token, _recipient, _amount, _extData);
     }
 
     function claimById(
-        address from,
-        uint256 id,
-        uint256 timestamp,
-        address token,
-        address recipient,
-        uint256 amount,
-        bool isNative
+        address _from,
+        uint256 _id,
+        uint256 _timestamp,
+        address _token,
+        address _recipient,
+        uint256 _amount,
+        bytes calldata _extData,
+        bool _isNative
     ) internal {
-        require(hash(abi.encodePacked(from, timestamp, token, recipient, amount)) == deposits[id], "Guard: Invalid id to claim");
-        require(amount > 0, "Guard: Invalid amount to claim");
-        delete deposits[id];
-        if (isNative) {
-            TokenTransferHelper.safeTransferFrom(token, from, address(this), amount);
+        require(hash(abi.encodePacked(_from, _timestamp, _token, _recipient, _amount, _extData)) == deposits[_id], "Guard: Invalid id to claim");
+        require(_amount > 0, "Guard: Invalid amount to claim");
+        delete deposits[_id];
+        if (_isNative) {
+            TokenTransferHelper.safeTransferFrom(_token, _from, address(this), _amount);
             uint256 balanceBefore = address(this).balance;
-            IWToken(token).withdraw(amount);
-            require(address(this).balance == balanceBefore.add(amount), "Guard: token is not wrapped by native token");
-            TokenTransferHelper.safeTransferNative(recipient, amount);
+            IWToken(_token).withdraw(_amount);
+            require(address(this).balance == balanceBefore + _amount, "Guard: token is not wrapped by native token");
+            TokenTransferHelper.safeTransferNative(_recipient, _amount);
         } else {
-            TokenTransferHelper.safeTransferFrom(token, from, recipient, amount);
+            TokenTransferHelper.safeTransferFrom(_token, _from, _recipient, _amount);
         }
-        emit TokenClaimed(id);
+        if (ERC165Checker.supportsInterface(_recipient, type(IUniswapV3SwapCallback).interfaceId)) {
+            CallbackInfo memory callbackInfo = CallbackInfo(msg.sig, bytes32(_id), _token, _extData);
+            bytes memory data = abi.encode(callbackInfo);
+            IUniswapV3SwapCallback(_recipient).uniswapV3SwapCallback(int256(_amount), int256(_amount), data);
+        }
+        emit TokenClaimed(_id);
     }
 
     /**
       * @dev claim the tokens in the contract saved by deposit, this acquire signatures from guards
-      * @param id the id to be claimed
-      * @param signatures the signatures of the guards which to claim tokens.
+      * @param _id the id to be claimed
+      * @param _signatures the signatures of the guards which to claim tokens.
       */
     function claim(
-        address from,
-        uint256 id,
-        uint256 timestamp,
-        address token,
-        address recipient,
-        uint256 amount,
-        bytes[] memory signatures
+        address _from,
+        uint256 _id,
+        uint256 _timestamp,
+        address _token,
+        address _recipient,
+        uint256 _amount,
+        bytes calldata _extData,
+        bytes[] calldata _signatures
     ) public {
-        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(from, id, timestamp, token, recipient, amount), signatures);
-        claimById(from, id, timestamp, token, recipient, amount, false);
+        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(_from, _id, _timestamp, _token, _recipient, _amount, _extData), _signatures);
+        claimById(_from, _id, _timestamp, _token, _recipient, _amount, _extData, false);
     }
 
     /**
       * @dev claimNative the tokens in the contract saved by deposit, this acquire signatures from guards
-      * @param id the id to be claimed
-      * @param signatures the signatures of the guards which to claim tokens.
+      * @param _id the id to be claimed
+      * @param _signatures the signatures of the guards which to claim tokens.
       */
     function claimNative(
-        address from,
-        uint256 id,
-        uint256 timestamp,
-        address token,
-        address recipient,
-        uint256 amount,
-        bytes[] memory signatures
+        address _from,
+        uint256 _id,
+        uint256 _timestamp,
+        address _token,
+        address _recipient,
+        uint256 _amount,
+        bytes calldata _extData,
+        bytes[] calldata _signatures
     ) public {
-        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(from, id, timestamp, token, recipient, amount), signatures);
-        claimById(from, id, timestamp, token, recipient, amount, true);
+        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(_from, _id, _timestamp, _token, _recipient, _amount, _extData), _signatures);
+        claimById(_from, _id, _timestamp, _token, _recipient, _amount, _extData, true);
     }
 
     /**
       * @dev claim the tokens without signatures, this only allowed when timeout
-      * @param id the id to be claimed
+      * @param _id the id to be claimed
       */
     function claimByTimeout(
-        address from,
-        uint256 id,
-        uint256 timestamp,
-        address token,
-        address recipient,
-        uint256 amount,
-        bool isNative
+        address _from,
+        uint256 _id,
+        uint256 _timestamp,
+        address _token,
+        address _recipient,
+        uint256 _amount,
+        bool _isNative,
+        bytes calldata _extData
     ) public whenNotPaused {
-        require(timestamp < block.timestamp && block.timestamp - timestamp > maxUnclaimableTime, "Guard: claim at invalid time");
-        claimById(from, id, timestamp, token, recipient, amount, isNative);
+        require(_timestamp < block.timestamp && block.timestamp - _timestamp > maxUnclaimableTime, "Guard: claim at invalid time");
+        claimById(_from, _id, _timestamp, _token, _recipient, _amount, _extData, _isNative);
     }
 
-    function hash(bytes memory value) public pure returns (bytes32) {
-        return sha256(value);
+    function hash(bytes memory _value) public pure returns (bytes32) {
+        return sha256(_value);
     }
 }
 

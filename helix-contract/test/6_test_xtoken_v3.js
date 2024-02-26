@@ -583,6 +583,25 @@ describe("xtoken tests", () => {
       );
 
       await guardSetClaimTime(issuingGuard, 110011, [guards[0], guards[1]]);
+
+      // transfer Ownership
+      const nativexTokenAddress = xTokens[nativeTokenAddress];
+      const xToken = await ethers.getContractAt("xTokenErc20", nativexTokenAddress);
+      const ownerBefore = await xToken.owner();
+      expect(ownerBefore).to.be.equal(issuing.address);
+
+      const newIssuing = await xTokenIssuingContract.deploy();
+      await newIssuing.deployed();
+      await newIssuing.initialize(dao, "v2.0.0");
+
+      await issuing.transferxTokenOwnership(
+          xTokens[nativeTokenAddress],
+          newIssuing.address
+      );
+      expect(await xToken.owner()).to.be.equal(issuing.address);
+      await newIssuing.acceptxTokenOwnership(issuing.address, nativexTokenAddress);
+      expect(await xToken.owner()).to.be.equal(newIssuing.address);
+      console.log("test finished");
   });
 });
 

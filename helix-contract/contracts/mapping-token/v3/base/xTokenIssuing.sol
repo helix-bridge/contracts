@@ -68,7 +68,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     }
 
     // using this interface, the Issuing contract must be must be granted mint and burn authorities.
-    // warning: if the _xToken contract has no transferOwnership/acceptOwnership interface, then the authority cannot be transfered.
+    // warning: if the _xToken contract has no transferOwnership interface, then the authority cannot be transfered.
     function updatexToken(
         uint256 _originalChainId,
         address _originalToken,

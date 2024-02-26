@@ -17,7 +17,6 @@ contract xTokenErc20 is IERC20 {
     uint8 public decimals;
 
     address public owner;
-    address public pendingOwner;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
@@ -40,13 +39,7 @@ contract xTokenErc20 is IERC20 {
     }
 
     function transferOwnership(address newOwner) public onlyOwner {
-        pendingOwner = newOwner;
-    }
-
-    function acceptOwnership() external {
-        require(pendingOwner == msg.sender, "invalid pending owner");
-        _transferOwnership(pendingOwner);
-        pendingOwner = address(0);
+        _transferOwnership(newOwner);
     }
 
     function totalSupply() public view override returns (uint256) {

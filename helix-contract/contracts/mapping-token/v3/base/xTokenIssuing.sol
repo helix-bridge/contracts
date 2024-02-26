@@ -19,6 +19,9 @@ contract xTokenIssuing is xTokenBridgeBase {
     // xToken => Origin Token Info
     mapping(address => OriginalTokenInfo) public originalTokens;
 
+    // pending xToken ownership
+    mapping(address => address) public pendingxTokenOwners;
+
     event IssuingERC20Created(uint256 originalChainId, address originalToken, address xToken);
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
     event RemoteUnlockForIssuingFailureRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
@@ -83,11 +86,17 @@ contract xTokenIssuing is xTokenBridgeBase {
 
     // transfer xToken ownership
     function transferxTokenOwnership(address _xToken, address _newOwner) external onlyDao {
-        xTokenErc20(_xToken).transferOwnership(_newOwner);
+        pendingxTokenOwners[_xToken] = _newOwner;
     }
 
-    function acceptxTokenOwnership(address _xToken) external onlyDao {
-        xTokenErc20(_xToken).acceptOwnership();
+    function doTransferxTokenOwnership(address _xToken) external {
+        require(pendingxTokenOwners[_xToken] == msg.sender, "invalid new owner");
+        delete pendingxTokenOwners[_xToken];
+        xTokenErc20(_xToken).transferOwnership(msg.sender);
+    }
+
+    function acceptxTokenOwnership(address payable _oldOwner, address _xToken) external onlyDao {
+        xTokenIssuing(_oldOwner).doTransferxTokenOwnership(_xToken);
     }
 
     // receive issuing xToken message from remote backing contract

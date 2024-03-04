@@ -33,6 +33,18 @@
             "url": "https://sepolia.era.zksync.dev",
             "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
             "chainId": 300
+        },
+        "blast-sepolia": {
+            "name": "blast-sepolia",
+            "url": "https://blast-sepolia.blockpi.network/v1/rpc/public",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 168587773,
+            "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F",
+            "deployer": "0xbE5C655Bd52238267eD4694C2207473659D1f0Ce",
+            "blast": "0x4300000000000000000000000000000000000002",
+            "blastPoints": "0x2fc95838c71e76ec69ff817983BFf17c710F34E0",
+            "lzChainId": 10243,
+            "lzEndpoint": "0x2cA20802fd1Fd9649bA8Aa7E50F0C82b479f35fe"
         }
     },
     "messagers": {
@@ -48,10 +60,14 @@
         },
         "zksync": {
             "layerzeroMessager": "0xf29244511DA9242D8A452f7EB1264B52A19f5058"
+        },
+        "blast-sepolia": {
+            "layerzeroMessager": "0x0ac58Df0cc3542beC4cDa71B16D06C3cCc39f405"
         }
     },
     "ProxyAdmin": {
         "zksync": "0x57E8fcaAfDE61b179BAe86cDAbfaca99E2A16484",
+        "blast-sepolia": "0x9141243c0aD8D99D790654F453BB8Bf188418915",
         "others": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730"
     },
     "LnDefaultBridgeLogic": {
@@ -66,10 +82,12 @@
     "LnOppositeBridgeProxy": "0xbA96d83E2A04c4E50F2D6D7eCA03D70bA2426e5f",
     "LnV3BridgeLogic": {
         "zksync": "0x67C3C81113Afb9A73d7ce5868046D97D0e44db59",
+        "blast-sepolia": "0x11644AE17904F25Ee4Cea7b57ba348269d826779",
         "others": "0xdf383487CB33a3C78a884494e2456910d79d361c"
     },
     "LnV3BridgeProxy": {
         "zksync": "0xDc55fF59F82AA50D8A4A61dB8CcaDffD26Fb7dD2",
+        "blast-sepolia": "0x328f065Dbffd8510fbF2330F24BA97EAb5a9Ad7C",
         "others": "0x38627Cb033De66a1E07e73f5D0a7a7adFB6741fa"
     },
     "deployer": "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
@@ -85,6 +103,9 @@
         "arbitrum-sepolia": "0x8A87497488073307E1a17e8A12475a94Afcb413f",
         "sepolia": "0x0ac58Df0cc3542beC4cDa71B16D06C3cCc39f405",
         "scroll-sepolia": "0x8A87497488073307E1a17e8A12475a94Afcb413f"
+    },
+    "usdb": {
+        "blast-sepolia": "0x4200000000000000000000000000000000000022"
     },
     "keyTool": {
         "goerli": "0xCD45731FFF1b250e9433A1F1F5A609F3A19557A5"

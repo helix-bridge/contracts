@@ -39,5 +39,13 @@ library TokenTransferHelper {
         (bool success,) = payable(receiver).call{value: amount}("");
         require(success, "helix:transfer native token failed");
     }
+
+    function tryTransferNative(
+        address receiver,
+        uint256 amount
+    ) internal returns(bool) {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        return success;
+    }
 }
 

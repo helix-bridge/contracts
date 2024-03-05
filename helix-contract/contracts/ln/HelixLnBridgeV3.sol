@@ -42,5 +42,9 @@ contract HelixLnBridgeV3 is Initializable, LnBridgeSourceV3, LnBridgeTargetV3 {
         address receiveService = messagers[_remoteChainId].receiveService;
         require(receiveService == msg.sender, "invalid messager");
     }
+
+    function _unreachableNativeTokenReceiver() internal view override returns(address) {
+        return dao;
+    }
 }
 

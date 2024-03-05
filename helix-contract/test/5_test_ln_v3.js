@@ -47,6 +47,9 @@ describe("lnv3 bridge tests", () => {
       await arbToken.deployed();
       console.log("contract deploy erc20 finished");
 
+      // use Erc20 token address as unreachable contract address(can't receive native token)
+      const unreachableContract = arbToken.address;
+
       const tokenNameNativeOnEthereum = "Ethereum Native Token";
       const tokenSymbolNativeOnEthereum = "ETH";
       const tokenNameNativeOnArbitrum = "Arbitrum Native Token";
@@ -294,7 +297,7 @@ describe("lnv3 bridge tests", () => {
 
       // balance
       // srcChain: user -> source bridge contract [amount + providerFee + protocolFee]
-      async function transfer(direction, timestamp, isNative) {
+      async function transfer(direction, timestamp, isNative, receiver = user.address) {
           const chainInfo = await getChainInfo(direction, isNative);
           const totalFee = Number(await chainInfo.srcBridge.totalFee(
               chainInfo.dstChainId,
@@ -312,7 +315,7 @@ describe("lnv3 bridge tests", () => {
               chainInfo.dstToken,
               totalFee,
               transferAmount,
-              user.address,
+              receiver,
               timestamp,
           ];
           let value = 0;
@@ -344,10 +347,11 @@ describe("lnv3 bridge tests", () => {
 
       // balance
       // on target: relayer -> user
-      async function relay(direction, transferId, timestamp, isNative) {
+      async function relay(direction, transferId, timestamp, isNative, receiver = user.address) {
           const chainInfo = await getChainInfo(direction, isNative);
           const balanceOfUser = await balanceOf(chainInfo.dstToken, user.address);
           const balanceOfRelayer = await balanceOf(chainInfo.dstToken, relayer.address);
+          const balanceOfDao = await balanceOf(chainInfo.dstToken, dao);
           const targetAmount = await getTargetAmount(direction, transferAmount, isNative);
           let value = 0;
           if (isNative) {
@@ -361,7 +365,7 @@ describe("lnv3 bridge tests", () => {
                   chainInfo.dstToken, // targetToken
                   transferAmount,
                   targetAmount,
-                  user.address,
+                  receiver,
                   timestamp,
               ],
               transferId,
@@ -376,7 +380,8 @@ describe("lnv3 bridge tests", () => {
           expect(slashInfo.slasher).to.equal(nullAddress);
           const balanceOfUserAfter = await balanceOf(chainInfo.dstToken, user.address);
           const balanceOfRelayerAfter = await balanceOf(chainInfo.dstToken, relayer.address);
-          expect(balanceOfUserAfter.sub(balanceOfUser)).to.equal(targetAmount);
+          const userBalanceDiffer = receiver == user.address ? targetAmount : 0;
+          expect(balanceOfUserAfter.sub(balanceOfUser)).to.equal(userBalanceDiffer);
 
           let relayReceipt = await relayTransaction.wait();
           let relayGasUsed = relayReceipt.cumulativeGasUsed;
@@ -385,12 +390,16 @@ describe("lnv3 bridge tests", () => {
               expect(balanceOfRelayer - balanceOfRelayerAfter).to.equal(targetAmount);
           } else {
               expect(balanceOfRelayer.sub(balanceOfRelayerAfter).sub(gasFee)).to.equal(targetAmount);
+              if (receiver == unreachableContract) {
+                  const balanceOfDaoAfter = await balanceOf(chainInfo.dstToken, dao);
+                  expect(balanceOfDaoAfter.sub(balanceOfDao)).to.equal(targetAmount);
+              }
           }
 
           console.log("relay gas used", relayGasUsed);
       }
 
-      async function slash(direction, expectedTransferId, timestamp, isNative) {
+      async function slash(direction, expectedTransferId, timestamp, isNative, receiver = user.address) {
           const chainInfo = await getChainInfo(direction, isNative);
           const dstToken = await ethers.getContractAt("Erc20", chainInfo.dstToken);
           await dstToken.connect(slasher).approve(chainInfo.dstBridge.address, initTokenBalance);
@@ -399,6 +408,7 @@ describe("lnv3 bridge tests", () => {
           const balanceOfSlasher = await balanceOf(chainInfo.dstToken, slasher.address);
           const balanceOfSlasherOnSrc = await balanceOf(chainInfo.srcToken, slasher.address);
           const targetAmount = await getTargetAmount(direction, transferAmount, isNative);
+          const balanceOfDao = await balanceOf(chainInfo.dstToken, dao);
 
           const feePrepaid = ethers.utils.parseEther("0.01");
           let value = feePrepaid;
@@ -414,7 +424,7 @@ describe("lnv3 bridge tests", () => {
                   chainInfo.dstToken,
                   transferAmount,
                   targetAmount,
-                  user.address,
+                  receiver,
                   timestamp,
               ],
               expectedTransferId,
@@ -438,12 +448,17 @@ describe("lnv3 bridge tests", () => {
               chainInfo.dstToken,
               transferAmount
           ));
-          expect(balanceOfUserAfter.sub(balanceOfUser)).to.equal(targetAmount);
+          const userBalanceDiffer = receiver == user.address ? targetAmount : 0;
+          expect(balanceOfUserAfter.sub(balanceOfUser)).to.equal(userBalanceDiffer);
           if (!isNative) {
               expect(balanceOfSlasher - balanceOfSlasherAfter).to.equal(targetAmount);
               expect(balanceOfSlasherAfterOnSrc - balanceOfSlasherOnSrc).to.equal(transferAmount + penalty + totalFee - protocolFee);
           } else {
               expect(balanceOfSlasherAfter.sub(balanceOfSlasher).add(feePrepaid).add(gasFee)).to.equal(penalty + totalFee - protocolFee);
+              if (receiver == unreachableContract) {
+                  const balanceOfDaoAfter = await balanceOf(chainInfo.dstToken, dao);
+                  expect(balanceOfDaoAfter.sub(balanceOfDao)).to.equal(targetAmount);
+              }
           }
           expect(slashInfo.slasher).to.equal(slasher.address);
           return slashTransaction;
@@ -555,6 +570,29 @@ describe("lnv3 bridge tests", () => {
               params: [3601],
           });
           await slash("arb2eth", transferId22, blockTimestamp21, true);
+          console.log("test finished");
+      }
+
+      // test unreachable native token
+      {
+          await arbBridge.connect(relayer).providerUnpause(
+            ethChainId,
+            nativeTokenAddress,
+            nativeTokenAddress,
+          );
+          let timestamp = (await ethers.provider.getBlock("latest")).timestamp;
+          const transferId31 = await transfer('arb2eth', timestamp, true, unreachableContract);
+          const blockTimestamp31 = (await ethers.provider.getBlock("latest")).timestamp;
+          await relay('arb2eth', transferId31, timestamp, true, unreachableContract);
+
+          const transferId32 = await transfer('arb2eth', blockTimestamp31, true, unreachableContract);
+          const blockTimestamp32 = (await ethers.provider.getBlock("latest")).timestamp;
+          await expect(slash("arb2eth", transferId32, blockTimestamp31, true, unreachableContract)).to.be.revertedWith("time not expired");
+          await hre.network.provider.request({
+              method: "evm_increaseTime",
+              params: [3601],
+          });
+          await slash("arb2eth", transferId32, blockTimestamp31, true, unreachableContract);
           console.log("test finished");
       }
   });

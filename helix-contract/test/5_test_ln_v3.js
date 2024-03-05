@@ -77,10 +77,10 @@ describe("lnv3 bridge tests", () => {
 
       const ethBridge = await bridgeContract.deploy();
       await ethBridge.deployed();
-      await ethBridge.initialize(dao, 0);
+      await ethBridge.initialize(dao, '0x');
       const arbBridge = await bridgeContract.deploy();
       await arbBridge.deployed();
-      await arbBridge.initialize(dao, 0);
+      await arbBridge.initialize(dao, '0x');
 
       // eth -> arb messager service
       console.log("deploy etherum to arbitrum l1->l2 message service");

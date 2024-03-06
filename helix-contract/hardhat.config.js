@@ -89,9 +89,22 @@ module.exports = {
       url: 'http://localhost:8545/',
       network_id: "*",
     },
+      blast_sepolia: {
+        url: 'https://sepolia.blast.io'
+      },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY
+    apiKey: "blast_sepolia",
+    customChains: [
+      {
+        network: "blast_sepolia",
+        chainId: 168587773,
+        urls: {
+          apiURL: "https://api.routescan.io/v2/network/testnet/evm/168587773/etherscan",
+          browserURL: "https://testnet.blastscan.io"
+        }
+      }
+    ]    
   },
   abiExporter: {
     path: './abi/',

@@ -105,6 +105,14 @@
             "chainId": 44,
             "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
             "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F"
+        },
+        "blast": {
+            "name": "blast",
+            "url": "https://rpc.blast.io",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 81457,
+            "deployer": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
+            "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F"
         }
     },
     "messagers": {

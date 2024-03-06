@@ -40,7 +40,7 @@
             "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
             "chainId": 168587773,
             "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F",
-            "deployer": "0xbE5C655Bd52238267eD4694C2207473659D1f0Ce",
+            "deployer": "0x4E3913B1353621AAe805687f5F8d9B95E8529396",
             "blast": "0x4300000000000000000000000000000000000002",
             "blastPoints": "0x2fc95838c71e76ec69ff817983BFf17c710F34E0",
             "lzChainId": 10243,
@@ -82,7 +82,7 @@
     "LnOppositeBridgeProxy": "0xbA96d83E2A04c4E50F2D6D7eCA03D70bA2426e5f",
     "LnV3BridgeLogic": {
         "zksync": "0x67C3C81113Afb9A73d7ce5868046D97D0e44db59",
-        "blast-sepolia": "0x11644AE17904F25Ee4Cea7b57ba348269d826779",
+        "blast-sepolia": "0x99Bd37D588aDfCE4Da02F78276e4Eb934EE16394",
         "others": "0xdf383487CB33a3C78a884494e2456910d79d361c"
     },
     "LnV3BridgeProxy": {

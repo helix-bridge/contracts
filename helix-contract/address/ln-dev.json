@@ -87,7 +87,7 @@
     },
     "LnV3BridgeProxy": {
         "zksync": "0xDc55fF59F82AA50D8A4A61dB8CcaDffD26Fb7dD2",
-        "blast-sepolia": "0x328f065Dbffd8510fbF2330F24BA97EAb5a9Ad7C",
+        "blast-sepolia": "0x727f428daaa6780b3BAA748dDf422FD80bB36683",
         "others": "0x38627Cb033De66a1E07e73f5D0a7a7adFB6741fa"
     },
     "deployer": "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",

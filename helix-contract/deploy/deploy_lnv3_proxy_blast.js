@@ -15,13 +15,14 @@ function wallet(url) {
 
 async function deployLnBridgeV3Proxy(wallet, salt, dao, blast, blastPoints, proxyAdminAddress, logicAddress, deployer) {
     const bridgeContract = await ethers.getContractFactory("HelixLnBridgeV3ForBlast", wallet);
+    const data = ethers.utils.defaultAbiCoder.encode(['address', 'address'], [blast, blastPoints]);
     const lnBridgeProxy = await ProxyDeployer.deployProxyContract2(
         deployer,
         salt,
         proxyAdminAddress,
         bridgeContract,
         logicAddress,
-        [dao, blast, blastPoints],
+        [dao, data],
         wallet,
         //{ gasLimit: 8000000 }
     );

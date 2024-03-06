@@ -111,6 +111,8 @@
             "url": "https://rpc.blast.io",
             "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
             "chainId": 81457,
+            "blast": "0x4300000000000000000000000000000000000002",
+            "blastPoints": "0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800",
             "deployer": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
             "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F"
         }
@@ -162,10 +164,14 @@
         },
         "gnosis": {
             "LayerZeroMessager": "0x3F7DF5866591e7E48D18C8EbeAE61Bc343a63283"
+        },
+        "blast": {
+            "MsgportMessager": "0x98982b1685a63596834a05C1288dA7fbF27d684E"
         }
     },
     "ProxyAdmin": {
         "common": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+        "blast": "0x7684389eAa307e25Af38A31873E31Cc3B513EE01",
         "zkSync": "0xA0d8a3C04580a8503ed3Ff30deBb22B83EE615F4"
     },
     "LnOppositeBridgeLogic": {
@@ -183,10 +189,12 @@
         "zkSync": "0x767Bc046c989f5e63683fB530f939DD34b91ceAC"
     },
     "LnV3BridgeLogic": {
-        "common": "0xdf383487CB33a3C78a884494e2456910d79d361c"
+        "common": "0xdf383487CB33a3C78a884494e2456910d79d361c",
+        "blast": "0x38f4fc6c734b7148e9c375e24bd868778efDb701"
     },
     "LnV3BridgeProxy": {
-        "common": "0xbA5D580B18b6436411562981e02c8A9aA1776D10"
+        "common": "0xbA5D580B18b6436411562981e02c8A9aA1776D10",
+        "blast": "0xB180D7DcB5CC161C862aD60442FA37527546cAFC"
     },
     "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
     "ring": {

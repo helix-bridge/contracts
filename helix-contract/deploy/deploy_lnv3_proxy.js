@@ -21,9 +21,9 @@ async function deployLnBridgeV3Proxy(wallet, salt, dao, proxyAdminAddress, logic
         proxyAdminAddress,
         bridgeContract,
         logicAddress,
-        [dao],
+        [dao, '0x'],
         wallet,
-        { gasLimit: 5000000 }
+        //{ gasLimit: 5000000 }
     );
     console.log("finish to deploy lnv3 bridge proxy, address:", lnBridgeProxy);
     return lnBridgeProxy;
@@ -36,11 +36,11 @@ async function deploy() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    const network = configure.chains['arbitrum-sepolia'];
+    const network = configure.chains['bera'];
     const w = wallet(network.url);
-    const proxyAdmin = configure.ProxyAdmin.others;
-    const logicAddress = configure.LnV3BridgeLogic.others;
-    const deployer = configure.deployer;
+    const proxyAdmin = configure.ProxyAdmin.taiko;
+    const logicAddress = configure.LnV3BridgeLogic.taiko;
+    const deployer = network.deployer;
     let proxyAddress = await deployLnBridgeV3Proxy(
         w,
         "lnv3-v1.0.0",

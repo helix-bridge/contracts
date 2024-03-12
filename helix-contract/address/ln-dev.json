@@ -45,29 +45,54 @@
             "blastPoints": "0x2fc95838c71e76ec69ff817983BFf17c710F34E0",
             "lzChainId": 10243,
             "lzEndpoint": "0x2cA20802fd1Fd9649bA8Aa7E50F0C82b479f35fe"
+        },
+        "taiko": {
+            "name": "taiko",
+            "url": "https://rpc.katla.taiko.xyz",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 167008,
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3"
+        },
+        "bera": {
+            "name": "bera",
+            "url": "https://artio.rpc.berachain.com",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 80085,
+            "lzChainId": 10256,
+            "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+            "layerzeroEndpoint": "0x6098e96a28E02f27B1e6BD381f870F1C8Bd169d3"
         }
     },
     "messagers": {
         "sepolia": {
             "chainId": 11155111,
             "Eth2ScrollSendService": "0x89AF830781A2C1d3580Db930bea11094F55AfEae",
-            "layerzeroMessager": "0x33C9916a43507aa0a89a3e889522f840aa1245fE"
+            "LayerZeroMessager": "0x33C9916a43507aa0a89a3e889522f840aa1245fE"
         },
         "arbitrum-sepolia": {
             "chainId": "421614",
             "darwiniaMsglineMessager": "0xCddD3e43dA1e9485d4FcD3782DFba04aADCfC9B2",
-            "layerzeroMessager": "0x87A649246974732f7AbBe01F2DD81E3D829EF0B7"
+            "LayerZeroMessager": "0x87A649246974732f7AbBe01F2DD81E3D829EF0B7",
+            "DirectMessager": "0xfAa9abE2b16ACE756b17211f7FDfB7a60cbC6D1d"
         },
         "zksync": {
-            "layerzeroMessager": "0xf29244511DA9242D8A452f7EB1264B52A19f5058"
+            "LayerZeroMessager": "0xf29244511DA9242D8A452f7EB1264B52A19f5058"
         },
         "blast-sepolia": {
-            "layerzeroMessager": "0x0ac58Df0cc3542beC4cDa71B16D06C3cCc39f405"
+            "LayerZeroMessager": "0x0ac58Df0cc3542beC4cDa71B16D06C3cCc39f405"
+        },
+        "taiko": {
+            "DirectMessager": "0xfAa9abE2b16ACE756b17211f7FDfB7a60cbC6D1d"
+        },
+        "bera": {
+            "LayerZeroMessager": "0xe5E962cab7F36812ffa872926eA1cA692A923494"
         }
     },
     "ProxyAdmin": {
         "zksync": "0x57E8fcaAfDE61b179BAe86cDAbfaca99E2A16484",
         "blast-sepolia": "0x9141243c0aD8D99D790654F453BB8Bf188418915",
+        "taiko": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+        "bera": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
         "others": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730"
     },
     "LnDefaultBridgeLogic": {
@@ -83,11 +108,15 @@
     "LnV3BridgeLogic": {
         "zksync": "0x67C3C81113Afb9A73d7ce5868046D97D0e44db59",
         "blast-sepolia": "0x99Bd37D588aDfCE4Da02F78276e4Eb934EE16394",
+        "taiko": "0xC264988Fa13c33f3101326a4532d61A55CDC17b8",
+        "bera": "0xC264988Fa13c33f3101326a4532d61A55CDC17b8",
         "others": "0xdf383487CB33a3C78a884494e2456910d79d361c"
     },
     "LnV3BridgeProxy": {
         "zksync": "0xDc55fF59F82AA50D8A4A61dB8CcaDffD26Fb7dD2",
         "blast-sepolia": "0x727f428daaa6780b3BAA748dDf422FD80bB36683",
+        "taiko": "0x00e7EFf0826dfCDf2AA5945dFF710B48f4AA7E64",
+        "bera": "0x00e7EFf0826dfCDf2AA5945dFF710B48f4AA7E64",
         "others": "0x38627Cb033De66a1E07e73f5D0a7a7adFB6741fa"
     },
     "deployer": "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",
@@ -95,14 +124,18 @@
         "zksync": "0x3350f1ef046e21E052dCbA60Fc575919CCaFEdeb",
         "sepolia": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB",
         "scroll-sepolia": "0x9C80EdD342b5D179c3a87946fC1F0963BfcaAa09",
-        "arbitrum-sepolia": "0x3b8Bb7348D4F581e67E2498574F73e4B9Fc51855"
+        "arbitrum-sepolia": "0x3b8Bb7348D4F581e67E2498574F73e4B9Fc51855",
+        "taiko": "0x89AF830781A2C1d3580Db930bea11094F55AfEae",
+        "bera": "0x463D1730a8527CA58d48EF70C7460B9920346567"
     },
     "usdc": {
         "zksync": "0x253adBFE99Fcd096B9b5502753F96CF78D42eaD0",
         "crab": "0x4bA86B5D0F8D2DCB3FC23757cAA6EA71157F74E9",
         "arbitrum-sepolia": "0x8A87497488073307E1a17e8A12475a94Afcb413f",
         "sepolia": "0x0ac58Df0cc3542beC4cDa71B16D06C3cCc39f405",
-        "scroll-sepolia": "0x8A87497488073307E1a17e8A12475a94Afcb413f"
+        "scroll-sepolia": "0x8A87497488073307E1a17e8A12475a94Afcb413f",
+        "taiko": "0x3F7DF5866591e7E48D18C8EbeAE61Bc343a63283",
+        "bera": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
     },
     "usdb": {
         "blast-sepolia": "0x4200000000000000000000000000000000000022"

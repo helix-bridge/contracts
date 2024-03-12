@@ -227,5 +227,8 @@
         "scroll": "0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4",
         "bsc": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
         "base": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    },
+    "usdb": {
+        "blast": "0x4300000000000000000000000000000000000003"
     }
 }

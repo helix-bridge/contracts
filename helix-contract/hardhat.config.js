@@ -92,6 +92,9 @@ module.exports = {
       blast_sepolia: {
         url: 'https://sepolia.blast.io'
       },
+      taiko_testnet: {
+        url: 'https://rpc.katla.taiko.xyz'
+      },
   },
   etherscan: {
     apiKey: "blast_sepolia",
@@ -103,7 +106,16 @@ module.exports = {
           apiURL: "https://api.routescan.io/v2/network/testnet/evm/168587773/etherscan",
           browserURL: "https://testnet.blastscan.io"
         }
+      },
+      {
+        network: "taiko_testnet",
+        chainId: 167008,
+        urls: {
+          apiURL: "https://blockscoutapi.katla.taiko.xyz/api?module=contract&action=verify",
+          browserURL: "https://explorer.katla.taiko.xyz/"
+        }
       }
+
     ]    
   },
   abiExporter: {

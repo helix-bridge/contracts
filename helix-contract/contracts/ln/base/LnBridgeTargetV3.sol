@@ -42,8 +42,11 @@ contract LnBridgeTargetV3 {
     event TransferFilled(bytes32 transferId, address provider);
     event SlashRequest(bytes32 transferId, uint256 remoteChainId, address provider, address sourceToken, address targetToken, address slasher);
     event LiquidityWithdrawRequested(bytes32[] transferIds, uint256 remoteChainId);
+    event UnreachableNativeTokenReceived(bytes32 transferId, address receiver, uint256 amount);
 
     function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, uint256 feePrepaid, bytes memory _extParams) internal virtual {}
+
+    function _unreachableNativeTokenReceiver() internal view virtual returns(address) {}
 
     // relay a tx, usually called by lnProvider
     // 1. update the fillTransfers storage to save the relay proof
@@ -75,7 +78,11 @@ contract LnBridgeTargetV3 {
 
         if (_params.targetToken == address(0)) {
             require(msg.value == _params.targetAmount, "invalid amount");
-            TokenTransferHelper.safeTransferNative(_params.receiver, _params.targetAmount);
+            bool success = TokenTransferHelper.tryTransferNative(_params.receiver, _params.targetAmount);
+            if (!success) {
+                TokenTransferHelper.safeTransferNative(_unreachableNativeTokenReceiver(), _params.targetAmount);
+                emit UnreachableNativeTokenReceived(transferId, _params.receiver, _params.targetAmount);
+            }
         } else {
             require(msg.value == 0, "value not need");
             TokenTransferHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
@@ -117,7 +124,11 @@ contract LnBridgeTargetV3 {
 
         if (_params.targetToken == address(0)) {
             require(msg.value == _params.targetAmount + _feePrepaid, "invalid value");
-            TokenTransferHelper.safeTransferNative(_params.receiver, _params.targetAmount);
+            bool success = TokenTransferHelper.tryTransferNative(_params.receiver, _params.targetAmount);
+            if (!success) {
+                TokenTransferHelper.safeTransferNative(_unreachableNativeTokenReceiver(), _params.targetAmount);
+                emit UnreachableNativeTokenReceived(transferId, _params.receiver, _params.targetAmount);
+            }
         } else {
             require(msg.value == _feePrepaid, "value too large");
             TokenTransferHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));

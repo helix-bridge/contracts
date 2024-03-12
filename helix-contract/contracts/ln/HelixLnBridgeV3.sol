@@ -17,8 +17,8 @@ contract HelixLnBridgeV3 is Initializable, LnBridgeSourceV3, LnBridgeTargetV3 {
 
     receive() external payable {}
 
-    function initialize(address dao) public initializer {
-        _initialize(dao);
+    function initialize(address _dao, bytes calldata) public virtual initializer {
+        _initialize(_dao);
     }
 
     // the remote endpoint is unique, if we want multi-path to remote endpoint, then the messager should support multi-path
@@ -41,6 +41,10 @@ contract HelixLnBridgeV3 is Initializable, LnBridgeSourceV3, LnBridgeTargetV3 {
     function _verifyRemote(uint256 _remoteChainId) whenNotPaused internal view override {
         address receiveService = messagers[_remoteChainId].receiveService;
         require(receiveService == msg.sender, "invalid messager");
+    }
+
+    function _unreachableNativeTokenReceiver() internal view override returns(address) {
+        return dao;
     }
 }
 

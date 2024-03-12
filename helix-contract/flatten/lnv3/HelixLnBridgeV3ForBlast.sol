@@ -32,6 +32,48 @@ interface ILowLevelMessageReceiver {
     function recvMessage(address remoteSender, address localReceiver, bytes memory payload) external;
 }
 
+// File contracts/utils/AccessController.sol
+// License-Identifier: MIT
+
+/// @title AccessController
+/// @notice AccessController is a contract to control the access permission 
+/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
+contract AccessController {
+    address public dao;
+    address public operator;
+    address public pendingDao;
+
+    modifier onlyDao() {
+        require(msg.sender == dao, "!dao");
+        _;
+    }
+
+    modifier onlyOperator() {
+        require(msg.sender == operator, "!operator");
+        _;
+    }
+
+    function _initialize(address _dao) internal {
+        dao = _dao;
+        operator = _dao;
+    }
+
+    function setOperator(address _operator) onlyDao external {
+        operator = _operator;
+    }
+
+    function transferOwnership(address _dao) onlyDao external {
+        pendingDao = _dao;
+    }
+
+    function acceptOwnership() external {
+        address newDao = msg.sender;
+        require(pendingDao == newDao, "!pendingDao");
+        delete pendingDao;
+        dao = newDao;
+    }
+}
+
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
@@ -161,261 +203,6 @@ library TokenTransferHelper {
     ) internal returns(bool) {
         (bool success,) = payable(receiver).call{value: amount}("");
         return success;
-    }
-}
-
-// File contracts/ln/interface/ILnBridgeSourceV3.sol
-// License-Identifier: MIT
-
-interface ILnBridgeSourceV3 {
-    function slash(
-        uint256 _remoteChainId,
-        bytes32 _transferId,
-        address _lnProvider,
-        address _slasher
-    ) external;
-    function withdrawLiquidity(
-        bytes32[] calldata _transferIds,
-        uint256 _remoteChainId,
-        address _provider
-    ) external;
-}
-
-// File contracts/ln/base/LnBridgeTargetV3.sol
-// License-Identifier: MIT
-
-
-contract LnBridgeTargetV3 {
-    uint256 constant public SLASH_EXPIRE_TIME = 60 * 60;
-    // timestamp: the time when transfer filled, this is also the flag that the transfer is filled(relayed or slashed)
-    // provider: the transfer lnProvider
-    struct FillTransfer {
-        uint64 timestamp;
-        address provider;
-    }
-
-    // lockTimestamp: the time when the transfer start from source chain
-    // the lockTimestamp is verified on source chain
-    // 1. lockTimestamp verified successed: slasher get the transfer amount, fee and penalty on source chain
-    // 2. lockTimestamp verified failed:    slasher get the transfer amount, but the fee and penalty back to the provider
-    // sourceAmount: the send amount on source chain
-    struct SlashInfo {
-        uint256 remoteChainId;
-        address slasher;
-    }
-
-    struct RelayParams {
-        uint256 remoteChainId;
-        address provider;
-        address sourceToken;
-        address targetToken;
-        uint112 sourceAmount;
-        uint112 targetAmount;
-        address receiver;
-        uint256 timestamp;
-    }
-
-    // transferId => FillTransfer
-    mapping(bytes32 => FillTransfer) public fillTransfers;
-    // transferId => SlashInfo
-    mapping(bytes32 => SlashInfo) public slashInfos;
-
-    event TransferFilled(bytes32 transferId, address provider);
-    event SlashRequest(bytes32 transferId, uint256 remoteChainId, address provider, address sourceToken, address targetToken, address slasher);
-    event LiquidityWithdrawRequested(bytes32[] transferIds, uint256 remoteChainId);
-    event UnreachableNativeTokenReceived(bytes32 transferId, address receiver, uint256 amount);
-
-    function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, uint256 feePrepaid, bytes memory _extParams) internal virtual {}
-
-    function _unreachableNativeTokenReceiver() internal view virtual returns(address) {}
-
-    // relay a tx, usually called by lnProvider
-    // 1. update the fillTransfers storage to save the relay proof
-    // 2. transfer token from lnProvider to the receiver
-    function relay(
-        RelayParams calldata _params,
-        bytes32 _expectedTransferId,
-        bool _relayBySelf
-    ) external payable {
-        // _relayBySelf = true to protect that the msg.sender don't relay for others
-        // _relayBySelf = false to allow that lnProvider can use different account between source chain and target chain
-        require(!_relayBySelf || _params.provider == msg.sender, "invalid provider");
-        bytes32 transferId = keccak256(abi.encodePacked(
-           _params.remoteChainId,
-           block.chainid,
-           _params.provider,
-           _params.sourceToken,
-           _params.targetToken,
-           _params.receiver,
-           _params.sourceAmount,
-           _params.targetAmount,
-           _params.timestamp
-        ));
-        require(_expectedTransferId == transferId, "check expected transferId failed");
-        FillTransfer memory fillTransfer = fillTransfers[transferId];
-        // Make sure this transfer was never filled before 
-        require(fillTransfer.timestamp == 0, "transfer has been filled");
-        fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _params.provider);
-
-        if (_params.targetToken == address(0)) {
-            require(msg.value == _params.targetAmount, "invalid amount");
-            bool success = TokenTransferHelper.tryTransferNative(_params.receiver, _params.targetAmount);
-            if (!success) {
-                TokenTransferHelper.safeTransferNative(_unreachableNativeTokenReceiver(), _params.targetAmount);
-                emit UnreachableNativeTokenReceived(transferId, _params.receiver, _params.targetAmount);
-            }
-        } else {
-            require(msg.value == 0, "value not need");
-            TokenTransferHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
-        }
-        emit TransferFilled(transferId, _params.provider);
-    }
-
-    // slash a tx when timeout
-    // 1. update fillTransfers and slashInfos storage to save slash proof
-    // 2. transfer tokens from slasher to receiver for this tx
-    // 3. send a cross-chain message to source chain to withdraw the amount, fee and penalty from lnProvider
-    function requestSlashAndRemoteRelease(
-        RelayParams calldata _params,
-        bytes32 _expectedTransferId,
-        uint256 _feePrepaid,
-        bytes memory _extParams
-    ) external payable {
-        bytes32 transferId = keccak256(abi.encodePacked(
-           _params.remoteChainId,
-           block.chainid,
-           _params.provider,
-           _params.sourceToken,
-           _params.targetToken,
-           _params.receiver,
-           _params.sourceAmount,
-           _params.targetAmount,
-           _params.timestamp
-        ));
-        require(_expectedTransferId == transferId, "check expected transferId failed");
-
-        FillTransfer memory fillTransfer = fillTransfers[transferId];
-        require(fillTransfer.timestamp == 0, "transfer has been filled");
-
-        // suppose source chain and target chain has the same block timestamp
-        // event the timestamp is not sync exactly, this TIMEOUT is also verified on source chain
-        require(_params.timestamp < block.timestamp - SLASH_EXPIRE_TIME, "time not expired");
-        fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _params.provider);
-        slashInfos[transferId] = SlashInfo(_params.remoteChainId, msg.sender);
-
-        if (_params.targetToken == address(0)) {
-            require(msg.value == _params.targetAmount + _feePrepaid, "invalid value");
-            bool success = TokenTransferHelper.tryTransferNative(_params.receiver, _params.targetAmount);
-            if (!success) {
-                TokenTransferHelper.safeTransferNative(_unreachableNativeTokenReceiver(), _params.targetAmount);
-                emit UnreachableNativeTokenReceived(transferId, _params.receiver, _params.targetAmount);
-            }
-        } else {
-            require(msg.value == _feePrepaid, "value too large");
-            TokenTransferHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
-        }
-        bytes memory message = encodeSlashRequest(transferId, _params.provider, msg.sender);
-        _sendMessageToSource(_params.remoteChainId, message, _feePrepaid, _extParams);
-        emit SlashRequest(transferId, _params.remoteChainId, _params.provider, _params.sourceToken, _params.targetToken, msg.sender);
-    }
-
-    // it's allowed to retry a slash tx because the cross-chain message may fail on source chain
-    // But it's required that the params must not be modified, it read from the storage saved
-    function retrySlash(bytes32 transferId, bytes memory _extParams) external payable {
-        FillTransfer memory fillTransfer = fillTransfers[transferId];
-        require(fillTransfer.timestamp > 0, "transfer not filled");
-        SlashInfo memory slashInfo = slashInfos[transferId];
-        require(slashInfo.slasher == msg.sender, "invalid slasher");
-        // send message
-        bytes memory message = encodeSlashRequest(transferId, fillTransfer.provider, slashInfo.slasher);
-        _sendMessageToSource(slashInfo.remoteChainId, message, msg.value, _extParams);
-    }
-
-    // can't withdraw for different providers each time
-    // the size of the _transferIds should not be too large to be processed outof gas on source chain
-    function requestWithdrawLiquidity(
-        uint256 _remoteChainId,
-        bytes32[] calldata _transferIds,
-        address _provider,
-        bytes memory _extParams
-    ) external payable {
-        for (uint i = 0; i < _transferIds.length; i++) {
-            bytes32 transferId = _transferIds[i];
-            FillTransfer memory fillTransfer = fillTransfers[transferId];
-            // make sure that each transfer has the same provider
-            require(fillTransfer.provider == _provider, "provider invalid");
-        }
-        bytes memory message = encodeWithdrawLiquidityRequest(_transferIds, _provider);
-        _sendMessageToSource(_remoteChainId, message, msg.value, _extParams);
-        emit LiquidityWithdrawRequested(_transferIds, _remoteChainId);
-    }
-
-    function encodeWithdrawLiquidityRequest(
-        bytes32[] calldata _transferIds,
-        address _provider
-    ) public view returns(bytes memory message) {
-        message = abi.encodeWithSelector(
-           ILnBridgeSourceV3.withdrawLiquidity.selector,
-           _transferIds,
-           block.chainid,
-           _provider
-        );
-    }
-
-    function encodeSlashRequest(
-        bytes32 _transferId,
-        address _provider,
-        address _slasher
-    ) public view returns(bytes memory message) {
-        message = abi.encodeWithSelector(
-           ILnBridgeSourceV3.slash.selector,
-           block.chainid,
-           _transferId,
-           _provider,
-           _slasher
-        );
-    }
-}
-
-// File contracts/utils/AccessController.sol
-// License-Identifier: MIT
-
-/// @title AccessController
-/// @notice AccessController is a contract to control the access permission 
-/// @dev See https://github.com/helix-bridge/contracts/tree/master/helix-contract
-contract AccessController {
-    address public dao;
-    address public operator;
-    address public pendingDao;
-
-    modifier onlyDao() {
-        require(msg.sender == dao, "!dao");
-        _;
-    }
-
-    modifier onlyOperator() {
-        require(msg.sender == operator, "!operator");
-        _;
-    }
-
-    function _initialize(address _dao) internal {
-        dao = _dao;
-        operator = _dao;
-    }
-
-    function setOperator(address _operator) onlyDao external {
-        operator = _operator;
-    }
-
-    function transferOwnership(address _dao) onlyDao external {
-        pendingDao = _dao;
-    }
-
-    function acceptOwnership() external {
-        address newDao = msg.sender;
-        require(pendingDao == newDao, "!pendingDao");
-        delete pendingDao;
-        dao = newDao;
     }
 }
 
@@ -1036,6 +823,219 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     }
 }
 
+// File contracts/ln/interface/ILnBridgeSourceV3.sol
+// License-Identifier: MIT
+
+interface ILnBridgeSourceV3 {
+    function slash(
+        uint256 _remoteChainId,
+        bytes32 _transferId,
+        address _lnProvider,
+        address _slasher
+    ) external;
+    function withdrawLiquidity(
+        bytes32[] calldata _transferIds,
+        uint256 _remoteChainId,
+        address _provider
+    ) external;
+}
+
+// File contracts/ln/base/LnBridgeTargetV3.sol
+// License-Identifier: MIT
+
+
+contract LnBridgeTargetV3 {
+    uint256 constant public SLASH_EXPIRE_TIME = 60 * 60;
+    // timestamp: the time when transfer filled, this is also the flag that the transfer is filled(relayed or slashed)
+    // provider: the transfer lnProvider
+    struct FillTransfer {
+        uint64 timestamp;
+        address provider;
+    }
+
+    // lockTimestamp: the time when the transfer start from source chain
+    // the lockTimestamp is verified on source chain
+    // 1. lockTimestamp verified successed: slasher get the transfer amount, fee and penalty on source chain
+    // 2. lockTimestamp verified failed:    slasher get the transfer amount, but the fee and penalty back to the provider
+    // sourceAmount: the send amount on source chain
+    struct SlashInfo {
+        uint256 remoteChainId;
+        address slasher;
+    }
+
+    struct RelayParams {
+        uint256 remoteChainId;
+        address provider;
+        address sourceToken;
+        address targetToken;
+        uint112 sourceAmount;
+        uint112 targetAmount;
+        address receiver;
+        uint256 timestamp;
+    }
+
+    // transferId => FillTransfer
+    mapping(bytes32 => FillTransfer) public fillTransfers;
+    // transferId => SlashInfo
+    mapping(bytes32 => SlashInfo) public slashInfos;
+
+    event TransferFilled(bytes32 transferId, address provider);
+    event SlashRequest(bytes32 transferId, uint256 remoteChainId, address provider, address sourceToken, address targetToken, address slasher);
+    event LiquidityWithdrawRequested(bytes32[] transferIds, uint256 remoteChainId);
+    event UnreachableNativeTokenReceived(bytes32 transferId, address receiver, uint256 amount);
+
+    function _sendMessageToSource(uint256 _remoteChainId, bytes memory _payload, uint256 feePrepaid, bytes memory _extParams) internal virtual {}
+
+    function _unreachableNativeTokenReceiver() internal view virtual returns(address) {}
+
+    // relay a tx, usually called by lnProvider
+    // 1. update the fillTransfers storage to save the relay proof
+    // 2. transfer token from lnProvider to the receiver
+    function relay(
+        RelayParams calldata _params,
+        bytes32 _expectedTransferId,
+        bool _relayBySelf
+    ) external payable {
+        // _relayBySelf = true to protect that the msg.sender don't relay for others
+        // _relayBySelf = false to allow that lnProvider can use different account between source chain and target chain
+        require(!_relayBySelf || _params.provider == msg.sender, "invalid provider");
+        bytes32 transferId = keccak256(abi.encodePacked(
+           _params.remoteChainId,
+           block.chainid,
+           _params.provider,
+           _params.sourceToken,
+           _params.targetToken,
+           _params.receiver,
+           _params.sourceAmount,
+           _params.targetAmount,
+           _params.timestamp
+        ));
+        require(_expectedTransferId == transferId, "check expected transferId failed");
+        FillTransfer memory fillTransfer = fillTransfers[transferId];
+        // Make sure this transfer was never filled before 
+        require(fillTransfer.timestamp == 0, "transfer has been filled");
+        fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _params.provider);
+
+        if (_params.targetToken == address(0)) {
+            require(msg.value == _params.targetAmount, "invalid amount");
+            bool success = TokenTransferHelper.tryTransferNative(_params.receiver, _params.targetAmount);
+            if (!success) {
+                TokenTransferHelper.safeTransferNative(_unreachableNativeTokenReceiver(), _params.targetAmount);
+                emit UnreachableNativeTokenReceived(transferId, _params.receiver, _params.targetAmount);
+            }
+        } else {
+            require(msg.value == 0, "value not need");
+            TokenTransferHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
+        }
+        emit TransferFilled(transferId, _params.provider);
+    }
+
+    // slash a tx when timeout
+    // 1. update fillTransfers and slashInfos storage to save slash proof
+    // 2. transfer tokens from slasher to receiver for this tx
+    // 3. send a cross-chain message to source chain to withdraw the amount, fee and penalty from lnProvider
+    function requestSlashAndRemoteRelease(
+        RelayParams calldata _params,
+        bytes32 _expectedTransferId,
+        uint256 _feePrepaid,
+        bytes memory _extParams
+    ) external payable {
+        bytes32 transferId = keccak256(abi.encodePacked(
+           _params.remoteChainId,
+           block.chainid,
+           _params.provider,
+           _params.sourceToken,
+           _params.targetToken,
+           _params.receiver,
+           _params.sourceAmount,
+           _params.targetAmount,
+           _params.timestamp
+        ));
+        require(_expectedTransferId == transferId, "check expected transferId failed");
+
+        FillTransfer memory fillTransfer = fillTransfers[transferId];
+        require(fillTransfer.timestamp == 0, "transfer has been filled");
+
+        // suppose source chain and target chain has the same block timestamp
+        // event the timestamp is not sync exactly, this TIMEOUT is also verified on source chain
+        require(_params.timestamp < block.timestamp - SLASH_EXPIRE_TIME, "time not expired");
+        fillTransfers[transferId] = FillTransfer(uint64(block.timestamp), _params.provider);
+        slashInfos[transferId] = SlashInfo(_params.remoteChainId, msg.sender);
+
+        if (_params.targetToken == address(0)) {
+            require(msg.value == _params.targetAmount + _feePrepaid, "invalid value");
+            bool success = TokenTransferHelper.tryTransferNative(_params.receiver, _params.targetAmount);
+            if (!success) {
+                TokenTransferHelper.safeTransferNative(_unreachableNativeTokenReceiver(), _params.targetAmount);
+                emit UnreachableNativeTokenReceived(transferId, _params.receiver, _params.targetAmount);
+            }
+        } else {
+            require(msg.value == _feePrepaid, "value too large");
+            TokenTransferHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
+        }
+        bytes memory message = encodeSlashRequest(transferId, _params.provider, msg.sender);
+        _sendMessageToSource(_params.remoteChainId, message, _feePrepaid, _extParams);
+        emit SlashRequest(transferId, _params.remoteChainId, _params.provider, _params.sourceToken, _params.targetToken, msg.sender);
+    }
+
+    // it's allowed to retry a slash tx because the cross-chain message may fail on source chain
+    // But it's required that the params must not be modified, it read from the storage saved
+    function retrySlash(bytes32 transferId, bytes memory _extParams) external payable {
+        FillTransfer memory fillTransfer = fillTransfers[transferId];
+        require(fillTransfer.timestamp > 0, "transfer not filled");
+        SlashInfo memory slashInfo = slashInfos[transferId];
+        require(slashInfo.slasher == msg.sender, "invalid slasher");
+        // send message
+        bytes memory message = encodeSlashRequest(transferId, fillTransfer.provider, slashInfo.slasher);
+        _sendMessageToSource(slashInfo.remoteChainId, message, msg.value, _extParams);
+    }
+
+    // can't withdraw for different providers each time
+    // the size of the _transferIds should not be too large to be processed outof gas on source chain
+    function requestWithdrawLiquidity(
+        uint256 _remoteChainId,
+        bytes32[] calldata _transferIds,
+        address _provider,
+        bytes memory _extParams
+    ) external payable {
+        for (uint i = 0; i < _transferIds.length; i++) {
+            bytes32 transferId = _transferIds[i];
+            FillTransfer memory fillTransfer = fillTransfers[transferId];
+            // make sure that each transfer has the same provider
+            require(fillTransfer.provider == _provider, "provider invalid");
+        }
+        bytes memory message = encodeWithdrawLiquidityRequest(_transferIds, _provider);
+        _sendMessageToSource(_remoteChainId, message, msg.value, _extParams);
+        emit LiquidityWithdrawRequested(_transferIds, _remoteChainId);
+    }
+
+    function encodeWithdrawLiquidityRequest(
+        bytes32[] calldata _transferIds,
+        address _provider
+    ) public view returns(bytes memory message) {
+        message = abi.encodeWithSelector(
+           ILnBridgeSourceV3.withdrawLiquidity.selector,
+           _transferIds,
+           block.chainid,
+           _provider
+        );
+    }
+
+    function encodeSlashRequest(
+        bytes32 _transferId,
+        address _provider,
+        address _slasher
+    ) public view returns(bytes memory message) {
+        message = abi.encodeWithSelector(
+           ILnBridgeSourceV3.slash.selector,
+           block.chainid,
+           _transferId,
+           _provider,
+           _slasher
+        );
+    }
+}
+
 // File @zeppelin-solidity/contracts/utils/Address.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.0) (utils/Address.sol)
@@ -1441,5 +1441,99 @@ contract HelixLnBridgeV3 is Initializable, LnBridgeSourceV3, LnBridgeTargetV3 {
 
     function _unreachableNativeTokenReceiver() internal view override returns(address) {
         return dao;
+    }
+}
+
+// File contracts/interfaces/IBlast.sol
+// License-Identifier: MIT
+
+enum YieldMode {
+    AUTOMATIC,
+    VOID,
+    CLAIMABLE
+}
+
+enum GasMode {
+    VOID,
+    CLAIMABLE
+}
+
+interface IBlast {
+    function YIELD_CONTRACT() external view returns (address);
+    function GAS_CONTRACT() external view returns (address);
+
+    // configure
+    function configureContract(address contractAddress, YieldMode _yield, GasMode gasMode, address governor) external;
+    function configure(YieldMode _yield, GasMode gasMode, address governor) external;
+
+    // base configuration options
+    function configureClaimableYield() external;
+    function configureClaimableYieldOnBehalf(address contractAddress) external;
+    function configureAutomaticYield() external;
+    function configureAutomaticYieldOnBehalf(address contractAddress) external;
+    function configureVoidYield() external;
+    function configureVoidYieldOnBehalf(address contractAddress) external;
+    function configureClaimableGas() external;
+    function configureClaimableGasOnBehalf(address contractAddress) external;
+    function configureVoidGas() external;
+    function configureVoidGasOnBehalf(address contractAddress) external;
+    function configureGovernor(address _governor) external;
+    function configureGovernorOnBehalf(address _newGovernor, address contractAddress) external;
+
+    // claim yield
+    function claimYield(address contractAddress, address recipientOfYield, uint256 amount) external returns (uint256);
+    function claimAllYield(address contractAddress, address recipientOfYield) external returns (uint256);
+
+    // claim gas
+    function claimAllGas(address contractAddress, address recipientOfGas) external returns (uint256);
+    function claimGasAtMinClaimRate(
+        address contractAddress,
+        address recipientOfGas,
+        uint256 minClaimRateBips
+    )
+        external
+        returns (uint256);
+    function claimMaxGas(address contractAddress, address recipientOfGas) external returns (uint256);
+    function claimGas(
+        address contractAddress,
+        address recipientOfGas,
+        uint256 gasToClaim,
+        uint256 gasSecondsToConsume
+    )
+        external
+        returns (uint256);
+
+    // read functions
+    function readClaimableYield(address contractAddress) external view returns (uint256);
+    function readYieldConfiguration(address contractAddress) external view returns (uint8);
+    function readGasParams(address contractAddress)
+        external
+        view
+        returns (uint256 etherSeconds, uint256 etherBalance, uint256 lastUpdated, GasMode);
+}
+
+// File contracts/interfaces/IBlastPoints.sol
+// License-Identifier: MIT
+
+interface IBlastPoints {
+    function configurePointsOperator(address operator) external;
+}
+
+// File contracts/ln/HelixLnBridgeV3ForBlast.sol
+// License-Identifier: MIT
+
+
+
+// when register some token that support yield, don't forget to configure claimable yield
+contract HelixLnBridgeV3ForBlast is HelixLnBridgeV3 {
+    function initialize(address _dao, bytes calldata _data) public override initializer {
+        _initialize(_dao);
+        (address _blast, address _blastPoints) = abi.decode(_data, (address, address));
+        IBlast blast = IBlast(_blast);
+        blast.configureClaimableGas();
+        blast.configureClaimableYield();
+        blast.configureGovernor(_dao);
+        IBlastPoints blastPoints = IBlastPoints(_blastPoints);
+        blastPoints.configurePointsOperator(_dao);
     }
 }

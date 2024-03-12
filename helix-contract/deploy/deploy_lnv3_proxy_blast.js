@@ -13,17 +13,18 @@ function wallet(url) {
     return wallet;
 }
 
-async function deployLnBridgeV3Proxy(wallet, salt, dao, proxyAdminAddress, logicAddress, deployer) {
-    const bridgeContract = await ethers.getContractFactory("HelixLnBridgeV3", wallet);
+async function deployLnBridgeV3Proxy(wallet, salt, dao, blast, blastPoints, proxyAdminAddress, logicAddress, deployer) {
+    const bridgeContract = await ethers.getContractFactory("HelixLnBridgeV3ForBlast", wallet);
+    const data = ethers.utils.defaultAbiCoder.encode(['address', 'address'], [blast, blastPoints]);
     const lnBridgeProxy = await ProxyDeployer.deployProxyContract2(
         deployer,
         salt,
         proxyAdminAddress,
         bridgeContract,
         logicAddress,
-        [dao, '0x'],
+        [dao, data],
         wallet,
-        //{ gasLimit: 5000000 }
+        //{ gasLimit: 8000000 }
     );
     console.log("finish to deploy lnv3 bridge proxy, address:", lnBridgeProxy);
     return lnBridgeProxy;
@@ -36,15 +37,17 @@ async function deploy() {
         fs.readFileSync(pathConfig, "utf8")
     );
 
-    const network = configure.chains['bera'];
+    const network = configure.chains['blast-sepolia'];
     const w = wallet(network.url);
-    const proxyAdmin = configure.ProxyAdmin.taiko;
-    const logicAddress = configure.LnV3BridgeLogic.taiko;
+    const proxyAdmin = configure.ProxyAdmin['blast-sepolia'];
+    const logicAddress = configure.LnV3BridgeLogic['blast-sepolia'];
     const deployer = network.deployer;
     let proxyAddress = await deployLnBridgeV3Proxy(
         w,
         "lnv3-v1.0.0",
         network.dao,
+        network.blast,
+        network.blastPoints,
         proxyAdmin,
         logicAddress,
         deployer,

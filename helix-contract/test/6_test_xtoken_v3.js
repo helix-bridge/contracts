@@ -247,10 +247,11 @@ describe("xtoken tests", () => {
           amount,
           nonce,
           fee,
-          result
+          result,
+          recipient = user02.address
       ) {
           const originalSender = user01.address;
-          const recipient = user02.address;
+          //const recipient = user02.address;
           const balanceBackingBefore = await balanceOf(originalToken, backing.address);
           const balanceSenderBefore = await balanceOf(originalToken, originalSender);
           const transaction = await issuing.requestRemoteUnlockForIssuingFailure(
@@ -324,7 +325,8 @@ describe("xtoken tests", () => {
           wallets,
           token,
           recipient,
-          amount
+          amount,
+          data = '0x'
       ) {
           // encode value
           const structHash =
@@ -333,7 +335,7 @@ describe("xtoken tests", () => {
                       ['bytes4', 'bytes'],
                       [abi.methodID('claim', ['address',  'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes', 'bytes[]' ]),
                           abi.rawEncode(['address', 'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes'],
-                              [depositer, id, timestamp, token, recipient, amount, ethers.utils.arrayify("0x")])
+                              [depositer, id, timestamp, token, recipient, amount, ethers.utils.arrayify(data)])
                       ]
                   )
               );
@@ -351,11 +353,13 @@ describe("xtoken tests", () => {
           });
           const balanceBackingBefore = await balanceOf(token, depositer);
           const balanceRecipientBefore = await balanceOf(token, recipient);
-          await guard.claim(depositer, id, timestamp, token, recipient, amount, "0x", signatures);
+          await guard.claim(depositer, id, timestamp, token, recipient, amount, data, signatures);
           const balanceBackingAfter = await balanceOf(token, depositer);
           const balanceRecipientAfter = await balanceOf(token, recipient);
           expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);
-          expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(amount);
+          if (data === '0x') {
+              expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(amount);
+          }
       }
 
       async function guardSetClaimTime(
@@ -586,6 +590,104 @@ describe("xtoken tests", () => {
       );
 
       await guardSetClaimTime(issuingGuard, 110011, [guards[0], guards[1]]);
+
+      // test callback
+      const swapTokenContract = await ethers.getContractFactory("Erc20");
+      const swapToken = await swapTokenContract.deploy('swapped ETH', 'sETH', 18);
+      await swapToken.deployed();
+
+      const mockxTokenSwapContract = await ethers.getContractFactory("MockxTokenSwap");
+      const mockxTokenSwap= await mockxTokenSwapContract.deploy(xTokens[nativeTokenAddress], swapToken.address, backing.address);
+      await mockxTokenSwap.deployed();
+
+      // there is guard
+      {
+          await backing.connect(user01).lockAndRemoteIssuing(
+              issuingChainId,
+              nativeTokenAddress,
+              mockxTokenSwap.address,
+              10,
+              123456,
+              user02.address,
+              0,
+              {value: ethers.utils.parseEther("1.1")}
+          );
+          // no right to mint swap token, can't claim
+          const transferId = await backing.getTransferId(123456, backingChainId, issuingChainId, nativeTokenAddress, user01.address, mockxTokenSwap.address, 10);
+          const blockTimestamp = await getBlockTimestamp();
+          await expect(guardClaim(
+              issuingGuard,
+              issuing.address,
+              transferId,
+              blockTimestamp,
+              [guards[0], guards[1]],
+              xTokens[nativeTokenAddress],
+              mockxTokenSwap.address,
+              10,
+              user02.address
+          )).to.be.revertedWith("Ownable: caller is not the owner");
+          // give mint right to swap contract 
+          await swapToken.transferOwnership(mockxTokenSwap.address);
+          const balanceBefore = await balanceOf(swapToken.address, user02.address);
+          await guardClaim(
+              issuingGuard,
+              issuing.address,
+              transferId,
+              blockTimestamp,
+              [guards[0], guards[1]],
+              xTokens[nativeTokenAddress],
+              mockxTokenSwap.address,
+              10,
+              user02.address
+          )
+          // user02 receive swapped token
+          const balanceAfter = await balanceOf(swapToken.address, user02.address);
+          expect(balanceBefore).to.equal(0);
+          expect(balanceAfter).to.equal(10);
+      }
+      
+      // no guard
+      {
+          await issuing.updateGuard("0x0000000000000000000000000000000000000000");
+          await mockxTokenSwap.transferOwnership(swapToken.address, owner.address);
+          // failed because swap contract has no right to mint token
+          await backing.connect(user01).lockAndRemoteIssuing(
+              issuingChainId,
+              nativeTokenAddress,
+              mockxTokenSwap.address,
+              100,
+              123456,
+              user02.address,
+              0,
+              {value: ethers.utils.parseEther("1.1")}
+          );
+          // issuing contract has no right to mint swap token, this can be revert
+          await requestRemoteUnlockForIssuingFailure(
+              nativeTokenAddress,
+              100,
+              123456,
+              "1.1",
+              true,
+              mockxTokenSwap.address
+          );
+          // give mint right to issuing
+          await swapToken.transferOwnership(mockxTokenSwap.address);
+          const balanceBefore = await balanceOf(swapToken.address, user02.address);
+          await backing.connect(user01).lockAndRemoteIssuing(
+              issuingChainId,
+              nativeTokenAddress,
+              mockxTokenSwap.address,
+              100,
+              1234567,
+              user02.address,
+              0,
+              {value: ethers.utils.parseEther("1.1")}
+          )
+          // user02 receive swapped token
+          const balanceAfter = await balanceOf(swapToken.address, user02.address);
+          expect(balanceBefore).to.equal(10);
+          expect(balanceAfter).to.equal(110);
+      }
   });
 });
 

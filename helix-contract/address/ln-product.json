@@ -119,7 +119,8 @@
     },
     "messagers": {
         "ethereum": {
-            "Eth2ArbSendService": "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119"
+            "Eth2ArbSendService": "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119",
+            "MsgportMessager": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
         },
         "arbitrum": {
             "Eth2ArbReceiveService": "0xc95D939Da72ECe8Bd794d42EaEd28974CDb0ADa2",

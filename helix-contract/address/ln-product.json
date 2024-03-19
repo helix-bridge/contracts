@@ -111,6 +111,8 @@
             "url": "https://rpc.blast.io",
             "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
             "chainId": 81457,
+            "lzChainId": 243,
+            "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
             "blast": "0x4300000000000000000000000000000000000002",
             "blastPoints": "0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800",
             "deployer": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
@@ -167,7 +169,8 @@
             "LayerZeroMessager": "0x3F7DF5866591e7E48D18C8EbeAE61Bc343a63283"
         },
         "blast": {
-            "MsgportMessager": "0x98982b1685a63596834a05C1288dA7fbF27d684E"
+            "MsgportMessager": "0x98982b1685a63596834a05C1288dA7fbF27d684E",
+            "LayerZeroMessager": "0x8A87497488073307E1a17e8A12475a94Afcb413f"
         }
     },
     "ProxyAdmin": {

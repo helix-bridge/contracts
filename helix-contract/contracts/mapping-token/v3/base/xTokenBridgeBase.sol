@@ -11,7 +11,7 @@ import "../../../utils/TokenTransferHelper.sol";
 // The Base contract for xToken protocol
 // Backing or Issuing contract will inherit the contract.
 // This contract define the access authorization, the message channel
-contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLimit {
+contract XTokenBridgeBase is Initializable, Pausable, AccessController, DailyLimit {
     uint256 constant public TRANSFER_UNFILLED = 0x00;
     uint256 constant public TRANSFER_DELIVERED = 0x01;
     uint256 constant public TRANSFER_REFUNDED = 0x02;
@@ -23,13 +23,6 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     struct RequestInfo {
         bool isRequested;
         bool hasRefundForFailed;
-    }
-
-    struct CallbackInfo {
-        bytes4 sig;
-        bytes32 transferId;
-        address token;
-        bytes extData;
     }
 
     // the version is to issue different xTokens for different version of bridge.

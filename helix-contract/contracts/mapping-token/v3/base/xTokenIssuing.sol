@@ -2,14 +2,14 @@
 pragma solidity ^0.8.17;
 
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
-import "./xTokenBridgeBase.sol";
-import "./xTokenErc20.sol";
-import "../interfaces/IxTokenBacking.sol";
+import "./XTokenBridgeBase.sol";
+import "./XTokenErc20.sol";
+import "../interfaces/IXTokenBacking.sol";
 import "../../interfaces/IGuardV3.sol";
 import "../../../utils/TokenTransferHelper.sol";
-import "../../../interfaces/IUniswapV3SwapCallback.sol";
+import "../../../interfaces/IXTokenCallback.sol";
 
-contract xTokenIssuing is xTokenBridgeBase {
+contract XTokenIssuing is XTokenBridgeBase {
     struct OriginalTokenInfo {
         uint256 chainId;
         address token;
@@ -21,14 +21,11 @@ contract xTokenIssuing is xTokenBridgeBase {
     // xToken => Origin Token Info
     mapping(address => OriginalTokenInfo) public originalTokens;
 
-    // pending xToken ownership
-    mapping(address => address) public pendingxTokenOwner;
-
     event IssuingERC20Created(uint256 originalChainId, address originalToken, address xToken);
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
-    event RemoteUnlockForIssuingFailureRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
+    event RollbackLockAndXIssueRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
     event xTokenIssued(bytes32 transferId, uint256 remoteChainId, address originalToken, address xToken, address recipient, uint256 amount);
-    event BurnAndRemoteUnlocked(
+    event BurnAndXUnlocked(
         bytes32 transferId,
         uint256 nonce,
         uint256 remoteChainId,
@@ -51,7 +48,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     ) external onlyDao returns (address xToken) {
         bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         require(xTokens[salt] == address(0), "contract has been deployed");
-        bytes memory bytecode = type(xTokenErc20).creationCode;
+        bytes memory bytecode = type(XTokenErc20).creationCode;
         bytes memory bytecodeWithInitdata = abi.encodePacked(
             bytecode,
             abi.encode(
@@ -88,21 +85,15 @@ contract xTokenIssuing is xTokenBridgeBase {
 
     // transfer xToken ownership
     function transferxTokenOwnership(address _xToken, address _newOwner) external onlyDao {
-        pendingxTokenOwner[_xToken] = _newOwner;
+        XTokenErc20(_xToken).transferOwnership(_newOwner);
     }
 
-    function doTransferxTokenOwnership(address _xToken) external {
-        require(pendingxTokenOwner[_xToken] == msg.sender, "invalid new owner");
-        delete pendingxTokenOwner[_xToken];
-        xTokenErc20(_xToken).transferOwnership(msg.sender);
-    }
-
-    function acceptxTokenOwnership(address payable _oldOwner, address _xToken) external onlyDao {
-        xTokenIssuing(_oldOwner).doTransferxTokenOwnership(_xToken);
+    function acceptxTokenOwnership(address _xToken) external onlyDao {
+        XTokenErc20(_xToken).acceptOwnership();
     }
 
     // receive issuing xToken message from remote backing contract
-    function issuexToken(
+    function issue(
         uint256 _remoteChainId,
         address _originalToken,
         address _originalSender,
@@ -121,23 +112,20 @@ contract xTokenIssuing is xTokenBridgeBase {
         _handleTransfer(transferId);
 
         address _guard = guard;
+
         if (_guard != address(0)) {
-            xTokenErc20(xToken).mint(address(this), _amount);
-            uint allowance = xTokenErc20(xToken).allowance(address(this), _guard);
-            require(xTokenErc20(xToken).approve(_guard, allowance + _amount), "approve token transfer to guard failed");
-            IGuardV3(_guard).deposit(uint256(transferId), xToken, _recipient, _amount, _extData);
-        } else {
-            xTokenErc20(xToken).mint(_recipient, _amount);
-            if (ERC165Checker.supportsInterface(_recipient, type(IUniswapV3SwapCallback).interfaceId)) {
-                CallbackInfo memory callbackInfo = CallbackInfo(msg.sig, transferId, xToken, _extData);
-                bytes memory data = abi.encode(callbackInfo);
-                IUniswapV3SwapCallback(_recipient).uniswapV3SwapCallback(int256(_amount), int256(_amount), data);
-            }
+            require(_recipient == _guard, "must issue token from guard");
         }
+        XTokenErc20(xToken).mint(_recipient, _amount);
+
+        if (ERC165Checker.supportsInterface(_recipient, type(IXTokenCallback).interfaceId)) {
+            IXTokenCallback(_recipient).xTokenCallback(uint256(transferId), xToken, _amount, _extData);
+        }
+
         emit xTokenIssued(transferId, _remoteChainId, _originalToken, xToken, _recipient, _amount);
     }
 
-    function burnAndRemoteUnlock(
+    function burnAndXUnlock(
         address _xToken,
         address _recipient,
         uint256 _amount,
@@ -151,9 +139,9 @@ contract xTokenIssuing is xTokenBridgeBase {
         _requestTransfer(transferId);
         // transfer to this and then burn
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
-        xTokenErc20(_xToken).burn(address(this), _amount);
+        XTokenErc20(_xToken).burn(address(this), _amount);
 
-        bytes memory remoteUnlockCall = encodeUnlockFromRemote(
+        bytes memory remoteUnlockCall = encodeXUnlock(
             originalInfo.token,
             msg.sender,
             _recipient,
@@ -162,10 +150,10 @@ contract xTokenIssuing is xTokenBridgeBase {
             _extData
         );
         _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
-        emit BurnAndRemoteUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
+        emit BurnAndXUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
     }
 
-    function encodeUnlockFromRemote(
+    function encodeXUnlock(
         address _originalToken,
         address _originalSender,
         address _recipient,
@@ -174,7 +162,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         bytes calldata _extData
     ) public view returns(bytes memory) {
         return abi.encodeWithSelector(
-            IxTokenBacking.unlockFromRemote.selector,
+            IXTokenBacking.unlock.selector,
             block.chainid,
             _originalToken,
             _originalSender,
@@ -189,7 +177,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     // 1. message has been delivered
     // 2. xtoken not issued
     // this method can retry
-    function requestRemoteUnlockForIssuingFailure(
+    function xRollbackLockAndXIssue(
         uint256 _originalChainId,
         address _originalToken,
         address _originalSender,
@@ -201,7 +189,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
         bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
         _requestRefund(transferId);
-        bytes memory handleUnlockForFailed = encodeUnlockForIssuingFailureFromRemote(
+        bytes memory handleUnlockForFailed = encodeRollbackLockAndXIssue(
             _originalToken,
             _originalSender,
             _recipient,
@@ -209,10 +197,10 @@ contract xTokenIssuing is xTokenBridgeBase {
             _nonce
         );
         _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
-        emit RemoteUnlockForIssuingFailureRequested(transferId, _originalToken, _originalSender, _amount, msg.value);
+        emit RollbackLockAndXIssueRequested(transferId, _originalToken, _originalSender, _amount, msg.value);
     }
 
-    function encodeUnlockForIssuingFailureFromRemote(
+    function encodeRollbackLockAndXIssue(
         address _originalToken,
         address _originalSender,
         address _recipient,
@@ -220,7 +208,7 @@ contract xTokenIssuing is xTokenBridgeBase {
         uint256 _nonce
     ) public view returns(bytes memory) {
         return abi.encodeWithSelector(
-            IxTokenBacking.handleUnlockForIssuingFailureFromRemote.selector,
+            IXTokenBacking.rollbackLockAndXIssue.selector,
             block.chainid,
             _originalToken,
             _originalSender,
@@ -235,7 +223,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     // this will refund xToken to original sender
     // 1. the transfer not refund before
     // 2. the burn information(hash) matched
-    function handleIssuingForUnlockFailureFromRemote(
+    function rollbackBurnAndXUnlock(
         uint256 _originalChainId,
         address _originalToken,
         address _originalSender,
@@ -250,11 +238,9 @@ contract xTokenIssuing is xTokenBridgeBase {
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
 
-        xTokenErc20(xToken).mint(_originalSender, _amount);
-        if (ERC165Checker.supportsInterface(_originalSender, type(IUniswapV3SwapCallback).interfaceId)) {
-            CallbackInfo memory callbackInfo = CallbackInfo(msg.sig, transferId, _originalToken, "");
-            bytes memory data = abi.encode(callbackInfo);
-            IUniswapV3SwapCallback(_originalSender).uniswapV3SwapCallback(int256(_amount), int256(_amount), data);
+        XTokenErc20(xToken).mint(_originalSender, _amount);
+        if (ERC165Checker.supportsInterface(_originalSender, type(IXTokenRollbackCallback).interfaceId)) {
+            IXTokenRollbackCallback(_originalSender).xTokenRollbackCallback(uint256(transferId), xToken, _amount);
         }
         emit TokenRemintForFailed(transferId, _originalChainId, _originalToken, xToken, _originalSender, _amount);
     }

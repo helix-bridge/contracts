@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/math/SafeMath.sol";
 
-contract xTokenErc20 is IERC20 {
+contract XTokenErc20 is IERC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -17,6 +17,7 @@ contract xTokenErc20 is IERC20 {
     uint8 public decimals;
 
     address public owner;
+    address public pendingOwner;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
@@ -39,7 +40,13 @@ contract xTokenErc20 is IERC20 {
     }
 
     function transferOwnership(address newOwner) public onlyOwner {
-        _transferOwnership(newOwner);
+        pendingOwner = newOwner;
+    }
+
+    function acceptOwnership() external {
+        require(pendingOwner == msg.sender, "invalid pending owner");
+        _transferOwnership(pendingOwner);
+        pendingOwner = address(0);
     }
 
     function totalSupply() public view override returns (uint256) {

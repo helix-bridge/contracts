@@ -2,11 +2,8 @@
 pragma solidity ^0.8.17;
 
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
-import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "./XTokenBridgeBase.sol";
 import "../interfaces/IXTokenIssuing.sol";
-import "../../interfaces/IGuardV3.sol";
-import "../../interfaces/IWToken.sol";
 import "../../../utils/TokenTransferHelper.sol";
 import "../../../interfaces/IXTokenCallback.sol";
 

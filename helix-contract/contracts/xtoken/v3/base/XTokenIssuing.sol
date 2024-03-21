@@ -5,7 +5,6 @@ import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
 import "./XTokenBridgeBase.sol";
 import "./XTokenErc20.sol";
 import "../interfaces/IXTokenBacking.sol";
-import "../../interfaces/IGuardV3.sol";
 import "../../../utils/TokenTransferHelper.sol";
 import "../../../interfaces/IXTokenCallback.sol";
 
@@ -37,7 +36,7 @@ contract XTokenIssuing is XTokenBridgeBase {
     );
     event TokenRemintForFailed(bytes32 transferId, uint256 originalChainId, address originalToken, address xToken, address originalSender, uint256 amount);
 
-    function registerxToken(
+    function registerXToken(
         uint256 _originalChainId,
         address _originalToken,
         string memory _originalChainName,
@@ -68,7 +67,7 @@ contract XTokenIssuing is XTokenBridgeBase {
 
     // using this interface, the Issuing contract must be must be granted mint and burn authorities.
     // warning: if the _xToken contract has no transferOwnership/acceptOwnership interface, then the authority cannot be transfered.
-    function updatexToken(
+    function updateXToken(
         uint256 _originalChainId,
         address _originalToken,
         address _xToken
@@ -84,11 +83,11 @@ contract XTokenIssuing is XTokenBridgeBase {
     }
 
     // transfer xToken ownership
-    function transferxTokenOwnership(address _xToken, address _newOwner) external onlyDao {
+    function transferXTokenOwnership(address _xToken, address _newOwner) external onlyDao {
         XTokenErc20(_xToken).transferOwnership(_newOwner);
     }
 
-    function acceptxTokenOwnership(address _xToken) external onlyDao {
+    function acceptXTokenOwnership(address _xToken) external onlyDao {
         XTokenErc20(_xToken).acceptOwnership();
     }
 

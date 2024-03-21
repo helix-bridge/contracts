@@ -103,7 +103,7 @@ describe("xtoken tests", () => {
           dailyLimit
       ) {
           // register xtoken
-          await issuing.registerxToken(
+          await issuing.registerXToken(
               backingChainId,
               originalTokenAddress,
               originalChainName,

@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.17;
 
-interface IxTokenIssuing {
-    function handleIssuingForUnlockFailureFromRemote(
-        uint256 originalChainId,
+interface IXTokenBacking {
+    function unlock(
+        uint256 remoteChainId,
         address originalToken,
         address originalSender,
         address recipient,
         uint256 amount,
-        uint256 nonce
+        uint256 nonce,
+        bytes calldata extData
     ) external;
 
-    function issuexToken(
+    function rollbackLockAndXIssue(
         uint256 remoteChainId,
         address originalToken,
         address originalSender,

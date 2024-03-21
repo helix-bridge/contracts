@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.17;
 
+import "hardhat/console.sol";
+
 contract MockMessageLine {
     mapping(bytes32 => bool) public dones;
     bool public failedFlag;
@@ -52,7 +54,8 @@ contract MockMessageLine {
             return;
         }
 
-        toDapp.call(abi.encodePacked(message, sourceChainId, sourceSender));
+        (bool result,) = toDapp.call(abi.encodePacked(message, sourceChainId, sourceSender));
+        console.log("mock msgline call dapp return", result);
     }
 
     function fee(

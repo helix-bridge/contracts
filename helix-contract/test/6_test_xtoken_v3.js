@@ -47,14 +47,14 @@ describe("xtoken tests", () => {
       console.log("issuing messager deployed address:", issuingMessager.address);
 
       // deploy backing
-      const xTokenBackingContract = await ethers.getContractFactory("xTokenBacking");
+      const xTokenBackingContract = await ethers.getContractFactory("XTokenBacking");
       const backing = await xTokenBackingContract.deploy();
       await backing.deployed();
       console.log("backing deployed address:", backing.address);
       await backing.initialize(dao, "v1.0.0");
 
       // deploy issuing 
-      const xTokenIssuingContract = await ethers.getContractFactory("xTokenIssuing");
+      const xTokenIssuingContract = await ethers.getContractFactory("XTokenIssuing");
       const issuing = await xTokenIssuingContract.deploy();
       await issuing.deployed();
       console.log("issuing deployed address:", issuing.address);
@@ -71,14 +71,6 @@ describe("xtoken tests", () => {
       await issuing.setReceiveService(backingChainId, backing.address, issuingMessager.address);
       console.log("configure backing & issuing finished");
       
-      // use a mapping erc20 as original token
-      const wethName = "Ethereum Wrapped ETH";
-      const wethSymbol = "WETH";
-      const wethContract = await ethers.getContractFactory("WToken");
-      const weth = await wethContract.deploy(wethName, wethSymbol, 18);
-      await weth.deployed();
-      await backing.setwToken(weth.address);
-
       let guards = [];
       for (let i = 0; i < 3; i++) {
           const wallet = ethers.Wallet.createRandom();
@@ -111,7 +103,7 @@ describe("xtoken tests", () => {
           dailyLimit
       ) {
           // register xtoken
-          await issuing.registerxToken(
+          await issuing.registerXToken(
               backingChainId,
               originalTokenAddress,
               originalChainName,
@@ -147,31 +139,33 @@ describe("xtoken tests", () => {
           }
       }
 
-      async function lockAndRemoteIssuing(
+      async function lockAndXIssue(
           originalAddress,
           amount,
           fee,
           usingGuard,
           result
       ) {
-          const recipient = user02.address;
+          const extData = usingGuard ? ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user02.address, "0x"]) : "0x";
+          const recipient = usingGuard ? issuingGuard.address : user02.address;
           const nonce = generateNonce();
           const xTokenAddress = xTokens[originalAddress];
 
           const balanceRecipientBefore = await balanceOf(xTokenAddress, recipient);
           const balanceBackingBefore = await balanceOf(originalAddress, backing.address);
 
-          const transaction = await backing.connect(user01).lockAndRemoteIssuing(
+          const transaction = await backing.connect(user01).lockAndXIssue(
               issuingChainId,
               originalAddress,
               recipient,
               amount,
               nonce,
+              extData,
               0,
               {value: ethers.utils.parseEther(fee)}
           )
           const receipt = await transaction.wait();
-          console.log("lockAndRemoteIssuing gasUsed: ", receipt.cumulativeGasUsed);
+          console.log("lockAndXIssue gasUsed: ", receipt.cumulativeGasUsed);
 
           const balanceRecipientAfter = await balanceOf(xTokenAddress, recipient);
           const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
@@ -179,7 +173,7 @@ describe("xtoken tests", () => {
           const requestInfo = await backing.requestInfos(transferId);
           expect(requestInfo.isRequested).to.equal(true);
           expect(requestInfo.hasRefundForFailed).to.equal(false);
-          if (result == true && !usingGuard) {
+          if (result == true) {
               expect(balanceRecipientAfter - balanceRecipientBefore).to.equal(amount);
               expect(balanceBackingAfter - balanceBackingBefore).to.equal(amount);
           } else {
@@ -189,14 +183,16 @@ describe("xtoken tests", () => {
           return nonce;
       }
 
-      async function burnAndRemoteUnlock(
+      async function burnAndXUnlock(
           originalAddress,
           amount,
           fee,
           usingGuard,
           result
       ) {
-          const recipient = user01.address;
+          const extData = usingGuard ? ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user01.address, "0x"]) : "0x";
+          const recipient = usingGuard ? backingGuard.address : user01.address;
+
           const nonce = generateNonce();
           const xTokenAddress = xTokens[originalAddress];
 
@@ -204,16 +200,17 @@ describe("xtoken tests", () => {
           const balanceRecipientBefore = await balanceOf(originalAddress, recipient);
           const balanceBackingBefore = await balanceOf(originalAddress, backing.address);
 
-          const transaction = await issuing.connect(user02).burnAndRemoteUnlock(
+          const transaction = await issuing.connect(user02).burnAndXUnlock(
               xTokenAddress,
               recipient,
               amount,
               nonce,
+              extData,
               0,
               {value: ethers.utils.parseEther(fee)}
           );
           const receipt = await transaction.wait();
-          console.log("burnAndRemoteUnlock gasUsed: ", receipt.cumulativeGasUsed);
+          console.log("burnAndXUnlock gasUsed: ", receipt.cumulativeGasUsed);
 
           const balanceRecipientAfter = await balanceOf(originalAddress, recipient);
           const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
@@ -225,33 +222,30 @@ describe("xtoken tests", () => {
           expect(requestInfo.hasRefundForFailed).to.equal(false);
           expect(balanceUserBefore.sub(balanceUserAfter)).to.equal(amount);
 
-          if (result && !usingGuard) {
+          if (result) {
               expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(amount);
               expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);
           } else {
               // if successfully unlock native token by guard
-              if (nativeTokenAddress == originalAddress && result && usingGuard) {
-                  expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);
-              } else {
-                  expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(0);
-              }
+              expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(0);
               expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(0);
           }
           return nonce;
       }
 
-      async function requestRemoteUnlockForIssuingFailure(
+      async function xRollbackLockAndXIssue(
           originalToken,
           amount,
           nonce,
           fee,
-          result
+          result,
+          recipient = user02.address
       ) {
           const originalSender = user01.address;
-          const recipient = user02.address;
+          //const recipient = user02.address;
           const balanceBackingBefore = await balanceOf(originalToken, backing.address);
           const balanceSenderBefore = await balanceOf(originalToken, originalSender);
-          const transaction = await issuing.requestRemoteUnlockForIssuingFailure(
+          const transaction = await issuing.xRollbackLockAndXIssue(
               backingChainId,
               originalToken,
               originalSender,
@@ -283,7 +277,7 @@ describe("xtoken tests", () => {
           }
       }
 
-      async function requestRemoteIssuingForUnlockFailure(
+      async function xRollbackBurnAndXUnlock(
           originalToken,
           amount,
           nonce,
@@ -296,7 +290,7 @@ describe("xtoken tests", () => {
           const xTokenAddress = xTokens[originalToken];
 
           const balanceSenderBefore = await balanceOf(xTokenAddress, originalSender);
-          await backing.requestRemoteIssuingForUnlockFailure(
+          await backing.xRollbackBurnAndXUnlock(
               issuingChainId,
               originalToken,
               originalSender,
@@ -324,17 +318,19 @@ describe("xtoken tests", () => {
           recipient,
           amount
       ) {
+          const extData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [recipient, "0x"]);
           // encode value
           const structHash =
               ethUtil.keccak256(
                   abi.rawEncode(
                       ['bytes4', 'bytes'],
-                      [abi.methodID('claim', ['address',  'uint256', 'uint256', 'address', 'address', 'uint256', 'bytes[]' ]),
-                          abi.rawEncode(['address', 'uint256', 'uint256', 'address', 'address', 'uint256'],
-                              [depositer, id, timestamp, token, recipient, amount])
+                      [abi.methodID('claim', ['address',  'uint256', 'uint256', 'address', 'uint256', 'bytes', 'bytes[]' ]),
+                          abi.rawEncode(['address', 'uint256', 'uint256', 'address', 'uint256', 'bytes'],
+                              [depositer, id, timestamp, token, amount, ethers.utils.arrayify(extData)])
                       ]
                   )
               );
+
           const dataHash = await guard.encodeDataHash(structHash);
           const signatures = wallets.map((wallet) => {
               const address = wallet.address;
@@ -348,10 +344,10 @@ describe("xtoken tests", () => {
           });
           const balanceBackingBefore = await balanceOf(token, depositer);
           const balanceRecipientBefore = await balanceOf(token, recipient);
-          await guard.claim(depositer, id, timestamp, token, recipient, amount, signatures);
+          await guard.claim(depositer, id, timestamp, token, amount, extData, signatures);
           const balanceBackingAfter = await balanceOf(token, depositer);
           const balanceRecipientAfter = await balanceOf(token, recipient);
-          expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(amount);
+          expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(0);
           expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(amount);
       }
 
@@ -400,7 +396,7 @@ describe("xtoken tests", () => {
           1000
       );
 
-      await expect(lockAndRemoteIssuing(
+      await expect(lockAndXIssue(
           nativeTokenAddress,
           100,
           "0.9",
@@ -409,7 +405,7 @@ describe("xtoken tests", () => {
       )).to.be.revertedWith("fee is not enough");
 
       // success lock and remote xtoken
-      const nonce01 = await lockAndRemoteIssuing(
+      const nonce01 = await lockAndXIssue(
           nativeTokenAddress,
           500,
           "1.1",
@@ -417,7 +413,7 @@ describe("xtoken tests", () => {
           true
       );
       // success burn and remote unlock
-      const nonce02 = await burnAndRemoteUnlock(
+      const nonce02 = await burnAndXUnlock(
           nativeTokenAddress,
           100,
           "1.1",
@@ -426,14 +422,14 @@ describe("xtoken tests", () => {
       );
 
       // test refund failed if the message has been successed
-      await expect(requestRemoteUnlockForIssuingFailure(
+      await expect(xRollbackLockAndXIssue(
           nativeTokenAddress,
           500,
           nonce01,
           "1.1",
           true
       )).to.be.revertedWith("!conflict");
-      await expect(requestRemoteIssuingForUnlockFailure(
+      await expect(xRollbackBurnAndXUnlock(
           nativeTokenAddress,
           100,
           nonce02,
@@ -442,7 +438,7 @@ describe("xtoken tests", () => {
       )).to.be.revertedWith("!conflict");
 
       // lock exceed daily limit
-      const nonce03 = await lockAndRemoteIssuing(
+      const nonce03 = await lockAndXIssue(
           nativeTokenAddress,
           501,
           "1.1",
@@ -450,7 +446,7 @@ describe("xtoken tests", () => {
           false
       );
       // refund (when isssuing failed)
-      await requestRemoteUnlockForIssuingFailure(
+      await xRollbackLockAndXIssue(
           nativeTokenAddress,
           501,
           nonce03,
@@ -459,7 +455,7 @@ describe("xtoken tests", () => {
       );
       // the params not right
       // 1. amount
-      await requestRemoteUnlockForIssuingFailure(
+      await xRollbackLockAndXIssue(
           nativeTokenAddress,
           500,
           nonce03,
@@ -467,7 +463,7 @@ describe("xtoken tests", () => {
           false
       );
       // receiver
-      await requestRemoteUnlockForIssuingFailure(
+      await xRollbackLockAndXIssue(
           nativeTokenAddress,
           501,
           nonce03,
@@ -475,7 +471,7 @@ describe("xtoken tests", () => {
           false
       );
       // refund twice
-      await requestRemoteUnlockForIssuingFailure(
+      await xRollbackLockAndXIssue(
           nativeTokenAddress,
           501,
           nonce03,
@@ -484,7 +480,7 @@ describe("xtoken tests", () => {
       );
       // burn failed
       await mockBackingMsgline.setRecvFailed();
-      const nonce04 = await burnAndRemoteUnlock(
+      const nonce04 = await burnAndXUnlock(
           nativeTokenAddress,
           100,
           "1.1",
@@ -492,7 +488,7 @@ describe("xtoken tests", () => {
           false
       );
       // invalid args
-      await requestRemoteIssuingForUnlockFailure(
+      await xRollbackBurnAndXUnlock(
           nativeTokenAddress,
           101,
           nonce04,
@@ -500,7 +496,7 @@ describe("xtoken tests", () => {
           false
       );
       // refund (when unlock failed)
-      await requestRemoteIssuingForUnlockFailure(
+      await xRollbackBurnAndXUnlock(
           nativeTokenAddress,
           100,
           nonce04,
@@ -508,7 +504,7 @@ describe("xtoken tests", () => {
           true
       );
       // refund twice
-      await requestRemoteIssuingForUnlockFailure(
+      await xRollbackBurnAndXUnlock(
           nativeTokenAddress,
           100,
           nonce04,
@@ -519,16 +515,17 @@ describe("xtoken tests", () => {
       // using guard
       await backing.updateGuard(backingGuard.address);
       await issuing.updateGuard(issuingGuard.address);
+      // if set guard, the recipient must be guard and the real recipient is filled in extData
 
       // lock -> issuing using guard
-      const nonce05 = await lockAndRemoteIssuing(
+      const nonce05 = await lockAndXIssue(
           nativeTokenAddress,
           10,
           "1.1",
           true,//using guard
           true
       );
-      const transferId = await backing.getTransferId(nonce05, backingChainId, issuingChainId, nativeTokenAddress, user01.address, user02.address, 10);
+      const transferId = await backing.getTransferId(nonce05, backingChainId, issuingChainId, nativeTokenAddress, user01.address, issuingGuard.address, 10);
       await guardClaim(
           issuingGuard,
           issuing.address,
@@ -540,14 +537,14 @@ describe("xtoken tests", () => {
           10
       );
       // burn -> unlock using guard (native token)
-      const nonce06 = await burnAndRemoteUnlock(
+      const nonce06 = await burnAndXUnlock(
           nativeTokenAddress,
           20,
           "1.1",
           true, //using guard
           true
       );
-      const transferId06 = await backing.getTransferId(nonce06, backingChainId, issuingChainId, nativeTokenAddress, user02.address, user01.address, 20);
+      const transferId06 = await backing.getTransferId(nonce06, backingChainId, issuingChainId, nativeTokenAddress, user02.address, backingGuard.address, 20);
       await guardClaim(
           backingGuard,
           backing.address,
@@ -555,7 +552,7 @@ describe("xtoken tests", () => {
           await getBlockTimestamp(),
           [guards[0], guards[1]],
           // native token must be claimed by wtoken
-          weth.address,
+          nativeTokenAddress,
           user01.address,
           20
       );
@@ -566,7 +563,7 @@ describe("xtoken tests", () => {
           transferId06,
           await getBlockTimestamp(),
           [guards[0], guards[1]],
-          weth.address,
+          nativeTokenAddress,
           user01.address,
           20
       )).to.be.revertedWith("Guard: Invalid id to claim");
@@ -574,7 +571,7 @@ describe("xtoken tests", () => {
       // test message slashed
       await mockIssuingMsgline.setNeverDelivered();
       // this message will be never delivered
-      const nonce07 = await lockAndRemoteIssuing(
+      const nonce07 = await lockAndXIssue(
           nativeTokenAddress,
           10,
           "1.1",
@@ -583,6 +580,105 @@ describe("xtoken tests", () => {
       );
 
       await guardSetClaimTime(issuingGuard, 110011, [guards[0], guards[1]]);
+      return;
+
+      // test callback
+      const swapTokenContract = await ethers.getContractFactory("Erc20");
+      const swapToken = await swapTokenContract.deploy('swapped ETH', 'sETH', 18);
+      await swapToken.deployed();
+
+      const mockxTokenSwapContract = await ethers.getContractFactory("MockxTokenSwap");
+      const mockxTokenSwap= await mockxTokenSwapContract.deploy(xTokens[nativeTokenAddress], swapToken.address, backing.address);
+      await mockxTokenSwap.deployed();
+
+      // there is guard
+      {
+          await backing.connect(user01).lockAndXIssue(
+              issuingChainId,
+              nativeTokenAddress,
+              mockxTokenSwap.address,
+              10,
+              123456,
+              user02.address,
+              0,
+              {value: ethers.utils.parseEther("1.1")}
+          );
+          // no right to mint swap token, can't claim
+          const transferId = await backing.getTransferId(123456, backingChainId, issuingChainId, nativeTokenAddress, user01.address, mockxTokenSwap.address, 10);
+          const blockTimestamp = await getBlockTimestamp();
+          await expect(guardClaim(
+              issuingGuard,
+              issuing.address,
+              transferId,
+              blockTimestamp,
+              [guards[0], guards[1]],
+              xTokens[nativeTokenAddress],
+              mockxTokenSwap.address,
+              10,
+              user02.address
+          )).to.be.revertedWith("Ownable: caller is not the owner");
+          // give mint right to swap contract 
+          await swapToken.transferOwnership(mockxTokenSwap.address);
+          const balanceBefore = await balanceOf(swapToken.address, user02.address);
+          await guardClaim(
+              issuingGuard,
+              issuing.address,
+              transferId,
+              blockTimestamp,
+              [guards[0], guards[1]],
+              xTokens[nativeTokenAddress],
+              mockxTokenSwap.address,
+              10,
+              user02.address
+          )
+          // user02 receive swapped token
+          const balanceAfter = await balanceOf(swapToken.address, user02.address);
+          expect(balanceBefore).to.equal(0);
+          expect(balanceAfter).to.equal(10);
+      }
+      
+      // no guard
+      {
+          await issuing.updateGuard("0x0000000000000000000000000000000000000000");
+          await mockxTokenSwap.transferOwnership(swapToken.address, owner.address);
+          // failed because swap contract has no right to mint token
+          await backing.connect(user01).lockAndXIssue(
+              issuingChainId,
+              nativeTokenAddress,
+              mockxTokenSwap.address,
+              100,
+              123456,
+              user02.address,
+              0,
+              {value: ethers.utils.parseEther("1.1")}
+          );
+          // issuing contract has no right to mint swap token, this can be revert
+          await xRollbackLockAndXIssue(
+              nativeTokenAddress,
+              100,
+              123456,
+              "1.1",
+              true,
+              mockxTokenSwap.address
+          );
+          // give mint right to issuing
+          await swapToken.transferOwnership(mockxTokenSwap.address);
+          const balanceBefore = await balanceOf(swapToken.address, user02.address);
+          await backing.connect(user01).lockAndXIssue(
+              issuingChainId,
+              nativeTokenAddress,
+              mockxTokenSwap.address,
+              100,
+              1234567,
+              user02.address,
+              0,
+              {value: ethers.utils.parseEther("1.1")}
+          )
+          // user02 receive swapped token
+          const balanceAfter = await balanceOf(swapToken.address, user02.address);
+          expect(balanceBefore).to.equal(10);
+          expect(balanceAfter).to.equal(110);
+      }
   });
 });
 

@@ -5,8 +5,8 @@ import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
 import "./XTokenBridgeBase.sol";
 import "./XTokenErc20.sol";
 import "../interfaces/IXTokenBacking.sol";
+import "../interfaces/IXTokenCallback.sol";
 import "../../../utils/TokenTransferHelper.sol";
-import "../../../interfaces/IXTokenCallback.sol";
 
 contract XTokenIssuing is XTokenBridgeBase {
     struct OriginalTokenInfo {

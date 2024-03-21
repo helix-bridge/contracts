@@ -4,8 +4,8 @@ pragma solidity ^0.8.17;
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
 import "./XTokenBridgeBase.sol";
 import "../interfaces/IXTokenIssuing.sol";
+import "../interfaces/IXTokenCallback.sol";
 import "../../../utils/TokenTransferHelper.sol";
-import "../../../interfaces/IXTokenCallback.sol";
 
 // The contract implements the backing side of the Helix xToken protocol. 
 // When sending cross-chain transactions, the user locks the Token in the contract, and when the message reaches the target chain, the corresponding mapped asset (xToken) will be issued;

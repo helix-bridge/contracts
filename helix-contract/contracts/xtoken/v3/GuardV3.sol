@@ -7,8 +7,8 @@ import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165.sol";
 import "./GuardRegistryV3.sol";
+import "./interfaces/IXTokenCallback.sol";
 import "../../utils/TokenTransferHelper.sol";
-import "../../interfaces/IXTokenCallback.sol";
 
 contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
     mapping(uint256 => bytes32) public deposits;

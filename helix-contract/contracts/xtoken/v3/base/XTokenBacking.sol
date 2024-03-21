@@ -46,6 +46,7 @@ contract XTokenBacking is XTokenBridgeBase {
     // especially in reorg scenarios, the destination chain use nonce to filter out duplicate deliveries. 
     // nonce is user-defined, there is no requirement that it must not be repeated.
     // But the transferId generated must not be repeated.
+    // msg.value is the fee pay for message
     function lockAndXIssue(
         uint256 _remoteChainId,
         address _originalToken,
@@ -61,21 +62,13 @@ contract XTokenBacking is XTokenBridgeBase {
         transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, msg.sender, _recipient, _amount);
         _requestTransfer(transferId);
 
-        uint256 prepaid = msg.value;
-        // lock token
-        if (address(0) == _originalToken) {
-            // native token
-            require(msg.value > _amount, "invalid value");
-            prepaid -= _amount;
-        } else {
-            // erc20 token
-            TokenTransferHelper.safeTransferFrom(
-                _originalToken,
-                msg.sender,
-                address(this),
-                _amount
-            );
-        }
+        // erc20 token
+        TokenTransferHelper.safeTransferFrom(
+            _originalToken,
+            msg.sender,
+            address(this),
+            _amount
+        );
         bytes memory issuxToken = encodeXIssue(
             _originalToken,
             msg.sender,
@@ -84,8 +77,8 @@ contract XTokenBacking is XTokenBridgeBase {
             _nonce,
             _extData
         );
-        _sendMessage(_remoteChainId, issuxToken, prepaid, _extParams);
-        emit TokenLocked(transferId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, prepaid);
+        _sendMessage(_remoteChainId, issuxToken, msg.value, _extParams);
+        emit TokenLocked(transferId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, msg.value);
     }
 
     function encodeXIssue(
@@ -127,12 +120,7 @@ contract XTokenBacking is XTokenBridgeBase {
         if (_guard != address(0)) {
             require(_recipient == _guard, "must unlock token from guard");
         }
-
-        if (address(0) == _originalToken) {
-            TokenTransferHelper.safeTransferNative(_recipient, _amount);
-        } else {
-            TokenTransferHelper.safeTransfer(_originalToken, _recipient, _amount);
-        }
+        TokenTransferHelper.safeTransfer(_originalToken, _recipient, _amount);
 
         if (ERC165Checker.supportsInterface(_recipient, type(IXTokenCallback).interfaceId)) {
             IXTokenCallback(_recipient).xTokenCallback(uint256(transferId), _originalToken, _amount, _extData);
@@ -198,11 +186,8 @@ contract XTokenBacking is XTokenBridgeBase {
     ) external calledByMessager(_remoteChainId) whenNotPaused {
         bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
         _handleRefund(transferId);
-        if (_originalToken == address(0)) {
-            TokenTransferHelper.safeTransferNative(_originalSender, _amount);
-        } else {
-            TokenTransferHelper.safeTransfer(_originalToken, _originalSender, _amount);
-        }
+        TokenTransferHelper.safeTransfer(_originalToken, _originalSender, _amount);
+
         if (ERC165Checker.supportsInterface(_originalSender, type(IXTokenRollbackCallback).interfaceId)) {
             IXTokenRollbackCallback(_originalSender).xTokenRollbackCallback(uint256(transferId), _originalToken, _amount);
         }

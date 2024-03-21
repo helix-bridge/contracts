@@ -100,11 +100,8 @@ contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
         require(_amount > 0, "Guard: Invalid amount to claim");
         delete deposits[_id];
         (address recipient, bytes memory data) = abi.decode(_extData, (address, bytes));
-        if (_token == address(0)) {
-            TokenTransferHelper.safeTransferNative(recipient, _amount);
-        } else {
-            TokenTransferHelper.safeTransfer(_token, recipient, _amount);
-        }
+        TokenTransferHelper.safeTransfer(_token, recipient, _amount);
+
         emit TokenClaimed(_id);
         if (ERC165Checker.supportsInterface(recipient, type(IXTokenCallback).interfaceId)) {
             IXTokenCallback(recipient).xTokenCallback(_id, _token, _amount, data);

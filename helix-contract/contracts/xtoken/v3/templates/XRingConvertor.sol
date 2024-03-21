@@ -13,7 +13,6 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     IXTokenIssuing public xTokenIssuing;
     address public immutable RING;
     address public immutable XRING;
-    address public immutable GUARD;
 
     mapping(uint256=>address) senders;
 
@@ -35,15 +34,14 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
         _;
     }
 
-    modifier onlyXTokenIssuingOrGuard() {
-        require(address(xTokenIssuing) == msg.sender || GUARD == msg.sender, "invalid sender");
+    modifier onlyXTokenIssuingAuthorized() {
+        require(address(xTokenIssuing) == msg.sender || xTokenIssuing.guard() == msg.sender, "invalid sender");
         _;
     }
 
-    constructor(address _xRing, address _ring, address _xTokenIssuing, address _lockBox, address _guard) {
+    constructor(address _xRing, address _ring, address _xTokenIssuing, address _lockBox) {
         RING = _ring;
         XRING = _xRing;
-        GUARD = _guard;
         lockBox = IXRINGLockBox(_lockBox);
         xTokenIssuing = IXTokenIssuing(_xTokenIssuing);
         IERC20(_ring).approve(_lockBox, type(uint256).max);
@@ -56,7 +54,7 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
         address _xToken,
         uint256 _amount,
         bytes calldata extData
-    ) onlyXTokenIssuingOrGuard external {
+    ) onlyXTokenIssuingAuthorized external {
         address recipient = address(bytes20(extData));
         require(_xToken == XRING, "invalid xtoken");
         lockBox.depositFor(recipient, _amount);

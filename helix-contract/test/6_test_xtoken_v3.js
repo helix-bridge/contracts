@@ -23,6 +23,7 @@ describe("xtoken tests", () => {
       const backingChainId = 31337;
       const issuingChainId = 31337;
       const nativeTokenAddress = "0x0000000000000000000000000000000000000000";
+      const nullAddress = "0x0000000000000000000000000000000000000000";
       let globalNonce = 10001;
 
       const xTokens = {};
@@ -88,6 +89,20 @@ describe("xtoken tests", () => {
       const issuingGuard = await guardIssuingContract.deploy([guards[0].address, guards[1].address, guards[2].address], owner.address, 2, 60);
       await issuingGuard.deployed();
       await issuingGuard.setDepositor(issuing.address, true);
+
+      // deploy wtoken
+      const wtokenContract = await ethers.getContractFactory("WToken");
+      const wtoken = await wtokenContract.deploy("wtoken test", "WETH", 18);
+      await wtoken.deployed();
+
+      // deposit and approve
+      await wtoken.connect(user01).deposit({ value: ethers.utils.parseEther("1") });
+      await wtoken.connect(user01).approve(backing.address, ethers.utils.parseEther("1"));
+
+      // deploy wtoken convertor
+      const wtokenConvertorContract = await ethers.getContractFactory("WTokenConvertor")
+      const wtokenConvertor = await wtokenConvertorContract.deploy(wtoken.address, backing.address);
+      await wtokenConvertor.deployed();
 
       function generateNonce() {
           globalNonce += 1;
@@ -183,6 +198,51 @@ describe("xtoken tests", () => {
           return nonce;
       }
 
+      // using wtoken convertor
+      async function lockAndXIssueNative(
+          amount,
+          fee,
+          usingGuard,
+          result
+      ) {
+          const wtokenAddress = wtoken.address;
+          const extData = usingGuard ? ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user02.address, "0x"]) : "0x";
+          const recipient = usingGuard ? issuingGuard.address : user02.address;
+          const nonce = generateNonce();
+          const xTokenAddress = xTokens[wtokenAddress];
+
+          const balanceRecipientBefore = await balanceOf(xTokenAddress, recipient);
+          const balanceBackingBefore = await balanceOf(wtokenAddress, backing.address);
+
+          const transaction = await wtokenConvertor.connect(user01).lockAndXIssue(
+              issuingChainId,
+              recipient,
+              amount,
+              nonce,
+              extData,
+              0,
+              {value: ethers.utils.parseEther(fee)}
+          );
+
+          const receipt = await transaction.wait();
+          console.log("lockAndXIssue native gasUsed: ", receipt.cumulativeGasUsed);
+
+          const balanceRecipientAfter = await balanceOf(xTokenAddress, recipient);
+          const balanceBackingAfter = await balanceOf(wtokenAddress, backing.address);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, wtokenAddress, wtokenConvertor.address, recipient, amount);
+          const requestInfo = await backing.requestInfos(transferId);
+          expect(requestInfo.isRequested).to.equal(true);
+          expect(requestInfo.hasRefundForFailed).to.equal(false);
+          if (result == true) {
+              expect(balanceRecipientAfter - balanceRecipientBefore).to.equal(amount);
+              expect(balanceBackingAfter - balanceBackingBefore).to.equal(amount);
+          } else {
+              expect(balanceRecipientAfter - balanceRecipientBefore).to.equal(0);
+              expect(balanceBackingAfter - balanceBackingBefore).to.equal(amount);
+          }
+          return nonce;
+      }
+
       async function burnAndXUnlock(
           originalAddress,
           amount,
@@ -190,15 +250,27 @@ describe("xtoken tests", () => {
           usingGuard,
           result
       ) {
-          const extData = usingGuard ? ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user01.address, "0x"]) : "0x";
-          const recipient = usingGuard ? backingGuard.address : user01.address;
+          const usingConvertor = originalAddress == nativeTokenAddress;
+          const msgToken = usingConvertor ? wtoken.address : originalAddress;
+
+          const usingGuardAndConvertorExtData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [wtokenConvertor.address, user01.address]);
+          const usingOnlyGuard = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user01.address, "0x"]);
+          const usingOnlyConvertor = user01.address;
+          const usingNothingExtData = "0x";
+
+          const extData = usingGuard?(usingConvertor?usingGuardAndConvertorExtData:usingOnlyGuard):(usingConvertor?usingOnlyConvertor:usingNothingExtData);
+
+          const recipient = usingGuard ? backingGuard.address : (usingConvertor ? wtokenConvertor.address : user01.address);
+          const tokenReceiver = usingGuard ? backingGuard.address : user01.address;
+
+          const recvToken = usingGuard ? msgToken : originalAddress;
 
           const nonce = generateNonce();
-          const xTokenAddress = xTokens[originalAddress];
+          const xTokenAddress = xTokens[msgToken];
 
           const balanceUserBefore = await balanceOf(xTokenAddress, user02.address);
-          const balanceRecipientBefore = await balanceOf(originalAddress, recipient);
-          const balanceBackingBefore = await balanceOf(originalAddress, backing.address);
+          const balanceRecipientBefore = await balanceOf(recvToken, tokenReceiver);
+          const balanceBackingBefore = await balanceOf(msgToken, backing.address);
 
           const transaction = await issuing.connect(user02).burnAndXUnlock(
               xTokenAddress,
@@ -212,11 +284,11 @@ describe("xtoken tests", () => {
           const receipt = await transaction.wait();
           console.log("burnAndXUnlock gasUsed: ", receipt.cumulativeGasUsed);
 
-          const balanceRecipientAfter = await balanceOf(originalAddress, recipient);
-          const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
+          const balanceRecipientAfter = await balanceOf(recvToken, tokenReceiver);
+          const balanceBackingAfter = await balanceOf(msgToken, backing.address);
           const balanceUserAfter = await balanceOf(xTokenAddress, user02.address);
 
-          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, originalAddress, user02.address, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, msgToken, user02.address, recipient, amount);
           const requestInfo = await issuing.requestInfos(transferId);
           expect(requestInfo.isRequested).to.equal(true);
           expect(requestInfo.hasRefundForFailed).to.equal(false);
@@ -241,14 +313,16 @@ describe("xtoken tests", () => {
           result,
           recipient = user02.address
       ) {
+          const msgToken = originalToken == nativeTokenAddress ? wtoken.address : originalToken;
+          const msgSender = originalToken == nativeTokenAddress ? wtokenConvertor.address : user01.address;
           const originalSender = user01.address;
           //const recipient = user02.address;
-          const balanceBackingBefore = await balanceOf(originalToken, backing.address);
+          const balanceBackingBefore = await balanceOf(msgToken, backing.address);
           const balanceSenderBefore = await balanceOf(originalToken, originalSender);
           const transaction = await issuing.xRollbackLockAndXIssue(
               backingChainId,
-              originalToken,
-              originalSender,
+              msgToken,
+              msgSender,
               recipient,
               amount,
               nonce,
@@ -259,12 +333,12 @@ describe("xtoken tests", () => {
               }
           );
           const balanceSenderAfter = await balanceOf(originalToken, originalSender);
-          const balanceBackingAfter = await balanceOf(originalToken, backing.address);
+          const balanceBackingAfter = await balanceOf(msgToken, backing.address);
           
           let receipt = await transaction.wait();
           let gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
-          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, originalToken, originalSender, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, msgToken, msgSender, recipient, amount);
           const requestInfo = await backing.requestInfos(transferId);
           if (result) {
               expect(balanceSenderAfter.sub(balanceSenderBefore)).to.be.equal(amount);
@@ -318,7 +392,12 @@ describe("xtoken tests", () => {
           recipient,
           amount
       ) {
-          const extData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [recipient, "0x"]);
+          const usingConvertor = nativeTokenAddress == token;
+          const msgToken = usingConvertor ? wtoken.address : token;
+          let extData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [recipient, "0x"]);
+          if (usingConvertor) {
+              extData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [wtokenConvertor.address, recipient]);
+          }
           // encode value
           const structHash =
               ethUtil.keccak256(
@@ -326,7 +405,7 @@ describe("xtoken tests", () => {
                       ['bytes4', 'bytes'],
                       [abi.methodID('claim', ['address',  'uint256', 'uint256', 'address', 'uint256', 'bytes', 'bytes[]' ]),
                           abi.rawEncode(['address', 'uint256', 'uint256', 'address', 'uint256', 'bytes'],
-                              [depositer, id, timestamp, token, amount, ethers.utils.arrayify(extData)])
+                              [depositer, id, timestamp, msgToken, amount, ethers.utils.arrayify(extData)])
                       ]
                   )
               );
@@ -342,10 +421,10 @@ describe("xtoken tests", () => {
               );
               return ethers.utils.hexlify(signature);
           });
-          const balanceBackingBefore = await balanceOf(token, depositer);
+          const balanceBackingBefore = await balanceOf(msgToken, depositer);
           const balanceRecipientBefore = await balanceOf(token, recipient);
-          await guard.claim(depositer, id, timestamp, token, amount, extData, signatures);
-          const balanceBackingAfter = await balanceOf(token, depositer);
+          await guard.claim(depositer, id, timestamp, msgToken, amount, extData, signatures);
+          const balanceBackingAfter = await balanceOf(msgToken, depositer);
           const balanceRecipientAfter = await balanceOf(token, recipient);
           expect(balanceBackingBefore.sub(balanceBackingAfter)).to.equal(0);
           expect(balanceRecipientAfter.sub(balanceRecipientBefore)).to.equal(amount);
@@ -388,16 +467,16 @@ describe("xtoken tests", () => {
       }
 
       await registerToken(
-          nativeTokenAddress,
+          wtoken.address,
           "ethereum",
-          "native token",
-          "eth",
+          "wrapped token",
+          "weth",
           18,
           1000
       );
 
       await expect(lockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           100,
           "0.9",
           false,
@@ -406,7 +485,7 @@ describe("xtoken tests", () => {
 
       // success lock and remote xtoken
       const nonce01 = await lockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           500,
           "1.1",
           false,
@@ -414,7 +493,7 @@ describe("xtoken tests", () => {
       );
       // success burn and remote unlock
       const nonce02 = await burnAndXUnlock(
-          nativeTokenAddress,
+          wtoken.address,
           100,
           "1.1",
           false,
@@ -423,14 +502,14 @@ describe("xtoken tests", () => {
 
       // test refund failed if the message has been successed
       await expect(xRollbackLockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           500,
           nonce01,
           "1.1",
           true
       )).to.be.revertedWith("!conflict");
       await expect(xRollbackBurnAndXUnlock(
-          nativeTokenAddress,
+          wtoken.address,
           100,
           nonce02,
           "1.1",
@@ -439,7 +518,7 @@ describe("xtoken tests", () => {
 
       // lock exceed daily limit
       const nonce03 = await lockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           501,
           "1.1",
           false,
@@ -447,7 +526,7 @@ describe("xtoken tests", () => {
       );
       // refund (when isssuing failed)
       await xRollbackLockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           501,
           nonce03,
           "1.1",
@@ -456,7 +535,7 @@ describe("xtoken tests", () => {
       // the params not right
       // 1. amount
       await xRollbackLockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           500,
           nonce03,
           "1.1",
@@ -464,7 +543,7 @@ describe("xtoken tests", () => {
       );
       // receiver
       await xRollbackLockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           501,
           nonce03,
           "1.1",
@@ -472,7 +551,7 @@ describe("xtoken tests", () => {
       );
       // refund twice
       await xRollbackLockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           501,
           nonce03,
           "1.1",
@@ -481,7 +560,7 @@ describe("xtoken tests", () => {
       // burn failed
       await mockBackingMsgline.setRecvFailed();
       const nonce04 = await burnAndXUnlock(
-          nativeTokenAddress,
+          wtoken.address,
           100,
           "1.1",
           false,
@@ -489,7 +568,7 @@ describe("xtoken tests", () => {
       );
       // invalid args
       await xRollbackBurnAndXUnlock(
-          nativeTokenAddress,
+          wtoken.address,
           101,
           nonce04,
           "1.1",
@@ -497,7 +576,7 @@ describe("xtoken tests", () => {
       );
       // refund (when unlock failed)
       await xRollbackBurnAndXUnlock(
-          nativeTokenAddress,
+          wtoken.address,
           100,
           nonce04,
           "1.1",
@@ -505,7 +584,7 @@ describe("xtoken tests", () => {
       );
       // refund twice
       await xRollbackBurnAndXUnlock(
-          nativeTokenAddress,
+          wtoken.address,
           100,
           nonce04,
           "1.1",
@@ -519,32 +598,32 @@ describe("xtoken tests", () => {
 
       // lock -> issuing using guard
       const nonce05 = await lockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           10,
           "1.1",
           true,//using guard
           true
       );
-      const transferId = await backing.getTransferId(nonce05, backingChainId, issuingChainId, nativeTokenAddress, user01.address, issuingGuard.address, 10);
+      const transferId = await backing.getTransferId(nonce05, backingChainId, issuingChainId, wtoken.address, user01.address, issuingGuard.address, 10);
       await guardClaim(
           issuingGuard,
           issuing.address,
           transferId,
           await getBlockTimestamp(),
           [guards[0], guards[1]],
-          xTokens[nativeTokenAddress],
+          xTokens[wtoken.address],
           user02.address,
           10
       );
       // burn -> unlock using guard (native token)
       const nonce06 = await burnAndXUnlock(
-          nativeTokenAddress,
+          wtoken.address,
           20,
           "1.1",
           true, //using guard
           true
       );
-      const transferId06 = await backing.getTransferId(nonce06, backingChainId, issuingChainId, nativeTokenAddress, user02.address, backingGuard.address, 20);
+      const transferId06 = await backing.getTransferId(nonce06, backingChainId, issuingChainId, wtoken.address, user02.address, backingGuard.address, 20);
       await guardClaim(
           backingGuard,
           backing.address,
@@ -552,7 +631,7 @@ describe("xtoken tests", () => {
           await getBlockTimestamp(),
           [guards[0], guards[1]],
           // native token must be claimed by wtoken
-          nativeTokenAddress,
+          wtoken.address,
           user01.address,
           20
       );
@@ -563,7 +642,7 @@ describe("xtoken tests", () => {
           transferId06,
           await getBlockTimestamp(),
           [guards[0], guards[1]],
-          nativeTokenAddress,
+          wtoken.address,
           user01.address,
           20
       )).to.be.revertedWith("Guard: Invalid id to claim");
@@ -572,7 +651,7 @@ describe("xtoken tests", () => {
       await mockIssuingMsgline.setNeverDelivered();
       // this message will be never delivered
       const nonce07 = await lockAndXIssue(
-          nativeTokenAddress,
+          wtoken.address,
           10,
           "1.1",
           true,
@@ -580,105 +659,75 @@ describe("xtoken tests", () => {
       );
 
       await guardSetClaimTime(issuingGuard, 110011, [guards[0], guards[1]]);
-      return;
 
-      // test callback
-      const swapTokenContract = await ethers.getContractFactory("Erc20");
-      const swapToken = await swapTokenContract.deploy('swapped ETH', 'sETH', 18);
-      await swapToken.deployed();
+      // test native token
+      const nonceN1 = await lockAndXIssueNative(
+          100,
+          "1.1",
+          true,
+          true
+      );
 
-      const mockxTokenSwapContract = await ethers.getContractFactory("MockxTokenSwap");
-      const mockxTokenSwap= await mockxTokenSwapContract.deploy(xTokens[nativeTokenAddress], swapToken.address, backing.address);
-      await mockxTokenSwap.deployed();
+      const transferIdN1 = await backing.getTransferId(nonceN1, backingChainId, issuingChainId, wtoken.address, wtokenConvertor.address, issuingGuard.address, 100);
+      await guardClaim(
+          issuingGuard,
+          issuing.address,
+          transferIdN1,
+          await getBlockTimestamp(),
+          [guards[0], guards[1]],
+          // native token must be claimed by wtoken
+          xTokens[wtoken.address],
+          user02.address,
+          100
+      );
 
-      // there is guard
-      {
-          await backing.connect(user01).lockAndXIssue(
-              issuingChainId,
-              nativeTokenAddress,
-              mockxTokenSwap.address,
-              10,
-              123456,
-              user02.address,
-              0,
-              {value: ethers.utils.parseEther("1.1")}
-          );
-          // no right to mint swap token, can't claim
-          const transferId = await backing.getTransferId(123456, backingChainId, issuingChainId, nativeTokenAddress, user01.address, mockxTokenSwap.address, 10);
-          const blockTimestamp = await getBlockTimestamp();
-          await expect(guardClaim(
-              issuingGuard,
-              issuing.address,
-              transferId,
-              blockTimestamp,
-              [guards[0], guards[1]],
-              xTokens[nativeTokenAddress],
-              mockxTokenSwap.address,
-              10,
-              user02.address
-          )).to.be.revertedWith("Ownable: caller is not the owner");
-          // give mint right to swap contract 
-          await swapToken.transferOwnership(mockxTokenSwap.address);
-          const balanceBefore = await balanceOf(swapToken.address, user02.address);
-          await guardClaim(
-              issuingGuard,
-              issuing.address,
-              transferId,
-              blockTimestamp,
-              [guards[0], guards[1]],
-              xTokens[nativeTokenAddress],
-              mockxTokenSwap.address,
-              10,
-              user02.address
-          )
-          // user02 receive swapped token
-          const balanceAfter = await balanceOf(swapToken.address, user02.address);
-          expect(balanceBefore).to.equal(0);
-          expect(balanceAfter).to.equal(10);
-      }
-      
-      // no guard
-      {
-          await issuing.updateGuard("0x0000000000000000000000000000000000000000");
-          await mockxTokenSwap.transferOwnership(swapToken.address, owner.address);
-          // failed because swap contract has no right to mint token
-          await backing.connect(user01).lockAndXIssue(
-              issuingChainId,
-              nativeTokenAddress,
-              mockxTokenSwap.address,
-              100,
-              123456,
-              user02.address,
-              0,
-              {value: ethers.utils.parseEther("1.1")}
-          );
-          // issuing contract has no right to mint swap token, this can be revert
-          await xRollbackLockAndXIssue(
-              nativeTokenAddress,
-              100,
-              123456,
-              "1.1",
-              true,
-              mockxTokenSwap.address
-          );
-          // give mint right to issuing
-          await swapToken.transferOwnership(mockxTokenSwap.address);
-          const balanceBefore = await balanceOf(swapToken.address, user02.address);
-          await backing.connect(user01).lockAndXIssue(
-              issuingChainId,
-              nativeTokenAddress,
-              mockxTokenSwap.address,
-              100,
-              1234567,
-              user02.address,
-              0,
-              {value: ethers.utils.parseEther("1.1")}
-          )
-          // user02 receive swapped token
-          const balanceAfter = await balanceOf(swapToken.address, user02.address);
-          expect(balanceBefore).to.equal(10);
-          expect(balanceAfter).to.equal(110);
-      }
+      // exceed daily limit
+      const nonceN2 = await lockAndXIssueNative(
+          10000,
+          "1.1",
+          true,
+          false
+      );
+
+      // refund
+      await xRollbackLockAndXIssue(
+          nativeTokenAddress,
+          10000,
+          nonceN2,
+          "1.1",
+          true,
+          issuingGuard.address
+      );
+
+      const nonceN3 = await burnAndXUnlock(
+          nativeTokenAddress,
+          100,
+          "1.1",
+          true,
+          true
+      );
+      const transferIdN3 = await backing.getTransferId(nonceN3, backingChainId, issuingChainId, wtoken.address, user02.address, backingGuard.address, 100);
+      await guardClaim(
+          backingGuard,
+          backing.address,
+          transferIdN3,
+          await getBlockTimestamp(),
+          [guards[0], guards[1]],
+          // native token must be claimed by wtoken
+          nativeTokenAddress,
+          user01.address,
+          100
+      );
+
+      await backing.updateGuard(nullAddress);
+      await burnAndXUnlock(
+          nativeTokenAddress,
+          100,
+          "1.1",
+          false,
+          true
+      );
+      console.log("unit test finish");
   });
 });
 

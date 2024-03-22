@@ -13,7 +13,7 @@ contract WTokenConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     address public immutable wToken;
     IXTokenBacking public immutable xTokenBacking;
 
-    mapping(uint256=>address) senders;
+    mapping(uint256=>address) public senders;
 
     event TokenUnwrapped(uint256 transferId, address recipient, uint256 amount);
     event TokenRollback(uint256 transferId, address originalSender, uint256 amount);
@@ -39,18 +39,23 @@ contract WTokenConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     }
 
     constructor(address _wToken, address _xTokenBacking) {
+        require(_wToken != address(0), "invalid wtoken address");
         wToken = _wToken;
         xTokenBacking = IXTokenBacking(_xTokenBacking);
         IERC20(_wToken).approve(_xTokenBacking, type(uint256).max);
     }
 
+    /**
+      * @dev after receive token, the backing or guard call this interface
+      * @param _extData it's a bytes20 address
+      */
     function xTokenCallback(
         uint256 _transferId,
         address _xToken,
         uint256 _amount,
-        bytes calldata extData
+        bytes calldata _extData
     ) onlyXTokenBackingAuthorized external {
-        address recipient = address(bytes20(extData));
+        address recipient = address(bytes20(_extData));
         require(_xToken == wToken, "invalid xtoken");
         IWToken(_xToken).withdraw(_amount);
         TokenTransferHelper.safeTransferNative(recipient, _amount);

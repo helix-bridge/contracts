@@ -4,9 +4,9 @@ pragma solidity >=0.8.17;
 
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165.sol";
+import "./interfaces/IXRINGLockBox.sol";
 import "../interfaces/IXTokenIssuing.sol";
 import "../interfaces/IXTokenCallback.sol";
-import "../interfaces/IXRINGLockBox.sol";
 
 contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     IXRINGLockBox public lockBox;
@@ -14,7 +14,7 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     address public immutable RING;
     address public immutable XRING;
 
-    mapping(uint256=>address) senders;
+    mapping(uint256=>address) public senders;
 
     event IssueRing(uint256 transferId, address recipient, uint256 amount);
     event RollbackBurn(uint256 transferId, address originalSender, uint256 amount);

@@ -3,13 +3,14 @@ pragma solidity >=0.8.17;
 
 interface IXTokenBacking {
     function lockAndXIssue(
-        uint256 _remoteChainId,
-        address _originalToken,
-        address _recipient,
-        uint256 _amount,
-        uint256 _nonce,
-        bytes calldata _extData,
-        bytes memory _extParams
+        uint256 remoteChainId,
+        address originalToken,
+        address recipient,
+        address rollbackAccount,
+        uint256 amount,
+        uint256 nonce,
+        bytes calldata extData,
+        bytes memory extParams
     ) external payable returns(bytes32 transferId);
 
     function unlock(
@@ -17,6 +18,7 @@ interface IXTokenBacking {
         address originalToken,
         address originalSender,
         address recipient,
+        address rollbackAccount,
         uint256 amount,
         uint256 nonce,
         bytes calldata extData
@@ -27,6 +29,7 @@ interface IXTokenBacking {
         address originalToken,
         address originalSender,
         address recipient,
+        address rollbackAccount,
         uint256 amount,
         uint256 nonce
     ) external;

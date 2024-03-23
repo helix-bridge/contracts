@@ -21,6 +21,7 @@ contract XTokenBacking is XTokenBridgeBase {
         address token,
         address sender,
         address recipient,
+        address rollbackAccount,
         uint256 amount,
         uint256 fee,
         bytes   extData
@@ -52,6 +53,7 @@ contract XTokenBacking is XTokenBridgeBase {
         uint256 _remoteChainId,
         address _originalToken,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce,
         bytes calldata _extData,
@@ -60,7 +62,7 @@ contract XTokenBacking is XTokenBridgeBase {
         bytes32 key = keccak256(abi.encodePacked(_remoteChainId, _originalToken));
         require(originalToken2xTokens[key] != address(0), "token not registered");
 
-        transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, msg.sender, _recipient, _amount);
+        transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, msg.sender, _recipient, _rollbackAccount, _amount);
         _requestTransfer(transferId);
 
         // erc20 token
@@ -74,18 +76,20 @@ contract XTokenBacking is XTokenBridgeBase {
             _originalToken,
             msg.sender,
             _recipient,
+            _rollbackAccount,
             _amount,
             _nonce,
             _extData
         );
         _sendMessage(_remoteChainId, issuxToken, msg.value, _extParams);
-        emit TokenLocked(transferId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, msg.value, _extData);
+        emit TokenLocked(transferId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _rollbackAccount, _amount, msg.value, _extData);
     }
 
     function encodeXIssue(
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce,
         bytes calldata _extData
@@ -96,6 +100,7 @@ contract XTokenBacking is XTokenBridgeBase {
             _originalToken,
             _originalSender,
             _recipient,
+            _rollbackAccount,
             _amount,
             _nonce,
             _extData
@@ -108,13 +113,14 @@ contract XTokenBacking is XTokenBridgeBase {
         address _originalToken,
         address _originSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce,
         bytes calldata _extData
     ) external calledByMessager(_remoteChainId) whenNotPaused {
         expendDailyLimit(_originalToken, _amount);
 
-        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originSender, _recipient, _rollbackAccount, _amount);
         _handleTransfer(transferId);
 
         address _guard = guard;
@@ -136,17 +142,19 @@ contract XTokenBacking is XTokenBridgeBase {
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce,
         bytes memory _extParams
     ) external payable {
-        require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
-        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
+        require(_rollbackAccount == msg.sender || dao == msg.sender, "invalid msgSender");
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _rollbackAccount, _amount);
         _requestRefund(transferId);
         bytes memory unlockForFailed = encodeRollbackBurnAndXUnlock(
             _originalToken,
             _originalSender,
             _recipient,
+            _rollbackAccount,
             _amount,
             _nonce
         );
@@ -158,6 +166,7 @@ contract XTokenBacking is XTokenBridgeBase {
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce
     ) public view returns(bytes memory) {
@@ -167,6 +176,7 @@ contract XTokenBacking is XTokenBridgeBase {
             _originalToken,
             _originalSender,
             _recipient,
+            _rollbackAccount,
             _amount,
             _nonce
         );
@@ -182,10 +192,11 @@ contract XTokenBacking is XTokenBridgeBase {
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce
     ) external calledByMessager(_remoteChainId) whenNotPaused {
-        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, block.chainid, _remoteChainId, _originalToken, _originalSender, _recipient, _rollbackAccount, _amount);
         _handleRefund(transferId);
         TokenTransferHelper.safeTransfer(_originalToken, _originalSender, _amount);
 

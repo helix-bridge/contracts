@@ -4,18 +4,17 @@ pragma solidity >=0.8.17;
 
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165.sol";
-import "./interfaces/IXTokenIssuing.sol";
-import "../../interfaces/IXTokenCallback.sol";
-import "../../interfaces/IXRINGLockBox.sol";
+import "./interfaces/IXRINGLockBox.sol";
+import "../interfaces/IXTokenIssuing.sol";
+import "../interfaces/IXTokenCallback.sol";
 
 contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     IXRINGLockBox public lockBox;
     IXTokenIssuing public xTokenIssuing;
     address public immutable RING;
     address public immutable XRING;
-    address public immutable GUARD;
 
-    mapping(uint256=>address) senders;
+    mapping(uint256=>address) public senders;
 
     event IssueRing(uint256 transferId, address recipient, uint256 amount);
     event RollbackBurn(uint256 transferId, address originalSender, uint256 amount);
@@ -35,15 +34,14 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
         _;
     }
 
-    modifier onlyXTokenIssuingOrGuard() {
-        require(address(xTokenIssuing) == msg.sender || GUARD == msg.sender, "invalid sender");
+    modifier onlyXTokenIssuingAuthorized() {
+        require(address(xTokenIssuing) == msg.sender || xTokenIssuing.guard() == msg.sender, "invalid sender");
         _;
     }
 
-    constructor(address _xRing, address _ring, address _xTokenIssuing, address _lockBox, address _guard) {
+    constructor(address _xRing, address _ring, address _xTokenIssuing, address _lockBox) {
         RING = _ring;
         XRING = _xRing;
-        GUARD = _guard;
         lockBox = IXRINGLockBox(_lockBox);
         xTokenIssuing = IXTokenIssuing(_xTokenIssuing);
         IERC20(_ring).approve(_lockBox, type(uint256).max);
@@ -56,7 +54,7 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
         address _xToken,
         uint256 _amount,
         bytes calldata extData
-    ) onlyXTokenIssuingOrGuard external {
+    ) onlyXTokenIssuingAuthorized external {
         address recipient = address(bytes20(extData));
         require(_xToken == XRING, "invalid xtoken");
         lockBox.depositFor(recipient, _amount);
@@ -80,10 +78,10 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
         uint256 _nonce,
         bytes calldata _extData,
         bytes memory _extParams
-    ) external {
+    ) payable external {
         IERC20(RING).transferFrom(msg.sender, address(this), _amount);
         lockBox.withdraw(_amount);
-        bytes32 transferId = xTokenIssuing.burnAndXUnlock(XRING, _recipient, _amount, _nonce, _extData, _extParams);
+        bytes32 transferId = xTokenIssuing.burnAndXUnlock{value: msg.value}(XRING, _recipient, _amount, _nonce, _extData, _extParams);
         uint256 id = uint256(transferId);
         senders[id] = msg.sender;
         emit BurnAndXUnlock(id, msg.sender, _recipient, _amount);

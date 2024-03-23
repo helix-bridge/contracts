@@ -7,8 +7,8 @@ import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165.sol";
 import "./GuardRegistryV3.sol";
-import "../../utils/TokenTransferHelper.sol";
-import "../../interfaces/IXTokenCallback.sol";
+import "../interfaces/IXTokenCallback.sol";
+import "../../../utils/TokenTransferHelper.sol";
 
 contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
     mapping(uint256 => bytes32) public deposits;
@@ -76,6 +76,9 @@ contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
       * @param _transferId the id of the operation, should be siged later by guards
       * @param _xToken the erc20 token address
       * @param _amount the amount of the token
+      * @param _extData encoding on source: abi.encode(address(recipient), bytes(nextExtData))
+      *                 if recipient is an EOA address, then nextExtData = "0x"
+      *                 if recipient is a contract address support `xTokenCallback` interface, then nextExtData is the interface's parameter
       */
     function xTokenCallback(
         uint256 _transferId,
@@ -85,6 +88,8 @@ contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
     ) external onlyDepositor whenNotPaused {
         require(deposits[_transferId] == bytes32(0), "Guard: deposit conflict");
         deposits[_transferId] = hash(abi.encodePacked(msg.sender, block.timestamp, _xToken, _amount, _extData));
+        // ensure can be decoded by abi.decode(_extData, (address, bytes))
+        require(_extData.length >= 96, "invalid extData");
         emit TokenDeposit(msg.sender, _transferId, block.timestamp, _xToken, _amount, _extData);
     }
 
@@ -100,11 +105,8 @@ contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
         require(_amount > 0, "Guard: Invalid amount to claim");
         delete deposits[_id];
         (address recipient, bytes memory data) = abi.decode(_extData, (address, bytes));
-        if (_token == address(0)) {
-            TokenTransferHelper.safeTransferNative(recipient, _amount);
-        } else {
-            TokenTransferHelper.safeTransfer(_token, recipient, _amount);
-        }
+        TokenTransferHelper.safeTransfer(_token, recipient, _amount);
+
         emit TokenClaimed(_id);
         if (ERC165Checker.supportsInterface(recipient, type(IXTokenCallback).interfaceId)) {
             IXTokenCallback(recipient).xTokenCallback(_id, _token, _amount, data);
@@ -161,6 +163,10 @@ contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
 
     function hash(bytes memory _value) public pure returns (bytes32) {
         return sha256(_value);
+    }
+
+    function encodeExtData(address recipient, bytes calldata extData) external pure returns (bytes memory) {
+        return abi.encode(recipient, extData);
     }
 }
 

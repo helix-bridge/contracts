@@ -9,7 +9,8 @@ interface IXTokenIssuing {
         uint256 _nonce,
         bytes calldata _extData,
         bytes memory _extParams
-    ) external returns(bytes32);
+    ) external payable returns(bytes32);
+
     function rollbackBurnAndXUnlock(
         uint256 originalChainId,
         address originalToken,
@@ -28,4 +29,7 @@ interface IXTokenIssuing {
         uint256 nonce,
         bytes calldata extData
     ) external;
+
+    function guard() external returns(address);
 }
+

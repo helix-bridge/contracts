@@ -32,7 +32,8 @@ contract XTokenIssuing is XTokenBridgeBase {
         address recipient,
         address originalToken,
         uint256 amount,
-        uint256 fee
+        uint256 fee,
+        bytes   extData
     );
     event TokenRemintForFailed(bytes32 transferId, uint256 originalChainId, address originalToken, address xToken, address originalSender, uint256 amount);
 
@@ -149,7 +150,7 @@ contract XTokenIssuing is XTokenBridgeBase {
             _extData
         );
         _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
-        emit BurnAndXUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
+        emit BurnAndXUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value, _extData);
     }
 
     function encodeXUnlock(

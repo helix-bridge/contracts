@@ -161,7 +161,9 @@ describe("xtoken tests", () => {
           usingGuard,
           result
       ) {
-          const extData = usingGuard ? ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user02.address, "0x"]) : "0x";
+          // local encode or use guard contract to encode
+          //const extData = usingGuard ? ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user02.address, "0x"]) : "0x";
+          const extData = usingGuard ? await issuingGuard.encodeExtData(user02.address, "0x") : "0x";
           const recipient = usingGuard ? issuingGuard.address : user02.address;
           const nonce = generateNonce();
           const xTokenAddress = xTokens[originalAddress];
@@ -206,7 +208,8 @@ describe("xtoken tests", () => {
           result
       ) {
           const wtokenAddress = wtoken.address;
-          const extData = usingGuard ? ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user02.address, "0x"]) : "0x";
+          //const extData = usingGuard ? ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user02.address, "0x"]) : "0x";
+          const extData = usingGuard ? await issuingGuard.encodeExtData(user02.address, "0x") : "0x";
           const recipient = usingGuard ? issuingGuard.address : user02.address;
           const nonce = generateNonce();
           const xTokenAddress = xTokens[wtokenAddress];
@@ -253,8 +256,10 @@ describe("xtoken tests", () => {
           const usingConvertor = originalAddress == nativeTokenAddress;
           const msgToken = usingConvertor ? wtoken.address : originalAddress;
 
-          const usingGuardAndConvertorExtData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [wtokenConvertor.address, user01.address]);
-          const usingOnlyGuard = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user01.address, "0x"]);
+          //const usingGuardAndConvertorExtData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [wtokenConvertor.address, user01.address]);
+          const usingGuardAndConvertorExtData = await backingGuard.encodeExtData(wtokenConvertor.address, user01.address);
+          //const usingOnlyGuard = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [user01.address, "0x"]);
+          const usingOnlyGuard = await backingGuard.encodeExtData(user01.address, "0x");
           const usingOnlyConvertor = user01.address;
           const usingNothingExtData = "0x";
 

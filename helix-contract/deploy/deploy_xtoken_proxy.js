@@ -14,7 +14,7 @@ function wallet(configure, network) {
 }
 
 async function deployxTokenProxy(wallet, salt, dao, proxyAdminAddress, logicAddress, deployer) {
-    const bridgeContract = await ethers.getContractFactory("xTokenBridgeBase", wallet);
+    const bridgeContract = await ethers.getContractFactory("XTokenBridgeBase", wallet);
     const proxy = await ProxyDeployer.deployProxyContract2(
         deployer,
         salt,

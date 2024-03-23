@@ -78,10 +78,10 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
         uint256 _nonce,
         bytes calldata _extData,
         bytes memory _extParams
-    ) external {
+    ) payable external {
         IERC20(RING).transferFrom(msg.sender, address(this), _amount);
         lockBox.withdraw(_amount);
-        bytes32 transferId = xTokenIssuing.burnAndXUnlock(XRING, _recipient, _amount, _nonce, _extData, _extParams);
+        bytes32 transferId = xTokenIssuing.burnAndXUnlock{value: msg.value}(XRING, _recipient, _amount, _nonce, _extData, _extParams);
         uint256 id = uint256(transferId);
         senders[id] = msg.sender;
         emit BurnAndXUnlock(id, msg.sender, _recipient, _amount);

@@ -91,5 +91,9 @@ contract WTokenConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
         senders[id] = msg.sender;
         emit LockAndXIssue(id, msg.sender, _recipient, _amount, _extData);
     }
+
+    function encodeExtData(address recipient) external pure returns (bytes memory) {
+        return abi.encodePacked(recipient);
+    }
 }
 

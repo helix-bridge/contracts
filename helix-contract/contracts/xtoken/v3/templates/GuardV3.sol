@@ -88,6 +88,8 @@ contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
     ) external onlyDepositor whenNotPaused {
         require(deposits[_transferId] == bytes32(0), "Guard: deposit conflict");
         deposits[_transferId] = hash(abi.encodePacked(msg.sender, block.timestamp, _xToken, _amount, _extData));
+        // ensure can be decoded by abi.decode(_extData, (address, bytes))
+        require(_extData.length >= 96, "invalid extData");
         emit TokenDeposit(msg.sender, _transferId, block.timestamp, _xToken, _amount, _extData);
     }
 
@@ -161,6 +163,10 @@ contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
 
     function hash(bytes memory _value) public pure returns (bytes32) {
         return sha256(_value);
+    }
+
+    function encodeExtData(address recipient, bytes calldata extData) external pure returns (bytes memory) {
+        return abi.encode(recipient, extData);
     }
 }
 

@@ -22,7 +22,8 @@ contract XTokenBacking is XTokenBridgeBase {
         address sender,
         address recipient,
         uint256 amount,
-        uint256 fee
+        uint256 fee,
+        bytes   extData
     );
     event TokenUnlocked(bytes32 transferId, uint256 remoteChainId, address token, address recipient, uint256 amount);
     event RemoteIssuingFailure(bytes32 transferId, address xToken, address originalSender, uint256 amount, uint256 fee);
@@ -78,7 +79,7 @@ contract XTokenBacking is XTokenBridgeBase {
             _extData
         );
         _sendMessage(_remoteChainId, issuxToken, msg.value, _extParams);
-        emit TokenLocked(transferId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, msg.value);
+        emit TokenLocked(transferId, _nonce, _remoteChainId, _originalToken, msg.sender, _recipient, _amount, msg.value, _extData);
     }
 
     function encodeXIssue(

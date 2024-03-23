@@ -8,7 +8,7 @@ var Create2 = require("./create2.js");
 const privateKey = process.env.PRIKEY
 
 async function deployxTokenBacking(wallet, deployerAddress, salt) {
-    const bridgeContract = await ethers.getContractFactory("xTokenBacking", wallet);
+    const bridgeContract = await ethers.getContractFactory("XTokenBacking", wallet);
     const bytecode = Create2.getDeployedBytecode(bridgeContract, [], []);
     const address = await Create2.deploy(deployerAddress, wallet, bytecode, salt);
     console.log("finish to deploy xToken backing logic, address: ", address);
@@ -16,7 +16,7 @@ async function deployxTokenBacking(wallet, deployerAddress, salt) {
 }
 
 async function deployxTokenIssuing(wallet, deployerAddress, salt) {
-    const bridgeContract = await ethers.getContractFactory("xTokenIssuing", wallet);
+    const bridgeContract = await ethers.getContractFactory("XTokenIssuing", wallet);
     const bytecode = Create2.getDeployedBytecode(bridgeContract, [], []);
     const address = await Create2.deploy(deployerAddress, wallet, bytecode, salt);
     console.log("finish to deploy xToken Issuing logic, address: ", address);
@@ -35,7 +35,7 @@ async function main() {
     const configure = JSON.parse(
         fs.readFileSync(pathConfig, "utf8")
     );
-    const network = configure.chains['pangolin'];
+    const network = configure.chains['sepolia'];
     const w = wallet(configure, network);
     
     //const backingLogic = await deployxTokenBacking(w, network.deployer, "xTokenBacking-logic-v1.0.0");

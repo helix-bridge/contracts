@@ -39,7 +39,7 @@ contract WTokenConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     }
 
     constructor(address _wToken, address _xTokenBacking) {
-        require(_wToken != address(0), "invalid wtoken address");
+        require(_wToken.code.length > 0, "invalid wtoken address");
         wToken = _wToken;
         xTokenBacking = IXTokenBacking(_xTokenBacking);
         IERC20(_wToken).approve(_xTokenBacking, type(uint256).max);

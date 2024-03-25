@@ -46,12 +46,12 @@ async function main() {
     console.log("wpring address", wtoken.address);
     */
     
-    const xtoken = "0xD1EB53E6b313d2849243F579e0fCd4dbCab56062";
-    const token = "0x76FBA86114e5a0387417b59ff12250a720Ed387d";
+    const xtoken = "0xF874fad204757588e67EE55cE93D654b6f5C39C6";
+    const token = "0xBD50868F36Eb46355eC5a153AbD3a7eA094A5c37";
     //await deployXRINGLockBox(w, network.deployer, "lockbox-v1.0.0", xtoken, token);
 
-    const lockbox = "0x995c0D4cFcfA0929C178Db3cCD4c433A157Fa074";
-    const issuing = "0xAB0b1CB19e00eCf0DCcF8b3e201030a2556625e3";
+    const lockbox = "0xc0bd46a3C2A14aed7a04Dfe9018f7fd62431398c";
+    const issuing = "0x3B36c2Db4CC5E92Af015Eb572A1C95C95599a8bF";
     const convertor = await deployxTokenConvertor(
         w,
         network.deployer,
@@ -62,7 +62,7 @@ async function main() {
         lockbox
     );
     // convertor
-    //0x85c9B6665d7f2cB740eA998099079Da6fe6Ef18f
+    //0x917CB26BfCf9F6bE65f387903AA9180613A40f41
 }
 
 main()

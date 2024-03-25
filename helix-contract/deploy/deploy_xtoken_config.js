@@ -12,7 +12,7 @@ const pangolinNetwork = {
     url: "https://pangolin-rpc.darwinia.network",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     messager: "0xf7F461728DC89de5EF6615715678b5f5b12bb98A",
-    backing: "0xf9177Be9C1a539B93AD65fdB717552FBb3C50F3E",
+    backing: "0x7E3105E3A13D55d824b6322cbD2049f098a097F6",
     guard: "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7",
     chainid: 43
 };
@@ -22,7 +22,7 @@ const sepoliaNetwork = {
     url: "https://rpc-sepolia.rockx.com",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
     messager: "0xf7F461728DC89de5EF6615715678b5f5b12bb98A",
-    issuing: "0xAB0b1CB19e00eCf0DCcF8b3e201030a2556625e3",
+    issuing: "0x3B36c2Db4CC5E92Af015Eb572A1C95C95599a8bF",
     guard: "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7",
     chainid: 11155111
 };

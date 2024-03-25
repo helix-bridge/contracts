@@ -108,6 +108,11 @@ const sepoliaNetwork = {
             symbol: "USDC",
             decimals: 18
         },
+        {
+            name: "Helix Test Token PRING",
+            symbol: "PRING",
+            decimals: 18
+        }
     ],
 };
 
@@ -167,8 +172,8 @@ function wallet(url) {
 
 // 2. deploy mapping token factory
 async function main() {
-    const w = wallet(beraTestnetNetwork.url);
-    const tokenInfo = beraTestnetNetwork.tokens[1];
+    const w = wallet(sepoliaNetwork.url);
+    const tokenInfo = sepoliaNetwork.tokens[2];
     const tokenContract = await ethers.getContractFactory("HelixTestErc20", w);
     const token = await tokenContract.deploy(tokenInfo.name, tokenInfo.symbol, tokenInfo.decimals);
     await token.deployed();

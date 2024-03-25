@@ -11,17 +11,17 @@
         }
     },
     "backingProxy": {
-        "pangolin": "0xf9177Be9C1a539B93AD65fdB717552FBb3C50F3E"
+        "pangolin": "0x7E3105E3A13D55d824b6322cbD2049f098a097F6"
     },
     "backingLogic": {
-        "pangolin": "0x31C338503c4037a9Fc590CB2A2f7D8425dAB0E30"
+        "pangolin": "0xF02d2502653ecc716b75e5036715Ecb03ADFf274"
     },
     "issuingProxy": {
-        "sepolia": "0xAB0b1CB19e00eCf0DCcF8b3e201030a2556625e3",
+        "sepolia": "0x3B36c2Db4CC5E92Af015Eb572A1C95C95599a8bF",
         "tron": "TJK57bJTvnaNRGFHwbihg1bXtgnyed6sKa"
     },
     "issuingLogic": {
-        "sepolia": "0xc2a5F3FABAe6cfB12378a2028D4414899A4E11c3",
+        "sepolia": "0x8EbdB9C2909bB4D48085967227CD2c011aD05664",
         "tron": "TD7VoAQnJDKsWsgZZTeeHvBKY5fogRDVc2"
     },
     "proxyAdmin": {
@@ -29,8 +29,8 @@
     },
     "xToken": {
         "tron": "TRXTkfGxTL8CjuGgz55BYkTAyVyiEMFY6F",
-        "sepolia-xpring": "0xD1EB53E6b313d2849243F579e0fCd4dbCab56062",
-        "sepolia-pring": "0x76FBA86114e5a0387417b59ff12250a720Ed387d"
+        "sepolia-xpring": "0xF874fad204757588e67EE55cE93D654b6f5C39C6",
+        "sepolia-pring": "0xBD50868F36Eb46355eC5a153AbD3a7eA094A5c37"
     },
     "guard": {
         "sepolia": "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7",
@@ -40,9 +40,9 @@
         "pangolin": "0x617E55f692FA2feFfdD5D9C513782A479cC1FF57"
     },
     "wtokenConvertor": {
-        "pangolin": "0x917845001aA1BF0c8F65C8aE3669FE3324277Ac4"
+        "pangolin": "0x3ACEb55AAD4CDFE1531A9C6F6416753e6a7BDD49"
     },
     "xtokenConvertor": {
-        "sepolia": "0x85c9B6665d7f2cB740eA998099079Da6fe6Ef18f"
+        "sepolia": "0x917CB26BfCf9F6bE65f387903AA9180613A40f41"
     }
 }

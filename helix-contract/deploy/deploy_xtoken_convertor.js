@@ -38,7 +38,9 @@ async function main() {
     console.log("wpring address", wtoken.address);
     */
     
-    const convertor = await deployxTokenConvertor(w, network.deployer, "xToken-Convertor-v1.0.0", "0x617E55f692FA2feFfdD5D9C513782A479cC1FF57", '0xf9177Be9C1a539B93AD65fdB717552FBb3C50F3E');
+    const wtoken = "0x617E55f692FA2feFfdD5D9C513782A479cC1FF57";
+    const xtokenBacking = '0x7E3105E3A13D55d824b6322cbD2049f098a097F6';
+    const convertor = await deployxTokenConvertor(w, network.deployer, "xToken-Convertor-v1.0.0", wtoken, xtokenBacking);
 }
 
 main()

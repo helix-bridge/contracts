@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 2/20/2024
+ * 3/25/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -330,11 +330,11 @@ library SafeMath {
     }
 }
 
-// File contracts/mapping-token/v3/base/xTokenErc20.sol
+// File contracts/xtoken/v3/base/XTokenErc20.sol
 // License-Identifier: MIT
 
 
-contract xTokenErc20 is IERC20 {
+contract XTokenErc20 is IERC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;

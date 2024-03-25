@@ -11,7 +11,7 @@ const pangolinNetwork = {
     name: "pangolin",
     url: "https://pangolin-rpc.darwinia.network",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    backing: "0xf9177Be9C1a539B93AD65fdB717552FBb3C50F3E",
+    backing: "0x7E3105E3A13D55d824b6322cbD2049f098a097F6",
     chainid: 43
 };
 
@@ -19,7 +19,7 @@ const sepoliaNetwork = {
     name: "sepolia",
     url: "https://1rpc.io/sepolia",
     dao: "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
-    issuing: "0xAB0b1CB19e00eCf0DCcF8b3e201030a2556625e3",
+    issuing: "0x3B36c2Db4CC5E92Af015Eb572A1C95C95599a8bF",
     chainid: 11155111
 };
 
@@ -52,7 +52,7 @@ async function registerBacking() {
     const walletBacking = wallet(pangolinNetwork.url);
 
     const backing = await ethers.getContractAt("XTokenBacking", backingNetwork.backing, walletBacking);
-    const xToken = "0xD1EB53E6b313d2849243F579e0fCd4dbCab56062";
+    const xToken = "0xF874fad204757588e67EE55cE93D654b6f5C39C6";
 
     await backing.registerOriginalToken(
         11155111,
@@ -84,20 +84,21 @@ async function lockAndXIssueNative() {
     const backingNetwork = pangolinNetwork;
     const walletBacking = wallet(pangolinNetwork.url);
 
-    const wtokenConvertor = await ethers.getContractAt("WTokenConvertor", "0x917845001aA1BF0c8F65C8aE3669FE3324277Ac4", walletBacking);
+    const wtokenConvertor = await ethers.getContractAt("WTokenConvertor", "0x3ACEb55AAD4CDFE1531A9C6F6416753e6a7BDD49", walletBacking);
     //ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], [walletBacking.address, "0x"]),
     // xring -> ring
-    const extData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], ["0x85c9B6665d7f2cB740eA998099079Da6fe6Ef18f", walletBacking.address]);
+    const extData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], ["0x917CB26BfCf9F6bE65f387903AA9180613A40f41", walletBacking.address]);
 
     //const tx = await wtokenConvertor.callStatic.lockAndXIssue(
     await wtokenConvertor.lockAndXIssue(
         11155111,
         "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7", //guard
-        ethers.utils.parseEther("201"),
+        walletBacking.address,
+        ethers.utils.parseEther("2.1"),
         1703247763010,
         extData,
         "0x000000000000000000000000000000000000000000000000000000000005f02200000000000000000000000088a39b052d477cfde47600a7c9950a441ce61cb400000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000",
-        { value: ethers.utils.parseEther("205.0") }
+        { value: ethers.utils.parseEther("7.1") }
     );
     //console.log(tx);
 }
@@ -133,18 +134,19 @@ async function burnAndXUnlockFromConvertor() {
     const issuingNetwork = sepoliaNetwork;
     const walletIssuing = wallet(sepoliaNetwork.url);
 
-    const xtokenConvertor = await ethers.getContractAt("XRingConvertor", "0x85c9B6665d7f2cB740eA998099079Da6fe6Ef18f", walletIssuing);
+    const xtokenConvertor = await ethers.getContractAt("XRingConvertor", "0x917CB26BfCf9F6bE65f387903AA9180613A40f41", walletIssuing);
 
-    const xTokenAddress = "0x76FBA86114e5a0387417b59ff12250a720Ed387d";
-    const xToken = await ethers.getContractAt("XTokenErc20", xTokenAddress, walletIssuing);
-    //await xToken.approve(xtokenConvertor.address, ethers.utils.parseEther("10000000"), {gasLimit: 500000});
+    const tokenAddress = "0xBD50868F36Eb46355eC5a153AbD3a7eA094A5c37";
+    const token = await ethers.getContractAt("XTokenErc20", tokenAddress, walletIssuing);
+    //await token.approve(xtokenConvertor.address, ethers.utils.parseEther("10000000"), {gasLimit: 500000});
 
-    const extData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], ["0x917845001aA1BF0c8F65C8aE3669FE3324277Ac4", walletIssuing.address]);
+    const extData = ethers.utils.defaultAbiCoder.encode(['address', 'bytes'], ["0x3ACEb55AAD4CDFE1531A9C6F6416753e6a7BDD49", walletIssuing.address]);
     //const tx = await xtokenConvertor.callStatic.burnAndXUnlock(
     await xtokenConvertor.burnAndXUnlock(
         "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7", //guard
-        ethers.utils.parseEther("0.1"),
-        1703248419046,
+        walletIssuing.address,
+        ethers.utils.parseEther("0.02"),
+        1703248419047,
         extData,
         "0x000000000000000000000000000000000000000000000000000000000006493c00000000000000000000000088a39b052d477cfde47600a7c9950a441ce61cb400000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000",
         {
@@ -195,28 +197,28 @@ async function requestRemoteIssuingForUnlockFailure() {
 }
 
 async function tryToClaim() {
-    const backingAddress = "0xf9177Be9C1a539B93AD65fdB717552FBb3C50F3E";
-    const issuingAddress = "0xAB0b1CB19e00eCf0DCcF8b3e201030a2556625e3";
+    const backingAddress = "0x7E3105E3A13D55d824b6322cbD2049f098a097F6";
+    const issuingAddress = "0x3B36c2Db4CC5E92Af015Eb572A1C95C95599a8bF";
     const wtoken = "0x617e55f692fa2feffdd5d9c513782a479cc1ff57";
-    const xtoken = "0xD1EB53E6b313d2849243F579e0fCd4dbCab56062";
+    const xtoken = "0xF874fad204757588e67EE55cE93D654b6f5C39C6";
     const backingNetwork = pangolinNetwork;
     const issuingNetwork = sepoliaNetwork;
 
     // params
     const from = backingAddress;
     const token = wtoken;
-    const wallet = wallet(backingNetwork.url);
+    const w = wallet(backingNetwork.url);
 
     const guardAddress = "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7";
-    const id = "0xea86734f6fcd816e7a14d83fe174a73fc1d58aca4d5d7f29c41753b36adec779";
-    const timestamp ="0x65fe34e8";
-    const amount = "0x4563918244f40000";
-    const extData = "0x000000000000000000000000917845001aa1bf0c8f65c8ae3669fe3324277ac40000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000001488a39b052d477cfde47600a7c9950a441ce61cb4000000000000000000000000";
-    const signatures = ["0x96920cc157eac7bfbe089d9d8f24438c9572d2e6b64f4b49ac143d402bfcab1219829dc8b2b80a8732b814422dac68756907a60a23bb6264ed0499abe8eba46c1b"];
+    const id = "0x55a10a0120075f5422ed8b2bbe33333fe3c00c53236632356e81ae7f4c0d5a95";
+    const timestamp =1711370346;
+    const amount = "0x470de4df820000";
+    const extData = "0x0000000000000000000000003aceb55aad4cdfe1531a9c6f6416753e6a7bdd490000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000001488a39b052d477cfde47600a7c9950a441ce61cb4000000000000000000000000";
+    const signatures = ["0x555c399227b5e73afa5d0954d2cf1c40f8a2f09b21df04e8d7acfd87447dc1055d068121d1341d1872e985f7354e233ad57b846b130fb7c9771a6449f7dbac651b"];
 
-    const guard = await ethers.getContractAt("GuardV3", guardAddress, wallet);
-    const tx = await guard.callStatic.claim(
-    //const tx = await guard.claim(
+    const guard = await ethers.getContractAt("GuardV3", guardAddress, w);
+    //const tx = await guard.callStatic.claim(
+    const tx = await guard.claim(
         from,
         id,
         timestamp,
@@ -236,7 +238,7 @@ async function main() {
     //await burnAndXUnlockFromConvertor();
     //await requestRemoteUnlockForIssuingFailure();
     //await requestRemoteIssuingForUnlockFailure();
-    //await tryToClaim();
+    await tryToClaim();
 }
 
 main()

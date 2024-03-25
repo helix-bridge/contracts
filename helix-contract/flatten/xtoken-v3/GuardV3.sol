@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 2/20/2024
+ * 3/25/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -141,15 +141,14 @@ library TokenTransferHelper {
         (bool success,) = payable(receiver).call{value: amount}("");
         require(success, "helix:transfer native token failed");
     }
-}
 
-// File contracts/mapping-token/interfaces/IWToken.sol
-// License-Identifier: MIT
-
-
-interface IWToken {
-    function deposit() external payable;
-    function withdraw(uint wad) external;
+    function tryTransferNative(
+        address receiver,
+        uint256 amount
+    ) internal returns(bool) {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        return success;
+    }
 }
 
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
@@ -445,7 +444,7 @@ library ECDSA {
     }
 }
 
-// File contracts/mapping-token/v3/GuardRegistryV3.sol
+// File contracts/xtoken/v3/templates/GuardRegistryV3.sol
 // License-Identifier: Apache-2.0
 
 pragma experimental ABIEncoderV2;
@@ -741,6 +740,26 @@ contract GuardRegistryV3 {
     }
 }
 
+// File contracts/xtoken/v3/interfaces/IXTokenCallback.sol
+// License-Identifier: MIT
+
+interface IXTokenCallback {
+    function xTokenCallback(
+        uint256 transferId,
+        address xToken,
+        uint256 amount,
+        bytes calldata extData
+    ) external;
+}
+
+interface IXTokenRollbackCallback {
+    function xTokenRollbackCallback(
+        uint256 transferId,
+        address token,
+        uint256 amount
+    ) external;
+}
+
 // File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
@@ -870,235 +889,183 @@ abstract contract Pausable is Context {
     }
 }
 
-// File @zeppelin-solidity/contracts/utils/math/SafeMath.sol@v4.7.3
+// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
 // License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (utils/math/SafeMath.sol)
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
 
-
-// CAUTION
-// This version of SafeMath should only be used with Solidity 0.8 or later,
-// because it relies on the compiler's built in overflow checks.
 
 /**
- * @dev Wrappers over Solidity's arithmetic operations.
+ * @dev Interface of the ERC165 standard, as defined in the
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
  *
- * NOTE: `SafeMath` is generally not needed starting with Solidity 0.8, since the compiler
- * now has built in overflow checking.
+ * Implementers can declare support of contract interfaces, which can then be
+ * queried by others ({ERC165Checker}).
+ *
+ * For an implementation, see {ERC165}.
  */
-library SafeMath {
+interface IERC165 {
     /**
-     * @dev Returns the addition of two unsigned integers, with an overflow flag.
+     * @dev Returns true if this contract implements the interface defined by
+     * `interfaceId`. See the corresponding
+     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     * to learn more about how these ids are created.
      *
-     * _Available since v3.4._
+     * This function call must use less than 30 000 gas.
      */
-    function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            uint256 c = a + b;
-            if (c < a) return (false, 0);
-            return (true, c);
-        }
-    }
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
 
-    /**
-     * @dev Returns the subtraction of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b > a) return (false, 0);
-            return (true, a - b);
-        }
-    }
+// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
 
-    /**
-     * @dev Returns the multiplication of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-            // benefit is lost if 'b' is also tested.
-            // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-            if (a == 0) return (true, 0);
-            uint256 c = a * b;
-            if (c / a != b) return (false, 0);
-            return (true, c);
-        }
-    }
 
+/**
+ * @dev Implementation of the {IERC165} interface.
+ *
+ * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
+ * for the additional interface id that will be supported. For example:
+ *
+ * ```solidity
+ * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+ *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
+ * }
+ * ```
+ *
+ * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
+ */
+abstract contract ERC165 is IERC165 {
     /**
-     * @dev Returns the division of two unsigned integers, with a division by zero flag.
-     *
-     * _Available since v3.4._
+     * @dev See {IERC165-supportsInterface}.
      */
-    function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a / b);
-        }
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers, with a division by zero flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a % b);
-        }
-    }
-
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     *
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a + b;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a - b;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     *
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a * b;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers, reverting on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator.
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a / b;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * reverting when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a % b;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * CAUTION: This function is deprecated because it requires allocating memory for the error
-     * message unnecessarily. For custom revert reasons use {trySub}.
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b <= a, errorMessage);
-            return a - b;
-        }
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers, reverting with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a / b;
-        }
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * reverting with custom message when dividing by zero.
-     *
-     * CAUTION: This function is deprecated because it requires allocating memory for the error
-     * message unnecessarily. For custom revert reasons use {tryMod}.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a % b;
-        }
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC165).interfaceId;
     }
 }
 
-// File contracts/mapping-token/v3/GuardV3.sol
+// File @zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.2) (utils/introspection/ERC165Checker.sol)
+
+
+/**
+ * @dev Library used to query support of an interface declared via {IERC165}.
+ *
+ * Note that these functions return the actual result of the query: they do not
+ * `revert` if an interface is not supported. It is up to the caller to decide
+ * what to do in these cases.
+ */
+library ERC165Checker {
+    // As per the EIP-165 spec, no interface should ever match 0xffffffff
+    bytes4 private constant _INTERFACE_ID_INVALID = 0xffffffff;
+
+    /**
+     * @dev Returns true if `account` supports the {IERC165} interface,
+     */
+    function supportsERC165(address account) internal view returns (bool) {
+        // Any contract that implements ERC165 must explicitly indicate support of
+        // InterfaceId_ERC165 and explicitly indicate non-support of InterfaceId_Invalid
+        return
+            _supportsERC165Interface(account, type(IERC165).interfaceId) &&
+            !_supportsERC165Interface(account, _INTERFACE_ID_INVALID);
+    }
+
+    /**
+     * @dev Returns true if `account` supports the interface defined by
+     * `interfaceId`. Support for {IERC165} itself is queried automatically.
+     *
+     * See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(address account, bytes4 interfaceId) internal view returns (bool) {
+        // query support of both ERC165 as per the spec and support of _interfaceId
+        return supportsERC165(account) && _supportsERC165Interface(account, interfaceId);
+    }
+
+    /**
+     * @dev Returns a boolean array where each value corresponds to the
+     * interfaces passed in and whether they're supported or not. This allows
+     * you to batch check interfaces for a contract where your expectation
+     * is that some interfaces may not be supported.
+     *
+     * See {IERC165-supportsInterface}.
+     *
+     * _Available since v3.4._
+     */
+    function getSupportedInterfaces(address account, bytes4[] memory interfaceIds)
+        internal
+        view
+        returns (bool[] memory)
+    {
+        // an array of booleans corresponding to interfaceIds and whether they're supported or not
+        bool[] memory interfaceIdsSupported = new bool[](interfaceIds.length);
+
+        // query support of ERC165 itself
+        if (supportsERC165(account)) {
+            // query support of each interface in interfaceIds
+            for (uint256 i = 0; i < interfaceIds.length; i++) {
+                interfaceIdsSupported[i] = _supportsERC165Interface(account, interfaceIds[i]);
+            }
+        }
+
+        return interfaceIdsSupported;
+    }
+
+    /**
+     * @dev Returns true if `account` supports all the interfaces defined in
+     * `interfaceIds`. Support for {IERC165} itself is queried automatically.
+     *
+     * Batch-querying can lead to gas savings by skipping repeated checks for
+     * {IERC165} support.
+     *
+     * See {IERC165-supportsInterface}.
+     */
+    function supportsAllInterfaces(address account, bytes4[] memory interfaceIds) internal view returns (bool) {
+        // query support of ERC165 itself
+        if (!supportsERC165(account)) {
+            return false;
+        }
+
+        // query support of each interface in _interfaceIds
+        for (uint256 i = 0; i < interfaceIds.length; i++) {
+            if (!_supportsERC165Interface(account, interfaceIds[i])) {
+                return false;
+            }
+        }
+
+        // all interfaces supported
+        return true;
+    }
+
+    /**
+     * @notice Query if a contract implements an interface, does not check ERC165 support
+     * @param account The address of the contract to query for support of an interface
+     * @param interfaceId The interface identifier, as specified in ERC-165
+     * @return true if the contract at account indicates support of the interface with
+     * identifier interfaceId, false otherwise
+     * @dev Assumes that account contains a contract that supports ERC165, otherwise
+     * the behavior of this method is undefined. This precondition can be checked
+     * with {supportsERC165}.
+     * Interface identification is specified in ERC-165.
+     */
+    function _supportsERC165Interface(address account, bytes4 interfaceId) private view returns (bool) {
+        // prepare call
+        bytes memory encodedParams = abi.encodeWithSelector(IERC165.supportsInterface.selector, interfaceId);
+
+        // perform static call
+        bool success;
+        uint256 returnSize;
+        uint256 returnValue;
+        assembly {
+            success := staticcall(30000, account, add(encodedParams, 0x20), mload(encodedParams), 0x00, 0x20)
+            returnSize := returndatasize()
+            returnValue := mload(0x00)
+        }
+
+        return success && returnSize >= 0x20 && returnValue > 0;
+    }
+}
+
+// File contracts/xtoken/v3/templates/GuardV3.sol
 // License-Identifier: Apache-2.0
 
 
@@ -1107,17 +1074,18 @@ library SafeMath {
 
 
 
-contract GuardV3 is GuardRegistryV3, Pausable {
-    using SafeMath for uint256;
 
+contract GuardV3 is GuardRegistryV3, Pausable, ERC165 {
     mapping(uint256 => bytes32) public deposits;
 
     uint256 public maxUnclaimableTime;
     mapping(address => bool) public depositors;
     address public operator;
 
-    event TokenDeposit(address sender, uint256 id, uint256 timestamp, address token, address recipient, uint256 amount);
+    event TokenDeposit(address sender, uint256 id, uint256 timestamp, address token, uint256 amount, bytes data);
     event TokenClaimed(uint256 id);
+
+    receive() external payable {}
 
     constructor(
         address[] memory _guards,
@@ -1148,114 +1116,121 @@ contract GuardV3 is GuardRegistryV3, Pausable {
         _pause();
     }
 
-    function setOperator(address newOperator, bytes[] memory signatures) external {
-        verifyGuardSignatures(msg.sig, abi.encode(newOperator), signatures);
-        operator = newOperator;
+    function setOperator(address _operator, bytes[] calldata _signatures) external {
+        verifyGuardSignatures(msg.sig, abi.encode(_operator), _signatures);
+        operator = _operator;
     }
 
-    function setDepositor(address depositor, bool enable) external onlyOperator {
-        depositors[depositor] = enable;
+    function setDepositor(address _depositor, bool _enable) external onlyOperator {
+        depositors[_depositor] = _enable;
     }
 
-    function setMaxUnclaimableTime(uint256 _maxUnclaimableTime) external onlyOperator {
+    function setMaxUnclaimableTime(uint256 _maxUnclaimableTime, bytes[] calldata _signatures) external {
+        verifyGuardSignatures(msg.sig, abi.encode(_maxUnclaimableTime), _signatures);
         maxUnclaimableTime = _maxUnclaimableTime;
+    }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165) returns (bool) {
+        return
+            interfaceId == type(IXTokenCallback).interfaceId ||
+            super.supportsInterface(interfaceId);
     }
 
     /**
       * @dev deposit token to guard, waiting to claim, only allowed depositor
-      * @param id the id of the operation, should be siged later by guards
-      * @param token the erc20 token address
-      * @param recipient the recipient of the token
-      * @param amount the amount of the token
+      * @param _transferId the id of the operation, should be siged later by guards
+      * @param _xToken the erc20 token address
+      * @param _amount the amount of the token
+      * @param _extData encoding on source: abi.encode(address(recipient), bytes(nextExtData))
+      *                 if recipient is an EOA address, then nextExtData = "0x"
+      *                 if recipient is a contract address support `xTokenCallback` interface, then nextExtData is the interface's parameter
       */
-    function deposit(
-        uint256 id,
-        address token,
-        address recipient,
-        uint256 amount
-    ) public onlyDepositor whenNotPaused {
-        deposits[id] = hash(abi.encodePacked(msg.sender, block.timestamp, token, recipient, amount));
-        emit TokenDeposit(msg.sender, id, block.timestamp, token, recipient, amount);
+    function xTokenCallback(
+        uint256 _transferId,
+        address _xToken,
+        uint256 _amount,
+        bytes calldata _extData
+    ) external onlyDepositor whenNotPaused {
+        require(deposits[_transferId] == bytes32(0), "Guard: deposit conflict");
+        deposits[_transferId] = hash(abi.encodePacked(msg.sender, block.timestamp, _xToken, _amount, _extData));
+        // ensure can be decoded by abi.decode(_extData, (address, bytes))
+        require(_extData.length >= 96, "invalid extData");
+        emit TokenDeposit(msg.sender, _transferId, block.timestamp, _xToken, _amount, _extData);
     }
 
     function claimById(
-        address from,
-        uint256 id,
-        uint256 timestamp,
-        address token,
-        address recipient,
-        uint256 amount,
-        bool isNative
+        address _from,
+        uint256 _id,
+        uint256 _timestamp,
+        address _token,
+        uint256 _amount,
+        bytes calldata _extData
     ) internal {
-        require(hash(abi.encodePacked(from, timestamp, token, recipient, amount)) == deposits[id], "Guard: Invalid id to claim");
-        require(amount > 0, "Guard: Invalid amount to claim");
-        delete deposits[id];
-        if (isNative) {
-            TokenTransferHelper.safeTransferFrom(token, from, address(this), amount);
-            uint256 balanceBefore = address(this).balance;
-            IWToken(token).withdraw(amount);
-            require(address(this).balance == balanceBefore.add(amount), "Guard: token is not wrapped by native token");
-            TokenTransferHelper.safeTransferNative(recipient, amount);
-        } else {
-            TokenTransferHelper.safeTransferFrom(token, from, recipient, amount);
+        require(hash(abi.encodePacked(_from, _timestamp, _token, _amount, _extData)) == deposits[_id], "Guard: Invalid id to claim");
+        require(_amount > 0, "Guard: Invalid amount to claim");
+        delete deposits[_id];
+        (address recipient, bytes memory data) = abi.decode(_extData, (address, bytes));
+        TokenTransferHelper.safeTransfer(_token, recipient, _amount);
+
+        emit TokenClaimed(_id);
+        if (ERC165Checker.supportsInterface(recipient, type(IXTokenCallback).interfaceId)) {
+            IXTokenCallback(recipient).xTokenCallback(_id, _token, _amount, data);
         }
-        emit TokenClaimed(id);
     }
 
     /**
       * @dev claim the tokens in the contract saved by deposit, this acquire signatures from guards
-      * @param id the id to be claimed
-      * @param signatures the signatures of the guards which to claim tokens.
+      * @param _id the id to be claimed
+      * @param _signatures the signatures of the guards which to claim tokens.
       */
     function claim(
-        address from,
-        uint256 id,
-        uint256 timestamp,
-        address token,
-        address recipient,
-        uint256 amount,
-        bytes[] memory signatures
+        address _from,
+        uint256 _id,
+        uint256 _timestamp,
+        address _token,
+        uint256 _amount,
+        bytes calldata _extData,
+        bytes[] calldata _signatures
     ) public {
-        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(from, id, timestamp, token, recipient, amount), signatures);
-        claimById(from, id, timestamp, token, recipient, amount, false);
+        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(_from, _id, _timestamp, _token, _amount, _extData), _signatures);
+        claimById(_from, _id, _timestamp, _token, _amount, _extData);
     }
 
-    /**
-      * @dev claimNative the tokens in the contract saved by deposit, this acquire signatures from guards
-      * @param id the id to be claimed
-      * @param signatures the signatures of the guards which to claim tokens.
-      */
-    function claimNative(
-        address from,
-        uint256 id,
-        uint256 timestamp,
-        address token,
-        address recipient,
-        uint256 amount,
-        bytes[] memory signatures
-    ) public {
-        verifyGuardSignaturesWithoutNonce(msg.sig, abi.encode(from, id, timestamp, token, recipient, amount), signatures);
-        claimById(from, id, timestamp, token, recipient, amount, true);
+    function rescueFunds(
+        address _token,
+        address _recipient,
+        uint256 _amount,
+        bytes[] calldata _signatures
+    ) external {
+        verifyGuardSignatures(msg.sig, abi.encode(_token, _recipient, _amount), _signatures);
+        if (_token == address(0)) {
+            payable(_recipient).transfer(_amount);
+        } else {
+            IERC20(_token).transfer(_recipient, _amount);
+        }
     }
 
     /**
       * @dev claim the tokens without signatures, this only allowed when timeout
-      * @param id the id to be claimed
+      * @param _id the id to be claimed
       */
     function claimByTimeout(
-        address from,
-        uint256 id,
-        uint256 timestamp,
-        address token,
-        address recipient,
-        uint256 amount,
-        bool isNative
+        address _from,
+        uint256 _id,
+        uint256 _timestamp,
+        address _token,
+        uint256 _amount,
+        bytes calldata _extData
     ) public whenNotPaused {
-        require(timestamp < block.timestamp && block.timestamp - timestamp > maxUnclaimableTime, "Guard: claim at invalid time");
-        claimById(from, id, timestamp, token, recipient, amount, isNative);
+        require(_timestamp < block.timestamp && block.timestamp - _timestamp > maxUnclaimableTime, "Guard: claim at invalid time");
+        claimById(_from, _id, _timestamp, _token, _amount, _extData);
     }
 
-    function hash(bytes memory value) public pure returns (bytes32) {
-        return sha256(value);
+    function hash(bytes memory _value) public pure returns (bytes32) {
+        return sha256(_value);
+    }
+
+    function encodeExtData(address recipient, bytes calldata extData) external pure returns (bytes memory) {
+        return abi.encode(recipient, extData);
     }
 }

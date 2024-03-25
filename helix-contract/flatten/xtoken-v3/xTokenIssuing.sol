@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 2/20/2024
+ * 3/25/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -141,14 +141,14 @@ library TokenTransferHelper {
         (bool success,) = payable(receiver).call{value: amount}("");
         require(success, "helix:transfer native token failed");
     }
-}
 
-// File contracts/mapping-token/interfaces/IGuard.sol
-// License-Identifier: MIT
-
-
-interface IGuard {
-  function deposit(uint256 id, address token, address recipient, uint256 amount) external;
+    function tryTransferNative(
+        address receiver,
+        uint256 amount
+    ) internal returns(bool) {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        return success;
+    }
 }
 
 // File contracts/utils/AccessController.sol
@@ -778,7 +778,7 @@ abstract contract Initializable {
     }
 }
 
-// File contracts/mapping-token/v3/base/xTokenBridgeBase.sol
+// File contracts/xtoken/v3/base/XTokenBridgeBase.sol
 // License-Identifier: MIT
 
 
@@ -789,7 +789,7 @@ abstract contract Initializable {
 // The Base contract for xToken protocol
 // Backing or Issuing contract will inherit the contract.
 // This contract define the access authorization, the message channel
-contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLimit {
+contract XTokenBridgeBase is Initializable, Pausable, AccessController, DailyLimit {
     uint256 constant public TRANSFER_UNFILLED = 0x00;
     uint256 constant public TRANSFER_DELIVERED = 0x01;
     uint256 constant public TRANSFER_REFUNDED = 0x02;
@@ -927,9 +927,10 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount
     ) public pure returns(bytes32) {
-        return keccak256(abi.encodePacked(_nonce, _sourceChainId, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
+        return keccak256(abi.encodePacked(_nonce, _sourceChainId, _targetChainId, _originalToken, _originalSender, _recipient, _rollbackAccount, _amount));
     }
 
     // settings
@@ -940,6 +941,26 @@ contract xTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     function setDailyLimit(address _token, uint256 _dailyLimit) external onlyDao {
         _setDailyLimit(_token, _dailyLimit);
     }
+}
+
+// File contracts/xtoken/v3/interfaces/IXTokenCallback.sol
+// License-Identifier: MIT
+
+interface IXTokenCallback {
+    function xTokenCallback(
+        uint256 transferId,
+        address xToken,
+        uint256 amount,
+        bytes calldata extData
+    ) external;
+}
+
+interface IXTokenRollbackCallback {
+    function xTokenRollbackCallback(
+        uint256 transferId,
+        address token,
+        uint256 amount
+    ) external;
 }
 
 // File @zeppelin-solidity/contracts/utils/math/SafeMath.sol@v4.7.3
@@ -1170,11 +1191,11 @@ library SafeMath {
     }
 }
 
-// File contracts/mapping-token/v3/base/xTokenErc20.sol
+// File contracts/xtoken/v3/base/XTokenErc20.sol
 // License-Identifier: MIT
 
 
-contract xTokenErc20 is IERC20 {
+contract XTokenErc20 is IERC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -1311,37 +1332,202 @@ contract xTokenErc20 is IERC20 {
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
 }
 
-// File contracts/mapping-token/v3/interfaces/IxTokenBacking.sol
+// File contracts/xtoken/v3/interfaces/IXTokenBacking.sol
 // License-Identifier: MIT
 
-interface IxTokenBacking {
-    function unlockFromRemote(
+interface IXTokenBacking {
+    function lockAndXIssue(
+        uint256 remoteChainId,
+        address originalToken,
+        address recipient,
+        address rollbackAccount,
+        uint256 amount,
+        uint256 nonce,
+        bytes calldata extData,
+        bytes memory extParams
+    ) external payable returns(bytes32 transferId);
+
+    function unlock(
         uint256 remoteChainId,
         address originalToken,
         address originalSender,
         address recipient,
+        address rollbackAccount,
+        uint256 amount,
+        uint256 nonce,
+        bytes calldata extData
+    ) external;
+
+    function rollbackLockAndXIssue(
+        uint256 remoteChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        address rollbackAccount,
         uint256 amount,
         uint256 nonce
     ) external;
 
-    function handleUnlockForIssuingFailureFromRemote(
-        uint256 remoteChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        uint256 amount,
-        uint256 nonce
-    ) external;
+    function guard() external returns(address);
 }
 
-// File contracts/mapping-token/v3/base/xTokenIssuing.sol
+// File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
+
+
+/**
+ * @dev Interface of the ERC165 standard, as defined in the
+ * https://eips.ethereum.org/EIPS/eip-165[EIP].
+ *
+ * Implementers can declare support of contract interfaces, which can then be
+ * queried by others ({ERC165Checker}).
+ *
+ * For an implementation, see {ERC165}.
+ */
+interface IERC165 {
+    /**
+     * @dev Returns true if this contract implements the interface defined by
+     * `interfaceId`. See the corresponding
+     * https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[EIP section]
+     * to learn more about how these ids are created.
+     *
+     * This function call must use less than 30 000 gas.
+     */
+    function supportsInterface(bytes4 interfaceId) external view returns (bool);
+}
+
+// File @zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.7.2) (utils/introspection/ERC165Checker.sol)
+
+
+/**
+ * @dev Library used to query support of an interface declared via {IERC165}.
+ *
+ * Note that these functions return the actual result of the query: they do not
+ * `revert` if an interface is not supported. It is up to the caller to decide
+ * what to do in these cases.
+ */
+library ERC165Checker {
+    // As per the EIP-165 spec, no interface should ever match 0xffffffff
+    bytes4 private constant _INTERFACE_ID_INVALID = 0xffffffff;
+
+    /**
+     * @dev Returns true if `account` supports the {IERC165} interface,
+     */
+    function supportsERC165(address account) internal view returns (bool) {
+        // Any contract that implements ERC165 must explicitly indicate support of
+        // InterfaceId_ERC165 and explicitly indicate non-support of InterfaceId_Invalid
+        return
+            _supportsERC165Interface(account, type(IERC165).interfaceId) &&
+            !_supportsERC165Interface(account, _INTERFACE_ID_INVALID);
+    }
+
+    /**
+     * @dev Returns true if `account` supports the interface defined by
+     * `interfaceId`. Support for {IERC165} itself is queried automatically.
+     *
+     * See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(address account, bytes4 interfaceId) internal view returns (bool) {
+        // query support of both ERC165 as per the spec and support of _interfaceId
+        return supportsERC165(account) && _supportsERC165Interface(account, interfaceId);
+    }
+
+    /**
+     * @dev Returns a boolean array where each value corresponds to the
+     * interfaces passed in and whether they're supported or not. This allows
+     * you to batch check interfaces for a contract where your expectation
+     * is that some interfaces may not be supported.
+     *
+     * See {IERC165-supportsInterface}.
+     *
+     * _Available since v3.4._
+     */
+    function getSupportedInterfaces(address account, bytes4[] memory interfaceIds)
+        internal
+        view
+        returns (bool[] memory)
+    {
+        // an array of booleans corresponding to interfaceIds and whether they're supported or not
+        bool[] memory interfaceIdsSupported = new bool[](interfaceIds.length);
+
+        // query support of ERC165 itself
+        if (supportsERC165(account)) {
+            // query support of each interface in interfaceIds
+            for (uint256 i = 0; i < interfaceIds.length; i++) {
+                interfaceIdsSupported[i] = _supportsERC165Interface(account, interfaceIds[i]);
+            }
+        }
+
+        return interfaceIdsSupported;
+    }
+
+    /**
+     * @dev Returns true if `account` supports all the interfaces defined in
+     * `interfaceIds`. Support for {IERC165} itself is queried automatically.
+     *
+     * Batch-querying can lead to gas savings by skipping repeated checks for
+     * {IERC165} support.
+     *
+     * See {IERC165-supportsInterface}.
+     */
+    function supportsAllInterfaces(address account, bytes4[] memory interfaceIds) internal view returns (bool) {
+        // query support of ERC165 itself
+        if (!supportsERC165(account)) {
+            return false;
+        }
+
+        // query support of each interface in _interfaceIds
+        for (uint256 i = 0; i < interfaceIds.length; i++) {
+            if (!_supportsERC165Interface(account, interfaceIds[i])) {
+                return false;
+            }
+        }
+
+        // all interfaces supported
+        return true;
+    }
+
+    /**
+     * @notice Query if a contract implements an interface, does not check ERC165 support
+     * @param account The address of the contract to query for support of an interface
+     * @param interfaceId The interface identifier, as specified in ERC-165
+     * @return true if the contract at account indicates support of the interface with
+     * identifier interfaceId, false otherwise
+     * @dev Assumes that account contains a contract that supports ERC165, otherwise
+     * the behavior of this method is undefined. This precondition can be checked
+     * with {supportsERC165}.
+     * Interface identification is specified in ERC-165.
+     */
+    function _supportsERC165Interface(address account, bytes4 interfaceId) private view returns (bool) {
+        // prepare call
+        bytes memory encodedParams = abi.encodeWithSelector(IERC165.supportsInterface.selector, interfaceId);
+
+        // perform static call
+        bool success;
+        uint256 returnSize;
+        uint256 returnValue;
+        assembly {
+            success := staticcall(30000, account, add(encodedParams, 0x20), mload(encodedParams), 0x00, 0x20)
+            returnSize := returndatasize()
+            returnValue := mload(0x00)
+        }
+
+        return success && returnSize >= 0x20 && returnValue > 0;
+    }
+}
+
+// File contracts/xtoken/v3/base/XTokenIssuing.sol
 // License-Identifier: MIT
 
 
 
 
 
-contract xTokenIssuing is xTokenBridgeBase {
+
+contract XTokenIssuing is XTokenBridgeBase {
     struct OriginalTokenInfo {
         uint256 chainId;
         address token;
@@ -1355,9 +1541,9 @@ contract xTokenIssuing is xTokenBridgeBase {
 
     event IssuingERC20Created(uint256 originalChainId, address originalToken, address xToken);
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
-    event RemoteUnlockForIssuingFailureRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
+    event RollbackLockAndXIssueRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
     event xTokenIssued(bytes32 transferId, uint256 remoteChainId, address originalToken, address xToken, address recipient, uint256 amount);
-    event BurnAndRemoteUnlocked(
+    event BurnAndXUnlocked(
         bytes32 transferId,
         uint256 nonce,
         uint256 remoteChainId,
@@ -1365,11 +1551,12 @@ contract xTokenIssuing is xTokenBridgeBase {
         address recipient,
         address originalToken,
         uint256 amount,
-        uint256 fee
+        uint256 fee,
+        bytes   extData
     );
     event TokenRemintForFailed(bytes32 transferId, uint256 originalChainId, address originalToken, address xToken, address originalSender, uint256 amount);
 
-    function registerxToken(
+    function registerXToken(
         uint256 _originalChainId,
         address _originalToken,
         string memory _originalChainName,
@@ -1380,7 +1567,7 @@ contract xTokenIssuing is xTokenBridgeBase {
     ) external onlyDao returns (address xToken) {
         bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         require(xTokens[salt] == address(0), "contract has been deployed");
-        bytes memory bytecode = type(xTokenErc20).creationCode;
+        bytes memory bytecode = type(XTokenErc20).creationCode;
         bytes memory bytecodeWithInitdata = abi.encodePacked(
             bytecode,
             abi.encode(
@@ -1400,7 +1587,7 @@ contract xTokenIssuing is xTokenBridgeBase {
 
     // using this interface, the Issuing contract must be must be granted mint and burn authorities.
     // warning: if the _xToken contract has no transferOwnership/acceptOwnership interface, then the authority cannot be transfered.
-    function updatexToken(
+    function updateXToken(
         uint256 _originalChainId,
         address _originalToken,
         address _xToken
@@ -1416,24 +1603,26 @@ contract xTokenIssuing is xTokenBridgeBase {
     }
 
     // transfer xToken ownership
-    function transferxTokenOwnership(address _xToken, address _newOwner) external onlyDao {
-        xTokenErc20(_xToken).transferOwnership(_newOwner);
+    function transferXTokenOwnership(address _xToken, address _newOwner) external onlyDao {
+        XTokenErc20(_xToken).transferOwnership(_newOwner);
     }
 
-    function acceptxTokenOwnership(address _xToken) external onlyDao {
-        xTokenErc20(_xToken).acceptOwnership();
+    function acceptXTokenOwnership(address _xToken) external onlyDao {
+        XTokenErc20(_xToken).acceptOwnership();
     }
 
     // receive issuing xToken message from remote backing contract
-    function issuexToken(
+    function issue(
         uint256 _remoteChainId,
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
-        uint256 _nonce
+        uint256 _nonce,
+        bytes calldata _extData
     ) external calledByMessager(_remoteChainId) whenNotPaused {
-        bytes32 transferId = getTransferId(_nonce, _remoteChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, _remoteChainId, block.chainid, _originalToken, _originalSender, _recipient, _rollbackAccount, _amount);
         bytes32 salt = xTokenSalt(_remoteChainId, _originalToken);
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
@@ -1442,59 +1631,71 @@ contract xTokenIssuing is xTokenBridgeBase {
 
         _handleTransfer(transferId);
 
-        address _guard = guard;
-        if (_guard != address(0)) {
-            xTokenErc20(xToken).mint(address(this), _amount);
-            uint allowance = xTokenErc20(xToken).allowance(address(this), _guard);
-            require(xTokenErc20(xToken).approve(_guard, allowance + _amount), "approve token transfer to guard failed");
-            IGuard(_guard).deposit(uint256(transferId), xToken, _recipient, _amount);
-        } else {
-            xTokenErc20(xToken).mint(_recipient, _amount);
+        {
+          address _guard = guard;
+
+          if (_guard != address(0)) {
+              require(_recipient == _guard, "must issue token from guard");
+          }
         }
+        XTokenErc20(xToken).mint(_recipient, _amount);
+
+        if (ERC165Checker.supportsInterface(_recipient, type(IXTokenCallback).interfaceId)) {
+            IXTokenCallback(_recipient).xTokenCallback(uint256(transferId), xToken, _amount, _extData);
+        }
+
         emit xTokenIssued(transferId, _remoteChainId, _originalToken, xToken, _recipient, _amount);
     }
 
-    function burnAndRemoteUnlock(
+    function burnAndXUnlock(
         address _xToken,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce,
+        bytes calldata _extData,
         bytes memory _extParams
-    ) external payable {
+    ) external payable returns(bytes32 transferId) {
         require(_amount > 0, "can not transfer amount zero");
         OriginalTokenInfo memory originalInfo = originalTokens[_xToken];
-        bytes32 transferId = getTransferId(_nonce, originalInfo.chainId, block.chainid, originalInfo.token, msg.sender, _recipient, _amount);
+        transferId = getTransferId(_nonce, originalInfo.chainId, block.chainid, originalInfo.token, msg.sender, _recipient, _rollbackAccount, _amount);
         _requestTransfer(transferId);
         // transfer to this and then burn
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
-        xTokenErc20(_xToken).burn(address(this), _amount);
+        XTokenErc20(_xToken).burn(address(this), _amount);
 
-        bytes memory remoteUnlockCall = encodeUnlockFromRemote(
+        bytes memory remoteUnlockCall = encodeXUnlock(
             originalInfo.token,
             msg.sender,
             _recipient,
+            _rollbackAccount,
             _amount,
-            _nonce
+            _nonce,
+            _extData
         );
         _sendMessage(originalInfo.chainId, remoteUnlockCall, msg.value, _extParams);
-        emit BurnAndRemoteUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value);
+        emit BurnAndXUnlocked(transferId, _nonce, originalInfo.chainId, msg.sender, _recipient, originalInfo.token, _amount, msg.value, _extData);
     }
 
-    function encodeUnlockFromRemote(
+    function encodeXUnlock(
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
-        uint256 _nonce
+        uint256 _nonce,
+        bytes calldata _extData
     ) public view returns(bytes memory) {
         return abi.encodeWithSelector(
-            IxTokenBacking.unlockFromRemote.selector,
+            IXTokenBacking.unlock.selector,
             block.chainid,
             _originalToken,
             _originalSender,
             _recipient,
+            _rollbackAccount,
             _amount,
-            _nonce
+            _nonce,
+            _extData
         );
     }
 
@@ -1502,42 +1703,46 @@ contract xTokenIssuing is xTokenBridgeBase {
     // 1. message has been delivered
     // 2. xtoken not issued
     // this method can retry
-    function requestRemoteUnlockForIssuingFailure(
+    function xRollbackLockAndXIssue(
         uint256 _originalChainId,
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce,
         bytes memory _extParams
     ) external payable {
-        require(_originalSender == msg.sender || _recipient == msg.sender || dao == msg.sender, "invalid msgSender");
-        bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
+        require(_rollbackAccount == msg.sender || dao == msg.sender, "invalid msgSender");
+        bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _rollbackAccount, _amount);
         _requestRefund(transferId);
-        bytes memory handleUnlockForFailed = encodeUnlockForIssuingFailureFromRemote(
+        bytes memory handleUnlockForFailed = encodeRollbackLockAndXIssue(
             _originalToken,
             _originalSender,
             _recipient,
+            _rollbackAccount,
             _amount,
             _nonce
         );
         _sendMessage(_originalChainId, handleUnlockForFailed, msg.value, _extParams);
-        emit RemoteUnlockForIssuingFailureRequested(transferId, _originalToken, _originalSender, _amount, msg.value);
+        emit RollbackLockAndXIssueRequested(transferId, _originalToken, _originalSender, _amount, msg.value);
     }
 
-    function encodeUnlockForIssuingFailureFromRemote(
+    function encodeRollbackLockAndXIssue(
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce
     ) public view returns(bytes memory) {
         return abi.encodeWithSelector(
-            IxTokenBacking.handleUnlockForIssuingFailureFromRemote.selector,
+            IXTokenBacking.rollbackLockAndXIssue.selector,
             block.chainid,
             _originalToken,
             _originalSender,
             _recipient,
+            _rollbackAccount,
             _amount,
             _nonce
         );
@@ -1548,22 +1753,26 @@ contract xTokenIssuing is xTokenBridgeBase {
     // this will refund xToken to original sender
     // 1. the transfer not refund before
     // 2. the burn information(hash) matched
-    function handleIssuingForUnlockFailureFromRemote(
+    function rollbackBurnAndXUnlock(
         uint256 _originalChainId,
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce
     ) external calledByMessager(_originalChainId) whenNotPaused {
-        bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _amount);
+        bytes32 transferId = getTransferId(_nonce, _originalChainId, block.chainid, _originalToken, _originalSender, _recipient, _rollbackAccount, _amount);
         _handleRefund(transferId);
 
         bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
 
-        xTokenErc20(xToken).mint(_originalSender, _amount);
+        XTokenErc20(xToken).mint(_originalSender, _amount);
+        if (ERC165Checker.supportsInterface(_originalSender, type(IXTokenRollbackCallback).interfaceId)) {
+            IXTokenRollbackCallback(_originalSender).xTokenRollbackCallback(uint256(transferId), xToken, _amount);
+        }
         emit TokenRemintForFailed(transferId, _originalChainId, _originalToken, xToken, _originalSender, _amount);
     }
 

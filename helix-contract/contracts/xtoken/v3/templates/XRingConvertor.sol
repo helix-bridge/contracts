@@ -74,6 +74,7 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
 
     function burnAndXUnlock(
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce,
         bytes calldata _extData,
@@ -81,7 +82,7 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     ) payable external {
         IERC20(RING).transferFrom(msg.sender, address(this), _amount);
         lockBox.withdraw(_amount);
-        bytes32 transferId = xTokenIssuing.burnAndXUnlock{value: msg.value}(XRING, _recipient, _amount, _nonce, _extData, _extParams);
+        bytes32 transferId = xTokenIssuing.burnAndXUnlock{value: msg.value}(XRING, _recipient, _rollbackAccount, _amount, _nonce, _extData, _extParams);
         uint256 id = uint256(transferId);
         senders[id] = msg.sender;
         emit BurnAndXUnlock(id, msg.sender, _recipient, _amount);

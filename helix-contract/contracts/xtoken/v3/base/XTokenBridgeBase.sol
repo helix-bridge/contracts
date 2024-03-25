@@ -149,9 +149,10 @@ contract XTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
         address _originalToken,
         address _originalSender,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount
     ) public pure returns(bytes32) {
-        return keccak256(abi.encodePacked(_nonce, _sourceChainId, _targetChainId, _originalToken, _originalSender, _recipient, _amount));
+        return keccak256(abi.encodePacked(_nonce, _sourceChainId, _targetChainId, _originalToken, _originalSender, _recipient, _rollbackAccount, _amount));
     }
 
     // settings

@@ -79,6 +79,7 @@ contract WTokenConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     function lockAndXIssue(
         uint256 _remoteChainId,
         address _recipient,
+        address _rollbackAccount,
         uint256 _amount,
         uint256 _nonce,
         bytes calldata _extData,
@@ -86,7 +87,7 @@ contract WTokenConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
     ) payable external {
         require(msg.value > _amount, "invalid msg.value");
         IWToken(wToken).deposit{value: _amount}();
-        bytes32 transferId = xTokenBacking.lockAndXIssue{value: msg.value - _amount}(_remoteChainId, wToken, _recipient, _amount, _nonce, _extData, _extParams);
+        bytes32 transferId = xTokenBacking.lockAndXIssue{value: msg.value - _amount}(_remoteChainId, wToken, _recipient, _rollbackAccount, _amount, _nonce, _extData, _extParams);
         uint256 id = uint256(transferId);
         senders[id] = msg.sender;
         emit LockAndXIssue(id, msg.sender, _recipient, _amount, _extData);

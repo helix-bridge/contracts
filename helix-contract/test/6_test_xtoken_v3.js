@@ -175,6 +175,7 @@ describe("xtoken tests", () => {
               issuingChainId,
               originalAddress,
               recipient,
+              user01.address,
               amount,
               nonce,
               extData,
@@ -186,7 +187,7 @@ describe("xtoken tests", () => {
 
           const balanceRecipientAfter = await balanceOf(xTokenAddress, recipient);
           const balanceBackingAfter = await balanceOf(originalAddress, backing.address);
-          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, originalAddress, user01.address, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, originalAddress, user01.address, recipient, user01.address, amount);
           const requestInfo = await backing.requestInfos(transferId);
           expect(requestInfo.isRequested).to.equal(true);
           expect(requestInfo.hasRefundForFailed).to.equal(false);
@@ -220,6 +221,7 @@ describe("xtoken tests", () => {
           const transaction = await wtokenConvertor.connect(user01).lockAndXIssue(
               issuingChainId,
               recipient,
+              user01.address,
               amount,
               nonce,
               extData,
@@ -232,7 +234,7 @@ describe("xtoken tests", () => {
 
           const balanceRecipientAfter = await balanceOf(xTokenAddress, recipient);
           const balanceBackingAfter = await balanceOf(wtokenAddress, backing.address);
-          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, wtokenAddress, wtokenConvertor.address, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, wtokenAddress, wtokenConvertor.address, recipient, user01.address, amount);
           const requestInfo = await backing.requestInfos(transferId);
           expect(requestInfo.isRequested).to.equal(true);
           expect(requestInfo.hasRefundForFailed).to.equal(false);
@@ -280,6 +282,7 @@ describe("xtoken tests", () => {
           const transaction = await issuing.connect(user02).burnAndXUnlock(
               xTokenAddress,
               recipient,
+              user02.address,
               amount,
               nonce,
               extData,
@@ -293,7 +296,7 @@ describe("xtoken tests", () => {
           const balanceBackingAfter = await balanceOf(msgToken, backing.address);
           const balanceUserAfter = await balanceOf(xTokenAddress, user02.address);
 
-          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, msgToken, user02.address, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, msgToken, user02.address, recipient, user02.address, amount);
           const requestInfo = await issuing.requestInfos(transferId);
           expect(requestInfo.isRequested).to.equal(true);
           expect(requestInfo.hasRefundForFailed).to.equal(false);
@@ -329,6 +332,7 @@ describe("xtoken tests", () => {
               msgToken,
               msgSender,
               recipient,
+              user01.address,
               amount,
               nonce,
               0,
@@ -343,7 +347,7 @@ describe("xtoken tests", () => {
           let receipt = await transaction.wait();
           let gasFee = receipt.cumulativeGasUsed.mul(receipt.effectiveGasPrice);
 
-          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, msgToken, msgSender, recipient, amount);
+          const transferId = await backing.getTransferId(nonce, backingChainId, issuingChainId, msgToken, msgSender, recipient, user01.address, amount);
           const requestInfo = await backing.requestInfos(transferId);
           if (result) {
               expect(balanceSenderAfter.sub(balanceSenderBefore)).to.be.equal(amount);
@@ -374,6 +378,7 @@ describe("xtoken tests", () => {
               originalToken,
               originalSender,
               recipient,
+              user02.address,
               amount,
               nonce,
               0,
@@ -504,7 +509,6 @@ describe("xtoken tests", () => {
           false,
           true
       );
-
       // test refund failed if the message has been successed
       await expect(xRollbackLockAndXIssue(
           wtoken.address,
@@ -609,7 +613,7 @@ describe("xtoken tests", () => {
           true,//using guard
           true
       );
-      const transferId = await backing.getTransferId(nonce05, backingChainId, issuingChainId, wtoken.address, user01.address, issuingGuard.address, 10);
+      const transferId = await backing.getTransferId(nonce05, backingChainId, issuingChainId, wtoken.address, user01.address, issuingGuard.address, user01.address, 10);
       await guardClaim(
           issuingGuard,
           issuing.address,
@@ -628,7 +632,7 @@ describe("xtoken tests", () => {
           true, //using guard
           true
       );
-      const transferId06 = await backing.getTransferId(nonce06, backingChainId, issuingChainId, wtoken.address, user02.address, backingGuard.address, 20);
+      const transferId06 = await backing.getTransferId(nonce06, backingChainId, issuingChainId, wtoken.address, user02.address, backingGuard.address, user02.address, 20);
       await guardClaim(
           backingGuard,
           backing.address,
@@ -673,7 +677,7 @@ describe("xtoken tests", () => {
           true
       );
 
-      const transferIdN1 = await backing.getTransferId(nonceN1, backingChainId, issuingChainId, wtoken.address, wtokenConvertor.address, issuingGuard.address, 100);
+      const transferIdN1 = await backing.getTransferId(nonceN1, backingChainId, issuingChainId, wtoken.address, wtokenConvertor.address, issuingGuard.address, user01.address, 100);
       await guardClaim(
           issuingGuard,
           issuing.address,
@@ -711,7 +715,7 @@ describe("xtoken tests", () => {
           true,
           true
       );
-      const transferIdN3 = await backing.getTransferId(nonceN3, backingChainId, issuingChainId, wtoken.address, user02.address, backingGuard.address, 100);
+      const transferIdN3 = await backing.getTransferId(nonceN3, backingChainId, issuingChainId, wtoken.address, user02.address, backingGuard.address, user02.address, 100);
       await guardClaim(
           backingGuard,
           backing.address,

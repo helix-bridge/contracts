@@ -3,12 +3,13 @@ pragma solidity >=0.8.17;
 
 interface IXTokenIssuing {
     function burnAndXUnlock(
-        address _xToken,
-        address _recipient,
-        uint256 _amount,
-        uint256 _nonce,
-        bytes calldata _extData,
-        bytes memory _extParams
+        address xToken,
+        address recipient,
+        address rollbackAccount,
+        uint256 amount,
+        uint256 nonce,
+        bytes calldata extData,
+        bytes memory extParams
     ) external payable returns(bytes32);
 
     function rollbackBurnAndXUnlock(
@@ -16,6 +17,7 @@ interface IXTokenIssuing {
         address originalToken,
         address originalSender,
         address recipient,
+        address rollbackAccount,
         uint256 amount,
         uint256 nonce
     ) external;
@@ -25,6 +27,7 @@ interface IXTokenIssuing {
         address originalToken,
         address originalSender,
         address recipient,
+        address rollbackAccount,
         uint256 amount,
         uint256 nonce,
         bytes calldata extData

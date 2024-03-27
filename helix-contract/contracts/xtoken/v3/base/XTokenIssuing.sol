@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol";
 import "./XTokenBridgeBase.sol";
-import "./XTokenErc20.sol";
+import "../interfaces/IXToken.sol";
 import "../interfaces/IXTokenBacking.sol";
 import "../interfaces/IXTokenCallback.sol";
 import "../../../utils/TokenTransferHelper.sol";
@@ -37,35 +37,6 @@ contract XTokenIssuing is XTokenBridgeBase {
     );
     event TokenRemintForFailed(bytes32 transferId, uint256 originalChainId, address originalToken, address xToken, address originalSender, uint256 amount);
 
-    function registerXToken(
-        uint256 _originalChainId,
-        address _originalToken,
-        string memory _originalChainName,
-        string memory _name,
-        string memory _symbol,
-        uint8 _decimals,
-        uint256 _dailyLimit
-    ) external onlyDao returns (address xToken) {
-        bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
-        require(xTokens[salt] == address(0), "contract has been deployed");
-        bytes memory bytecode = type(XTokenErc20).creationCode;
-        bytes memory bytecodeWithInitdata = abi.encodePacked(
-            bytecode,
-            abi.encode(
-                string(abi.encodePacked(_name, "[", _originalChainName, ">")),
-                string(abi.encodePacked("x", _symbol)),
-                _decimals
-            ));
-        assembly {
-            xToken := create2(0, add(bytecodeWithInitdata, 0x20), mload(bytecodeWithInitdata), salt)
-            if iszero(extcodesize(xToken)) { revert(0, 0) }
-        }
-        xTokens[salt] = xToken;
-        originalTokens[xToken] = OriginalTokenInfo(_originalChainId, _originalToken);
-        _setDailyLimit(xToken, _dailyLimit);
-        emit IssuingERC20Created(_originalChainId, _originalToken, xToken);
-    }
-
     // using this interface, the Issuing contract must be must be granted mint and burn authorities.
     // warning: if the _xToken contract has no transferOwnership/acceptOwnership interface, then the authority cannot be transfered.
     function updateXToken(
@@ -85,11 +56,11 @@ contract XTokenIssuing is XTokenBridgeBase {
 
     // transfer xToken ownership
     function transferXTokenOwnership(address _xToken, address _newOwner) external onlyDao {
-        XTokenErc20(_xToken).transferOwnership(_newOwner);
+        IXToken(_xToken).transferOwnership(_newOwner);
     }
 
     function acceptXTokenOwnership(address _xToken) external onlyDao {
-        XTokenErc20(_xToken).acceptOwnership();
+        IXToken(_xToken).acceptOwnership();
     }
 
     // receive issuing xToken message from remote backing contract
@@ -119,7 +90,7 @@ contract XTokenIssuing is XTokenBridgeBase {
               require(_recipient == _guard, "must issue token from guard");
           }
         }
-        XTokenErc20(xToken).mint(_recipient, _amount);
+        IXToken(xToken).mint(_recipient, _amount);
 
         if (ERC165Checker.supportsInterface(_recipient, type(IXTokenCallback).interfaceId)) {
             IXTokenCallback(_recipient).xTokenCallback(uint256(transferId), xToken, _amount, _extData);
@@ -143,7 +114,7 @@ contract XTokenIssuing is XTokenBridgeBase {
         _requestTransfer(transferId);
         // transfer to this and then burn
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
-        XTokenErc20(_xToken).burn(address(this), _amount);
+        IXToken(_xToken).burn(address(this), _amount);
 
         bytes memory remoteUnlockCall = encodeXUnlock(
             originalInfo.token,
@@ -250,7 +221,7 @@ contract XTokenIssuing is XTokenBridgeBase {
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
 
-        XTokenErc20(xToken).mint(_originalSender, _amount);
+        IXToken(xToken).mint(_originalSender, _amount);
         if (ERC165Checker.supportsInterface(_originalSender, type(IXTokenRollbackCallback).interfaceId)) {
             IXTokenRollbackCallback(_originalSender).xTokenRollbackCallback(uint256(transferId), xToken, _amount);
         }

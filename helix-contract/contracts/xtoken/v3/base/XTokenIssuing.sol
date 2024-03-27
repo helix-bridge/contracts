@@ -20,7 +20,6 @@ contract XTokenIssuing is XTokenBridgeBase {
     // xToken => Origin Token Info
     mapping(address => OriginalTokenInfo) public originalTokens;
 
-    event IssuingERC20Created(uint256 originalChainId, address originalToken, address xToken);
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
     event RollbackLockAndXIssueRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
     event xTokenIssued(bytes32 transferId, uint256 remoteChainId, address originalToken, address xToken, address recipient, uint256 amount);

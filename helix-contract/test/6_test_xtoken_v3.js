@@ -117,16 +117,25 @@ describe("xtoken tests", () => {
           originalTokenDecimals,
           dailyLimit
       ) {
-          // register xtoken
-          await issuing.registerXToken(
+          const erc20Contract = await ethers.getContractFactory("Erc20");
+          const erc20 = await erc20Contract.deploy(
+              `[${originalTokenName}[${originalChainName}>`,
+              `x${originalTokenSymbol}`,
+              originalTokenDecimals
+          );
+          await erc20.deployed();
+
+          await issuing.updateXToken(
               backingChainId,
               originalTokenAddress,
-              originalChainName,
-              originalTokenName,
-              originalTokenSymbol,
-              originalTokenDecimals,
+              erc20.address
+          );
+          await issuing.setDailyLimit(
+              erc20.address,
               dailyLimit
           );
+          await erc20.transferOwnership(issuing.address);
+
           console.log("register xtoken finished");
 
           const xTokenSalt = await issuing.xTokenSalt(backingChainId, originalTokenAddress);

@@ -29,8 +29,8 @@
     },
     "xToken": {
         "tron": "TRXTkfGxTL8CjuGgz55BYkTAyVyiEMFY6F",
-        "sepolia-xpring": "0xF874fad204757588e67EE55cE93D654b6f5C39C6",
-        "sepolia-pring": "0xBD50868F36Eb46355eC5a153AbD3a7eA094A5c37"
+        "sepolia-xpring": "0x3beb2cf5c2c050bc575350671aa5f06e589386e8",
+        "sepolia-pring": "0xdE64c6d8b24eeB16D864841d2873aB7a379c45b6"
     },
     "guard": {
         "sepolia": "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7",

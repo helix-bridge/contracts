@@ -6,4 +6,5 @@ interface IXToken {
     function acceptOwnership() external;
     function mint(address account, uint256 amount) external;
     function burn(address account, uint256 amount) external;
+    function approve(address spender, uint256 value) external returns (bool);
 }

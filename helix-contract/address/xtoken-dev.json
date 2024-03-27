@@ -11,17 +11,17 @@
         }
     },
     "backingProxy": {
-        "pangolin": "0x7E3105E3A13D55d824b6322cbD2049f098a097F6"
+        "pangolin": "0x24f8a04F0cA0730F4b8eC3241F15aCc6b3f8Da0a"
     },
     "backingLogic": {
-        "pangolin": "0xF02d2502653ecc716b75e5036715Ecb03ADFf274"
+        "pangolin": "0xB83D351AC3a1353186D2a20ad365E3A03c48a018"
     },
     "issuingProxy": {
-        "sepolia": "0x3B36c2Db4CC5E92Af015Eb572A1C95C95599a8bF",
+        "sepolia": "0x1aeC008Af5c604be3525d0bB70fFcc4D7281f30C",
         "tron": "TJK57bJTvnaNRGFHwbihg1bXtgnyed6sKa"
     },
     "issuingLogic": {
-        "sepolia": "0x8EbdB9C2909bB4D48085967227CD2c011aD05664",
+        "sepolia": "0xe80B49c33d9734e9761e76C2b7D6244C55FDb5A8",
         "tron": "TD7VoAQnJDKsWsgZZTeeHvBKY5fogRDVc2"
     },
     "proxyAdmin": {
@@ -40,9 +40,9 @@
         "pangolin": "0x617E55f692FA2feFfdD5D9C513782A479cC1FF57"
     },
     "wtokenConvertor": {
-        "pangolin": "0x3ACEb55AAD4CDFE1531A9C6F6416753e6a7BDD49"
+        "pangolin": "0xB3A8DB63d6FBE0f50A3D4977c3e892543D772C4A"
     },
     "xtokenConvertor": {
-        "sepolia": "0x917CB26BfCf9F6bE65f387903AA9180613A40f41"
+        "sepolia": "0x4CdFe9915d2c72506f4fC2363A8EaE032E82d1aA"
     }
 }

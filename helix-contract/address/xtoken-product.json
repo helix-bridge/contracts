@@ -26,5 +26,13 @@
     "wtokenConvertor": {
         "darwinia-dvm(to crab)": "0xA8d0E9a45249Ec839C397fa0F371f5F64eCAB7F7",
         "crab-dvm(to darwinia)": "0x004D0dE211BC148c3Ce696C51Cbc85BD421727E9"
+    },
+    "wtoken": {
+        "darwinia-dvm(WRING)": "0xE7578598Aac020abFB918f33A20faD5B71d670b4",
+        "crab-dvm(WCRAB)": "0x2D2b97EA380b0185e9fDF8271d1AFB5d2Bf18329"
+    },
+    "xtoken": {
+        "darwinia-dvm(xWCRAB)": "0x656567Eb75b765FC320783cc6EDd86bD854b2305",
+        "crab-dvm(xWRING)": "0x273131F7CB50ac002BDd08cA721988731F7e1092"
     }
 }

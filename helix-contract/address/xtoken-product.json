@@ -1,0 +1,30 @@
+{
+    "messagers": {
+        "darwinia-dvm": {
+            "msgportMessager": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
+        },
+        "crab-dvm": {
+            "msgportMessager": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
+        }
+    },
+    "backingProxy": {
+        "darwinia-dvm": "0xa64D1c284280b22f921E7B2A55040C7bbfD4d9d0",
+        "crab-dvm": "0xa64D1c284280b22f921E7B2A55040C7bbfD4d9d0"
+    },
+    "backingLogic": {
+        "darwinia-dvm": "0x846EB1FD04aCe26B1d4F1a435292b52f0Ba1febE",
+        "crab-dvm": "0x846EB1FD04aCe26B1d4F1a435292b52f0Ba1febE"
+    },
+    "issuingProxy": {
+        "darwinia-dvm": "0xf6372ab2d35B32156A19F2d2F23FA6dDeFBE58bd",
+        "crab-dvm": "0xf6372ab2d35B32156A19F2d2F23FA6dDeFBE58bd"
+    },
+    "issuingLogic": {
+        "darwinia-dvm": "0x34a66e0e1F8Ba991EbF7dC66380DD053CEFc9964",
+        "crab-dvm": "0x34a66e0e1F8Ba991EbF7dC66380DD053CEFc9964"
+    },
+    "wtokenConvertor": {
+        "darwinia-dvm(to crab)": "0xA8d0E9a45249Ec839C397fa0F371f5F64eCAB7F7",
+        "crab-dvm(to darwinia)": "0x004D0dE211BC148c3Ce696C51Cbc85BD421727E9"
+    }
+}

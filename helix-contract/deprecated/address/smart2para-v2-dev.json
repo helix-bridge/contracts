@@ -1,8 +1,0 @@
-{
-    "pangolin2parachain-smart2para-pangolin": {
-        "endpoint": "0x0c2D2918136E8341d630E12Cb8e9C60b453658B0",
-        "backingLogic": "0x7e204c63BeD3908a92E28358dd1eaa8e9631274a",
-        "backingAdmin": "0xCddD3e43dA1e9485d4FcD3782DFba04aADCfC9B2",
-        "backingProxy": "0x35A314e53e2fdDfeCA7b743042AaCfB1ABAF0aDe"
-    }
-}

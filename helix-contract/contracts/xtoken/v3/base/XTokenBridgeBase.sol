@@ -3,7 +3,7 @@ pragma solidity ^0.8.17;
 
 import "@zeppelin-solidity/contracts/proxy/utils/Initializable.sol";
 import "@zeppelin-solidity/contracts/security/Pausable.sol";
-import "../../../interfaces/IMessager.sol";
+import "../../../messagers/interface/IMessager.sol";
 import "../../../utils/AccessController.sol";
 import "../../../utils/DailyLimit.sol";
 import "../../../utils/TokenTransferHelper.sol";

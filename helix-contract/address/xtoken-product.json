@@ -1,0 +1,50 @@
+{
+    "messagers": {
+        "darwinia-dvm": {
+            "msgportMessager": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
+        },
+        "crab-dvm": {
+            "msgportMessager": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
+        }
+    },
+    "backingProxy": {
+        "darwinia-dvm(to crab)": "0xa64D1c284280b22f921E7B2A55040C7bbfD4d9d0",
+        "darwinia-dvm(to ethereum)": "0x2B496f19A420C02490dB859fefeCCD71eDc2c046",
+        "crab-dvm(to darwinia)": "0xa64D1c284280b22f921E7B2A55040C7bbfD4d9d0"
+    },
+    "backingLogic": {
+        "darwinia-dvm": "0x846EB1FD04aCe26B1d4F1a435292b52f0Ba1febE",
+        "crab-dvm": "0x846EB1FD04aCe26B1d4F1a435292b52f0Ba1febE"
+    },
+    "issuingProxy": {
+        "darwinia-dvm(to crab)": "0xf6372ab2d35B32156A19F2d2F23FA6dDeFBE58bd",
+        "crab-dvm(to darwinia)": "0xf6372ab2d35B32156A19F2d2F23FA6dDeFBE58bd",
+        "ethereum(to darwinia)": "0xDc0C760c0fB4672D06088515F6446a71Df0c64C1"
+    },
+    "issuingLogic": {
+        "darwinia-dvm": "0x34a66e0e1F8Ba991EbF7dC66380DD053CEFc9964",
+        "crab-dvm": "0x34a66e0e1F8Ba991EbF7dC66380DD053CEFc9964",
+        "ethereum": "0xC41219d6d8aA99C51340C1884Ed4fe2a9F151558"
+    },
+    "wtokenConvertor": {
+        "darwinia-dvm(to crab)": "0xA8d0E9a45249Ec839C397fa0F371f5F64eCAB7F7",
+        "darwinia-dvm(to ethereum)": "0x092e19c46c9daab7824393f1cd9c22f5bea13560",
+        "crab-dvm(to darwinia)": "0x004D0dE211BC148c3Ce696C51Cbc85BD421727E9"
+    },
+    "xtokenConvertor": {
+        "ethereum": "0xc29dCb1F12a1618262eF9FBA673b77140adc02D6"
+    },
+    "guard": {
+        "ethereum": "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7",
+        "darwinia-dvm": "0x4ca75992d2750bec270731a72dfdede6b9e71cc7"
+    },
+    "wtoken": {
+        "darwinia-dvm(WRING)": "0xE7578598Aac020abFB918f33A20faD5B71d670b4",
+        "crab-dvm(WCRAB)": "0x2D2b97EA380b0185e9fDF8271d1AFB5d2Bf18329"
+    },
+    "xtoken": {
+        "darwinia-dvm(xWCRAB)": "0x656567Eb75b765FC320783cc6EDd86bD854b2305",
+        "crab-dvm(xWRING)": "0x273131F7CB50ac002BDd08cA721988731F7e1092",
+        "ethereum(xRING)": "0x81e32d4652Be82AE225DEdd1bD0bf3BCba8FEE07 "
+    }
+}

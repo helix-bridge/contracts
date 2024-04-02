@@ -30,22 +30,26 @@ async function deployxTokenProxy(wallet, salt, dao, proxyAdminAddress, logicAddr
 }
 
 async function deploy() {
-    const pathConfig = "./address/ln-dev.json";
+    const env = 'product';
+    const chain = 'darwinia-dvm';
+    const pathConfig = `./address/ln-${env}.json`;
     const configure = JSON.parse(
         fs.readFileSync(pathConfig, "utf8")
     );
-    const network = configure.chains['sepolia'];
+    const network = configure.chains[chain];
     const w = wallet(configure, network);
 
-    const xTokenConfigPath = "./address/xtoken-dev.json";
+    const xTokenConfigPath = `./address/xtoken-${env}.json`;
     const xTokenConfig = JSON.parse(
         fs.readFileSync(xTokenConfigPath, "utf8")
     );
 
-    //const backingLogic = xTokenConfig.backingLogic['pangolin'];
-    //await deployxTokenProxy(w, "xtoken-backing-1.0.0", network.dao, configure.ProxyAdmin.others, backingLogic, network.deployer);
-    const issuingLogic = xTokenConfig.issuingLogic['sepolia'];
-    await deployxTokenProxy(w, "xtoken-issuing-1.0.0", network.dao, configure.ProxyAdmin.others, issuingLogic, network.deployer);
+    const backingLogic = xTokenConfig.backingLogic[chain];
+    await deployxTokenProxy(w, "xtoken-backing-3.0.2-ethereum", network.dao, configure.ProxyAdmin.others, backingLogic, network.deployer);
+    //const issuingLogic = xTokenConfig.issuingLogic[chain];
+    //await deployxTokenProxy(w, "xtoken-issuing-3.0.2", network.dao, configure.ProxyAdmin.others, issuingLogic, network.deployer);
+    //0xa64D1c284280b22f921E7B2A55040C7bbfD4d9d0
+    //0xf6372ab2d35B32156A19F2d2F23FA6dDeFBE58bd
 }
 
 async function main() {

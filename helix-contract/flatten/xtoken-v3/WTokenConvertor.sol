@@ -19,72 +19,6 @@
 
 pragma solidity ^0.8.17;
 
-// File contracts/xtoken/v3/interfaces/IXTokenIssuing.sol
-// License-Identifier: MIT
-
-interface IXTokenIssuing {
-    function burnAndXUnlock(
-        address xToken,
-        address recipient,
-        address rollbackAccount,
-        uint256 amount,
-        uint256 nonce,
-        bytes calldata extData,
-        bytes memory extParams
-    ) external payable returns(bytes32);
-
-    function rollbackBurnAndXUnlock(
-        uint256 originalChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        address rollbackAccount,
-        uint256 amount,
-        uint256 nonce
-    ) external;
-
-    function issue(
-        uint256 remoteChainId,
-        address originalToken,
-        address originalSender,
-        address recipient,
-        address rollbackAccount,
-        uint256 amount,
-        uint256 nonce,
-        bytes calldata extData
-    ) external;
-
-    function guard() external returns(address);
-}
-
-// File contracts/xtoken/v3/interfaces/IXTokenCallback.sol
-// License-Identifier: MIT
-
-interface IXTokenCallback {
-    function xTokenCallback(
-        uint256 transferId,
-        address xToken,
-        uint256 amount,
-        bytes calldata extData
-    ) external;
-}
-
-interface IXTokenRollbackCallback {
-    function xTokenRollbackCallback(
-        uint256 transferId,
-        address token,
-        uint256 amount
-    ) external;
-}
-
-// File contracts/xtoken/v3/templates/interfaces/IXRINGLockBox.sol
-// License-Identifier: MIT
-
-interface IXRINGLockBox {
-    function depositFor(address to, uint256 amount) external;
-    function withdraw(uint256 amount) external;
-}
-
 // File @zeppelin-solidity/contracts/token/ERC20/IERC20.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.6.0) (token/ERC20/IERC20.sol)
@@ -168,6 +102,123 @@ interface IERC20 {
     ) external returns (bool);
 }
 
+// File contracts/utils/TokenTransferHelper.sol
+// License-Identifier: MIT
+
+library TokenTransferHelper {
+    function safeTransfer(
+        address token,
+        address receiver,
+        uint256 amount
+    ) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(
+            IERC20.transfer.selector,
+            receiver,
+            amount
+        ));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "helix:transfer token failed");
+    }
+
+    function safeTransferFrom(
+        address token,
+        address sender,
+        address receiver,
+        uint256 amount
+    ) internal {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(
+            IERC20.transferFrom.selector,
+            sender,
+            receiver,
+            amount
+        ));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "helix:transferFrom token failed");
+    }
+
+    function safeTransferNative(
+        address receiver,
+        uint256 amount
+    ) internal {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        require(success, "helix:transfer native token failed");
+    }
+
+    function tryTransferNative(
+        address receiver,
+        uint256 amount
+    ) internal returns(bool) {
+        (bool success,) = payable(receiver).call{value: amount}("");
+        return success;
+    }
+}
+
+// File contracts/xtoken/interfaces/IWToken.sol
+// License-Identifier: MIT
+
+
+interface IWToken {
+    function deposit() external payable;
+    function withdraw(uint wad) external;
+}
+
+// File contracts/xtoken/v3/interfaces/IXTokenCallback.sol
+// License-Identifier: MIT
+
+interface IXTokenCallback {
+    function xTokenCallback(
+        uint256 transferId,
+        address xToken,
+        uint256 amount,
+        bytes calldata extData
+    ) external;
+}
+
+interface IXTokenRollbackCallback {
+    function xTokenRollbackCallback(
+        uint256 transferId,
+        address token,
+        uint256 amount
+    ) external;
+}
+
+// File contracts/xtoken/v3/interfaces/IXTokenBacking.sol
+// License-Identifier: MIT
+
+interface IXTokenBacking {
+    function lockAndXIssue(
+        uint256 remoteChainId,
+        address originalToken,
+        address recipient,
+        address rollbackAccount,
+        uint256 amount,
+        uint256 nonce,
+        bytes calldata extData,
+        bytes memory extParams
+    ) external payable returns(bytes32 transferId);
+
+    function unlock(
+        uint256 remoteChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        address rollbackAccount,
+        uint256 amount,
+        uint256 nonce,
+        bytes calldata extData
+    ) external;
+
+    function rollbackLockAndXIssue(
+        uint256 remoteChainId,
+        address originalToken,
+        address originalSender,
+        address recipient,
+        address rollbackAccount,
+        uint256 amount,
+        uint256 nonce
+    ) external;
+
+    function guard() external returns(address);
+}
+
 // File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/introspection/IERC165.sol)
@@ -222,7 +273,7 @@ abstract contract ERC165 is IERC165 {
     }
 }
 
-// File contracts/xtoken/v3/templates/XRingConvertor.sol
+// File contracts/xtoken/v3/templates/WTokenConvertor.sol
 // License-Identifier: Apache-2.0
 
 
@@ -230,17 +281,16 @@ abstract contract ERC165 is IERC165 {
 
 
 
-contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
-    IXRINGLockBox public lockBox;
-    IXTokenIssuing public xTokenIssuing;
-    address public immutable RING;
-    address public immutable XRING;
+
+contract WTokenConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
+    address public immutable wToken;
+    IXTokenBacking public immutable xTokenBacking;
 
     mapping(uint256=>address) public senders;
 
-    event IssueRing(uint256 transferId, address recipient, uint256 amount);
-    event RollbackBurn(uint256 transferId, address originalSender, uint256 amount);
-    event BurnAndXUnlock(uint256 transferId, address sender, address recipient, uint256 amount);
+    event TokenUnwrapped(uint256 transferId, address recipient, uint256 amount);
+    event TokenRollback(uint256 transferId, address originalSender, uint256 amount);
+    event LockAndXIssue(uint256 transferId, address sender, address recipient, uint256 amount, bytes extData);
 
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165) returns (bool) {
         return
@@ -251,50 +301,56 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
 
     receive() external payable {}
 
-    modifier onlyXTokenIssuing() {
-        require(address(xTokenIssuing) == msg.sender, "invalid sender");
+    modifier onlyXTokenBacking() {
+        require(address(xTokenBacking) == msg.sender, "invalid sender");
         _;
     }
 
-    modifier onlyXTokenIssuingAuthorized() {
-        require(address(xTokenIssuing) == msg.sender || xTokenIssuing.guard() == msg.sender, "invalid sender");
+    modifier onlyXTokenBackingAuthorized() {
+        require(address(xTokenBacking) == msg.sender || xTokenBacking.guard() == msg.sender, "invalid sender");
         _;
     }
 
-    constructor(address _xRing, address _ring, address _xTokenIssuing, address _lockBox) {
-        RING = _ring;
-        XRING = _xRing;
-        lockBox = IXRINGLockBox(_lockBox);
-        xTokenIssuing = IXTokenIssuing(_xTokenIssuing);
-        IERC20(_ring).approve(_lockBox, type(uint256).max);
-        IERC20(_xRing).approve(_lockBox, type(uint256).max);
-        IERC20(_xRing).approve(_xTokenIssuing, type(uint256).max);
+    constructor(address _wToken, address _xTokenBacking) {
+        require(_wToken.code.length > 0, "invalid wtoken address");
+        wToken = _wToken;
+        xTokenBacking = IXTokenBacking(_xTokenBacking);
+        IERC20(_wToken).approve(_xTokenBacking, type(uint256).max);
     }
 
+    /**
+      * @dev after receive token, the backing or guard call this interface
+      * @param _extData it's a bytes20 address
+      */
     function xTokenCallback(
         uint256 _transferId,
         address _xToken,
         uint256 _amount,
-        bytes calldata extData
-    ) onlyXTokenIssuingAuthorized external {
-        address recipient = address(bytes20(extData));
-        require(_xToken == XRING, "invalid xtoken");
-        lockBox.depositFor(recipient, _amount);
-        emit IssueRing(_transferId, recipient, _amount);
+        bytes calldata _extData
+    ) onlyXTokenBackingAuthorized external {
+        address recipient = address(bytes20(_extData));
+        require(_xToken == wToken, "invalid xtoken");
+        IWToken(_xToken).withdraw(_amount);
+        TokenTransferHelper.safeTransferNative(recipient, _amount);
+        emit TokenUnwrapped(_transferId, recipient, _amount);
     }
 
     function xTokenRollbackCallback(
         uint256 _transferId,
         address _xToken,
         uint256 _amount
-    ) onlyXTokenIssuing external {
-        require(_xToken == XRING, "invalid xtoken");
+    ) onlyXTokenBacking external {
+        require(_xToken == wToken, "invalid xtoken");
         address originalSender = senders[_transferId];
-        lockBox.depositFor(originalSender, _amount);
-        emit RollbackBurn(_transferId, originalSender, _amount);
+        require(originalSender != address(0), "invalid original sender");
+        delete senders[_transferId];
+        IWToken(_xToken).withdraw(_amount);
+        TokenTransferHelper.safeTransferNative(originalSender, _amount);
+        emit TokenRollback(_transferId, originalSender, _amount);
     }
 
-    function burnAndXUnlock(
+    function lockAndXIssue(
+        uint256 _remoteChainId,
         address _recipient,
         address _rollbackAccount,
         uint256 _amount,
@@ -302,11 +358,15 @@ contract XRingConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {
         bytes calldata _extData,
         bytes memory _extParams
     ) payable external {
-        IERC20(RING).transferFrom(msg.sender, address(this), _amount);
-        lockBox.withdraw(_amount);
-        bytes32 transferId = xTokenIssuing.burnAndXUnlock{value: msg.value}(XRING, _recipient, _rollbackAccount, _amount, _nonce, _extData, _extParams);
+        require(msg.value > _amount, "invalid msg.value");
+        IWToken(wToken).deposit{value: _amount}();
+        bytes32 transferId = xTokenBacking.lockAndXIssue{value: msg.value - _amount}(_remoteChainId, wToken, _recipient, _rollbackAccount, _amount, _nonce, _extData, _extParams);
         uint256 id = uint256(transferId);
         senders[id] = msg.sender;
-        emit BurnAndXUnlock(id, msg.sender, _recipient, _amount);
+        emit LockAndXIssue(id, msg.sender, _recipient, _amount, _extData);
+    }
+
+    function encodeExtData(address recipient) external pure returns (bytes memory) {
+        return abi.encodePacked(recipient);
     }
 }

@@ -31,15 +31,18 @@ function wallet(configure, network) {
 
 // 2. deploy mapping token factory
 async function main() {
-    const pathConfig = "./address/ln-dev.json";
+    const pathConfig = "./address/ln-product.json";
     const configure = JSON.parse(
         fs.readFileSync(pathConfig, "utf8")
     );
-    const network = configure.chains['sepolia'];
+    const network = configure.chains['crab-dvm'];
     const w = wallet(configure, network);
     
-    //const backingLogic = await deployxTokenBacking(w, network.deployer, "xTokenBacking-logic-v1.0.0");
-    const issuingLogic = await deployxTokenIssuing(w, network.deployer, "xTokenIssuing-logic-v1.0.0");
+    const backingLogic = await deployxTokenBacking(w, network.deployer, "xTokenBacking-logic-v3.0.2");
+    const issuingLogic = await deployxTokenIssuing(w, network.deployer, "xTokenIssuing-logic-v3.0.2");
+
+    // 0x846EB1FD04aCe26B1d4F1a435292b52f0Ba1febE
+    // 0x34a66e0e1F8Ba991EbF7dC66380DD053CEFc9964
 }
 
 main()

@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 3/25/2024
+ * 4/2/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -149,6 +149,26 @@ library TokenTransferHelper {
         (bool success,) = payable(receiver).call{value: amount}("");
         return success;
     }
+}
+
+// File contracts/xtoken/v3/interfaces/IXTokenCallback.sol
+// License-Identifier: MIT
+
+interface IXTokenCallback {
+    function xTokenCallback(
+        uint256 transferId,
+        address xToken,
+        uint256 amount,
+        bytes calldata extData
+    ) external;
+}
+
+interface IXTokenRollbackCallback {
+    function xTokenRollbackCallback(
+        uint256 transferId,
+        address token,
+        uint256 amount
+    ) external;
 }
 
 // File @zeppelin-solidity/contracts/utils/Strings.sol@v4.7.3
@@ -740,26 +760,6 @@ contract GuardRegistryV3 {
     }
 }
 
-// File contracts/xtoken/v3/interfaces/IXTokenCallback.sol
-// License-Identifier: MIT
-
-interface IXTokenCallback {
-    function xTokenCallback(
-        uint256 transferId,
-        address xToken,
-        uint256 amount,
-        bytes calldata extData
-    ) external;
-}
-
-interface IXTokenRollbackCallback {
-    function xTokenRollbackCallback(
-        uint256 transferId,
-        address token,
-        uint256 amount
-    ) external;
-}
-
 // File @zeppelin-solidity/contracts/utils/Context.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts v4.4.1 (utils/Context.sol)
@@ -915,34 +915,6 @@ interface IERC165 {
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 }
 
-// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
-
-
-/**
- * @dev Implementation of the {IERC165} interface.
- *
- * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
- * for the additional interface id that will be supported. For example:
- *
- * ```solidity
- * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
- *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
- * }
- * ```
- *
- * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
- */
-abstract contract ERC165 is IERC165 {
-    /**
-     * @dev See {IERC165-supportsInterface}.
-     */
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IERC165).interfaceId;
-    }
-}
-
 // File @zeppelin-solidity/contracts/utils/introspection/ERC165Checker.sol@v4.7.3
 // License-Identifier: MIT
 // OpenZeppelin Contracts (last updated v4.7.2) (utils/introspection/ERC165Checker.sol)
@@ -1062,6 +1034,34 @@ library ERC165Checker {
         }
 
         return success && returnSize >= 0x20 && returnValue > 0;
+    }
+}
+
+// File @zeppelin-solidity/contracts/utils/introspection/ERC165.sol@v4.7.3
+// License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (utils/introspection/ERC165.sol)
+
+
+/**
+ * @dev Implementation of the {IERC165} interface.
+ *
+ * Contracts that want to implement ERC165 should inherit from this contract and override {supportsInterface} to check
+ * for the additional interface id that will be supported. For example:
+ *
+ * ```solidity
+ * function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+ *     return interfaceId == type(MyInterface).interfaceId || super.supportsInterface(interfaceId);
+ * }
+ * ```
+ *
+ * Alternatively, {ERC165Storage} provides an easier to use but more expensive implementation.
+ */
+abstract contract ERC165 is IERC165 {
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC165).interfaceId;
     }
 }
 

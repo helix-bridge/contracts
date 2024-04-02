@@ -23,11 +23,11 @@ function wallet(configure, network) {
 
 // 2. deploy mapping token factory
 async function main() {
-    const pathConfig = "./address/ln-dev.json";
+    const pathConfig = "./address/ln-product.json";
     const configure = JSON.parse(
         fs.readFileSync(pathConfig, "utf8")
     );
-    const network = configure.chains['pangolin'];
+    const network = configure.chains['darwinia-dvm'];
     const w = wallet(configure, network);
 
     // deploy wtoken
@@ -38,9 +38,9 @@ async function main() {
     console.log("wpring address", wtoken.address);
     */
     
-    const wtoken = "0x617E55f692FA2feFfdD5D9C513782A479cC1FF57";
-    const xtokenBacking = '0x7E3105E3A13D55d824b6322cbD2049f098a097F6';
-    const convertor = await deployxTokenConvertor(w, network.deployer, "xToken-Convertor-v1.0.0", wtoken, xtokenBacking);
+    const wtoken = "0xE7578598Aac020abFB918f33A20faD5B71d670b4";
+    const xtokenBacking = '0x2B496f19A420C02490dB859fefeCCD71eDc2c046';
+    const convertor = await deployxTokenConvertor(w, network.deployer, "xToken-Convertor-v3.0.2-ethereum", wtoken, xtokenBacking);
 }
 
 main()

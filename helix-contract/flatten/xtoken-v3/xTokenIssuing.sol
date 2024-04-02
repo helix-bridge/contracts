@@ -14,7 +14,7 @@
  *  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' '
  * 
  *
- * 3/25/2024
+ * 4/2/2024
  **/
 
 pragma solidity ^0.8.17;
@@ -149,6 +149,26 @@ library TokenTransferHelper {
         (bool success,) = payable(receiver).call{value: amount}("");
         return success;
     }
+}
+
+// File contracts/xtoken/v3/interfaces/IXTokenCallback.sol
+// License-Identifier: MIT
+
+interface IXTokenCallback {
+    function xTokenCallback(
+        uint256 transferId,
+        address xToken,
+        uint256 amount,
+        bytes calldata extData
+    ) external;
+}
+
+interface IXTokenRollbackCallback {
+    function xTokenRollbackCallback(
+        uint256 transferId,
+        address token,
+        uint256 amount
+    ) external;
 }
 
 // File contracts/utils/AccessController.sol
@@ -943,395 +963,6 @@ contract XTokenBridgeBase is Initializable, Pausable, AccessController, DailyLim
     }
 }
 
-// File contracts/xtoken/v3/interfaces/IXTokenCallback.sol
-// License-Identifier: MIT
-
-interface IXTokenCallback {
-    function xTokenCallback(
-        uint256 transferId,
-        address xToken,
-        uint256 amount,
-        bytes calldata extData
-    ) external;
-}
-
-interface IXTokenRollbackCallback {
-    function xTokenRollbackCallback(
-        uint256 transferId,
-        address token,
-        uint256 amount
-    ) external;
-}
-
-// File @zeppelin-solidity/contracts/utils/math/SafeMath.sol@v4.7.3
-// License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (utils/math/SafeMath.sol)
-
-
-// CAUTION
-// This version of SafeMath should only be used with Solidity 0.8 or later,
-// because it relies on the compiler's built in overflow checks.
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations.
- *
- * NOTE: `SafeMath` is generally not needed starting with Solidity 0.8, since the compiler
- * now has built in overflow checking.
- */
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryAdd(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            uint256 c = a + b;
-            if (c < a) return (false, 0);
-            return (true, c);
-        }
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function trySub(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b > a) return (false, 0);
-            return (true, a - b);
-        }
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, with an overflow flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryMul(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-            // benefit is lost if 'b' is also tested.
-            // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-            if (a == 0) return (true, 0);
-            uint256 c = a * b;
-            if (c / a != b) return (false, 0);
-            return (true, c);
-        }
-    }
-
-    /**
-     * @dev Returns the division of two unsigned integers, with a division by zero flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryDiv(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a / b);
-        }
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers, with a division by zero flag.
-     *
-     * _Available since v3.4._
-     */
-    function tryMod(uint256 a, uint256 b) internal pure returns (bool, uint256) {
-        unchecked {
-            if (b == 0) return (false, 0);
-            return (true, a % b);
-        }
-    }
-
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     *
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a + b;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a - b;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     *
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a * b;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers, reverting on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator.
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a / b;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * reverting when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a % b;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * CAUTION: This function is deprecated because it requires allocating memory for the error
-     * message unnecessarily. For custom revert reasons use {trySub}.
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b <= a, errorMessage);
-            return a - b;
-        }
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers, reverting with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a / b;
-        }
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * reverting with custom message when dividing by zero.
-     *
-     * CAUTION: This function is deprecated because it requires allocating memory for the error
-     * message unnecessarily. For custom revert reasons use {tryMod}.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(
-        uint256 a,
-        uint256 b,
-        string memory errorMessage
-    ) internal pure returns (uint256) {
-        unchecked {
-            require(b > 0, errorMessage);
-            return a % b;
-        }
-    }
-}
-
-// File contracts/xtoken/v3/base/XTokenErc20.sol
-// License-Identifier: MIT
-
-
-contract XTokenErc20 is IERC20 {
-    using SafeMath for uint256;
-
-    mapping (address => uint256) private _balances;
-    mapping (address => mapping (address => uint256)) private _allowances;
-
-    uint256 private _totalSupply;
-
-    string public name;
-    string public symbol;
-    uint8 public decimals;
-
-    address public owner;
-    address public pendingOwner;
-
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    modifier onlyOwner() {
-        require(owner == msg.sender, "Ownable: caller is not the owner");
-        _;
-    }
-
-    constructor(string memory _name, string memory _symbol, uint8 _decimals) {
-        name = _name;
-        symbol = _symbol;
-        decimals = _decimals;
-        _transferOwnership(msg.sender);
-    }
-
-    function _transferOwnership(address newOwner) internal {
-        address oldOwner = owner;
-        owner = newOwner;
-        emit OwnershipTransferred(oldOwner, newOwner);
-    }
-
-    function transferOwnership(address newOwner) public onlyOwner {
-        pendingOwner = newOwner;
-    }
-
-    function acceptOwnership() external {
-        require(pendingOwner == msg.sender, "invalid pending owner");
-        _transferOwnership(pendingOwner);
-        pendingOwner = address(0);
-    }
-
-    function totalSupply() public view override returns (uint256) {
-        return _totalSupply;
-    }
-
-    function balanceOf(address account) public view override returns (uint256) {
-        return _balances[account];
-    }
-
-    function transfer(address recipient, uint256 amount) public virtual override returns (bool) {
-        _transfer(msg.sender, recipient, amount);
-        return true;
-    }
-
-    function allowance(address account, address spender) public view virtual override returns (uint256) {
-        return _allowances[account][spender];
-    }
-
-    function approve(address spender, uint256 amount) public virtual override returns (bool) {
-        _approve(msg.sender, spender, amount);
-        return true;
-    }
-
-    function transferFrom(address sender, address recipient, uint256 amount) public virtual override returns (bool) {
-        _transfer(sender, recipient, amount);
-        _approve(sender, msg.sender, _allowances[sender][msg.sender].sub(amount, "ERC20: transfer amount exceeds allowance"));
-        return true;
-    }
-
-    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].add(addedValue));
-        return true;
-    }
-
-    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        _approve(msg.sender, spender, _allowances[msg.sender][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
-        return true;
-    }
-
-    function _transfer(address sender, address recipient, uint256 amount) internal virtual {
-        require(sender != address(0), "ERC20: transfer from the zero address");
-        require(recipient != address(0), "ERC20: transfer to the zero address");
-
-        _beforeTokenTransfer(sender, recipient, amount);
-
-        _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
-        _balances[recipient] = _balances[recipient].add(amount);
-        emit Transfer(sender, recipient, amount);
-    }
-
-    // only factory contract can mint with the lock proof from ethereum
-    function mint(address account, uint256 amount) external onlyOwner {
-        _mint(account, amount);
-    }
-
-    function burn(address account, uint256 amount) external {
-        if (account != msg.sender && owner != msg.sender && _allowances[account][msg.sender] != type(uint256).max) {
-            _approve(account, msg.sender, _allowances[account][msg.sender].sub(amount, "ERC20: decreased allowance below zero"));
-        }
-        _burn(account, amount);
-    }
-
-    function _mint(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: mint to the zero address");
-
-        _beforeTokenTransfer(address(0), account, amount);
-
-        _totalSupply = _totalSupply.add(amount);
-        _balances[account] = _balances[account].add(amount);
-        emit Transfer(address(0), account, amount);
-    }
-
-    function _burn(address account, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: burn from the zero address");
-
-        _beforeTokenTransfer(account, address(0), amount);
-
-        _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
-        _totalSupply = _totalSupply.sub(amount);
-        emit Transfer(account, address(0), amount);
-    }
-
-    function _approve(address account, address spender, uint256 amount) internal virtual {
-        require(account != address(0), "ERC20: approve from the zero address");
-        require(spender != address(0), "ERC20: approve to the zero address");
-
-        _allowances[account][spender] = amount;
-        emit Approval(account, spender, amount);
-    }
-
-    function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual { }
-}
-
 // File contracts/xtoken/v3/interfaces/IXTokenBacking.sol
 // License-Identifier: MIT
 
@@ -1369,6 +1000,17 @@ interface IXTokenBacking {
     ) external;
 
     function guard() external returns(address);
+}
+
+// File contracts/xtoken/v3/interfaces/IXToken.sol
+// License-Identifier: MIT
+
+interface IXToken {
+    function transferOwnership(address newOwner) external;
+    function acceptOwnership() external;
+    function mint(address account, uint256 amount) external;
+    function burn(address account, uint256 amount) external;
+    function approve(address spender, uint256 value) external returns (bool);
 }
 
 // File @zeppelin-solidity/contracts/utils/introspection/IERC165.sol@v4.7.3
@@ -1539,7 +1181,6 @@ contract XTokenIssuing is XTokenBridgeBase {
     // xToken => Origin Token Info
     mapping(address => OriginalTokenInfo) public originalTokens;
 
-    event IssuingERC20Created(uint256 originalChainId, address originalToken, address xToken);
     event IssuingERC20Updated(uint256 originalChainId, address originalToken, address xToken, address oldxToken);
     event RollbackLockAndXIssueRequested(bytes32 transferId, address originalToken, address originalSender, uint256 amount, uint256 fee);
     event xTokenIssued(bytes32 transferId, uint256 remoteChainId, address originalToken, address xToken, address recipient, uint256 amount);
@@ -1556,35 +1197,6 @@ contract XTokenIssuing is XTokenBridgeBase {
     );
     event TokenRemintForFailed(bytes32 transferId, uint256 originalChainId, address originalToken, address xToken, address originalSender, uint256 amount);
 
-    function registerXToken(
-        uint256 _originalChainId,
-        address _originalToken,
-        string memory _originalChainName,
-        string memory _name,
-        string memory _symbol,
-        uint8 _decimals,
-        uint256 _dailyLimit
-    ) external onlyDao returns (address xToken) {
-        bytes32 salt = xTokenSalt(_originalChainId, _originalToken);
-        require(xTokens[salt] == address(0), "contract has been deployed");
-        bytes memory bytecode = type(XTokenErc20).creationCode;
-        bytes memory bytecodeWithInitdata = abi.encodePacked(
-            bytecode,
-            abi.encode(
-                string(abi.encodePacked(_name, "[", _originalChainName, ">")),
-                string(abi.encodePacked("x", _symbol)),
-                _decimals
-            ));
-        assembly {
-            xToken := create2(0, add(bytecodeWithInitdata, 0x20), mload(bytecodeWithInitdata), salt)
-            if iszero(extcodesize(xToken)) { revert(0, 0) }
-        }
-        xTokens[salt] = xToken;
-        originalTokens[xToken] = OriginalTokenInfo(_originalChainId, _originalToken);
-        _setDailyLimit(xToken, _dailyLimit);
-        emit IssuingERC20Created(_originalChainId, _originalToken, xToken);
-    }
-
     // using this interface, the Issuing contract must be must be granted mint and burn authorities.
     // warning: if the _xToken contract has no transferOwnership/acceptOwnership interface, then the authority cannot be transfered.
     function updateXToken(
@@ -1599,16 +1211,17 @@ contract XTokenIssuing is XTokenBridgeBase {
         }
         xTokens[salt] = _xToken;
         originalTokens[_xToken] = OriginalTokenInfo(_originalChainId, _originalToken);
+        require(IXToken(_xToken).approve(address(this), type(uint256).max) == true, "approve xtoken failed");
         emit IssuingERC20Updated(_originalChainId, _originalToken, _xToken, oldxToken);
     }
 
     // transfer xToken ownership
     function transferXTokenOwnership(address _xToken, address _newOwner) external onlyDao {
-        XTokenErc20(_xToken).transferOwnership(_newOwner);
+        IXToken(_xToken).transferOwnership(_newOwner);
     }
 
     function acceptXTokenOwnership(address _xToken) external onlyDao {
-        XTokenErc20(_xToken).acceptOwnership();
+        IXToken(_xToken).acceptOwnership();
     }
 
     // receive issuing xToken message from remote backing contract
@@ -1638,7 +1251,7 @@ contract XTokenIssuing is XTokenBridgeBase {
               require(_recipient == _guard, "must issue token from guard");
           }
         }
-        XTokenErc20(xToken).mint(_recipient, _amount);
+        IXToken(xToken).mint(_recipient, _amount);
 
         if (ERC165Checker.supportsInterface(_recipient, type(IXTokenCallback).interfaceId)) {
             IXTokenCallback(_recipient).xTokenCallback(uint256(transferId), xToken, _amount, _extData);
@@ -1662,7 +1275,7 @@ contract XTokenIssuing is XTokenBridgeBase {
         _requestTransfer(transferId);
         // transfer to this and then burn
         TokenTransferHelper.safeTransferFrom(_xToken, msg.sender, address(this), _amount);
-        XTokenErc20(_xToken).burn(address(this), _amount);
+        IXToken(_xToken).burn(address(this), _amount);
 
         bytes memory remoteUnlockCall = encodeXUnlock(
             originalInfo.token,
@@ -1769,7 +1382,7 @@ contract XTokenIssuing is XTokenBridgeBase {
         address xToken = xTokens[salt];
         require(xToken != address(0), "xToken not exist");
 
-        XTokenErc20(xToken).mint(_originalSender, _amount);
+        IXToken(xToken).mint(_originalSender, _amount);
         if (ERC165Checker.supportsInterface(_originalSender, type(IXTokenRollbackCallback).interfaceId)) {
             IXTokenRollbackCallback(_originalSender).xTokenRollbackCallback(uint256(transferId), xToken, _amount);
         }

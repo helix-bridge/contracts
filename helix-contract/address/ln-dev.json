@@ -2,7 +2,7 @@
     "chains": {
         "sepolia": {
             "name": "sepolia",
-            "url": "https://rpc2.sepolia.org",
+            "url": "https://1rpc.io/sepolia",
             "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
             "chainId": 11155111,
             "lzChainId": 10161,

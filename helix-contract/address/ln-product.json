@@ -122,6 +122,14 @@
             "name": "ethereum",
             "url": "https://1rpc.io/eth",
             "chainId": 1
+        },
+        "astar-zkevm": {
+            "name": "astar-zkevm",
+            "url": "https://rpc.startale.com/astar-zkevm",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 3776,
+            "lzChainId": 257,
+            "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7"
         }
     },
     "messagers": {
@@ -176,12 +184,16 @@
         "blast": {
             "MsgportMessager": "0x98982b1685a63596834a05C1288dA7fbF27d684E",
             "LayerZeroMessager": "0x8A87497488073307E1a17e8A12475a94Afcb413f"
+        },
+        "astar-zkevm": {
+            "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
         }
     },
     "ProxyAdmin": {
         "others": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
         "blast": "0x7684389eAa307e25Af38A31873E31Cc3B513EE01",
-        "zkSync": "0xA0d8a3C04580a8503ed3Ff30deBb22B83EE615F4"
+        "zkSync": "0xA0d8a3C04580a8503ed3Ff30deBb22B83EE615F4",
+        "astar-zkevm": "0x7684389eAa307e25Af38A31873E31Cc3B513EE01"
     },
     "LnOppositeBridgeLogic": {
         "others": "0x90873fa1bbd028F22277567530A22E05f7721D37"
@@ -199,10 +211,12 @@
     },
     "LnV3BridgeLogic": {
         "others": "0xdf383487CB33a3C78a884494e2456910d79d361c",
-        "blast": "0x38f4fc6c734b7148e9c375e24bd868778efDb701"
+        "blast": "0x38f4fc6c734b7148e9c375e24bd868778efDb701",
+        "astar-zkevm": "0xbbad04cbf890e66b7c9a5e7fd6a7ff110e7d35a9"
     },
     "LnV3BridgeProxy": {
         "others": "0xbA5D580B18b6436411562981e02c8A9aA1776D10",
+        "astar-zkevm": "0xD476650e03a45E70202b0bcAfa04E1513920f83a",
         "blast": "0xB180D7DcB5CC161C862aD60442FA37527546cAFC"
     },
     "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",

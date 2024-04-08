@@ -152,8 +152,8 @@ describe("eth->arb lnv2 layerzero bridge tests", () => {
       // ******************* register token **************
 
       // set bridge infos
-      await lzMessagerEth.authoriseAppCaller(lnDefaultBridgeEth.address, true);
-      await lzMessagerArb.authoriseAppCaller(lnDefaultBridgeArb.address, true);
+      await lzMessagerEth.setWhiteList(lnDefaultBridgeEth.address, true);
+      await lzMessagerArb.setWhiteList(lnDefaultBridgeArb.address, true);
       await lnDefaultBridgeEth.setSendService(arbChainId, lnDefaultBridgeArb.address, lzMessagerEth.address);
       await lnDefaultBridgeArb.setReceiveService(ethChainId, lnDefaultBridgeEth.address, lzMessagerArb.address);
       console.log("deploy bridge finished");

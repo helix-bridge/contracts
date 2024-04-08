@@ -61,6 +61,15 @@
             "lzChainId": 10256,
             "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
             "layerzeroEndpoint": "0x6098e96a28E02f27B1e6BD381f870F1C8Bd169d3"
+        },
+        "astar-zkevm": {
+            "name": "astar-zkevm",
+            "url": "https://rpc.zkyoto.gelato.digital",
+            "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+            "chainId": 6038361,
+            "lzChainId": 10220,
+            "deployer": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
+            "layerzeroEndpoint": "0x6098e96a28E02f27B1e6BD381f870F1C8Bd169d3"
         }
     },
     "messagers": {
@@ -86,6 +95,9 @@
         },
         "bera": {
             "LayerZeroMessager": "0xe5E962cab7F36812ffa872926eA1cA692A923494"
+        },
+        "astar-zkevm": {
+            "LayerZeroMessager": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
         }
     },
     "ProxyAdmin": {
@@ -93,7 +105,8 @@
         "blast-sepolia": "0x9141243c0aD8D99D790654F453BB8Bf188418915",
         "taiko": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
         "bera": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
-        "others": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730"
+        "others": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
+        "astar-zkevm": "0x7684389eAa307e25Af38A31873E31Cc3B513EE01"
     },
     "LnDefaultBridgeLogic": {
         "zksync": "0xa1C2a266Ba82ce80243B975090016EE68C6d125B",
@@ -110,6 +123,7 @@
         "blast-sepolia": "0x99Bd37D588aDfCE4Da02F78276e4Eb934EE16394",
         "taiko": "0xC264988Fa13c33f3101326a4532d61A55CDC17b8",
         "bera": "0xC264988Fa13c33f3101326a4532d61A55CDC17b8",
+        "astar-zkevm": "0xbbad04cbf890e66b7c9a5e7fd6a7ff110e7d35a9",
         "others": "0xdf383487CB33a3C78a884494e2456910d79d361c"
     },
     "LnV3BridgeProxy": {
@@ -117,6 +131,7 @@
         "blast-sepolia": "0x727f428daaa6780b3BAA748dDf422FD80bB36683",
         "taiko": "0x00e7EFf0826dfCDf2AA5945dFF710B48f4AA7E64",
         "bera": "0x00e7EFf0826dfCDf2AA5945dFF710B48f4AA7E64",
+        "astar-zkevm": "0xD476650e03a45E70202b0bcAfa04E1513920f83a",
         "others": "0x38627Cb033De66a1E07e73f5D0a7a7adFB6741fa"
     },
     "deployer": "0xbe6b2860d3c17a719be0A4911EA0EE689e8357f3",

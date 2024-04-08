@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
+import "./interface/IMessagePort.sol";
 import "../utils/AccessController.sol";
-import "../interfaces/IMessagePort.sol";
 
 contract MsgportMessager is Application, AccessController {
     IMessagePort public msgport;

@@ -1,9 +1,0 @@
-{
-  "crab2parachain-smart2para-crab": {
-      "endpoint": "0x58c16265Ba9Cb71AfCEC1B71831714138BdC344C",
-      "backingLogic": "0xcc357d5A8E5dBD52bC508E0FE491137d912F6bc8",
-      "backingAdmin": "0xBCec81c041De755F5030Ae368bc6D38C8A6d90d8",
-      "backingProxy": "0x8c585F9791EE5b4B23fe82888cE576DBB69607eB"
-  }
-}
-

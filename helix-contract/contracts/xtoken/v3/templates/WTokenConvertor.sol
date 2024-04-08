@@ -4,9 +4,9 @@ pragma solidity >=0.8.17;
 
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "@zeppelin-solidity/contracts/utils/introspection/ERC165.sol";
+import "./interfaces/IWToken.sol";
 import "../interfaces/IXTokenBacking.sol";
 import "../interfaces/IXTokenCallback.sol";
-import "../../interfaces/IWToken.sol";
 import "../../../utils/TokenTransferHelper.sol";
 
 contract WTokenConvertor is IXTokenCallback, IXTokenRollbackCallback, ERC165 {

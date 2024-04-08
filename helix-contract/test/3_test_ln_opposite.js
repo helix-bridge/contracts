@@ -152,10 +152,10 @@ describe("eth->arb lnv2 positive bridge tests", () => {
 
       console.log("configure message service for token bridge");
       // authorise
-      await eth2arbSendService.authoriseAppCaller(ethBridge.address, true);
-      await eth2arbRecvService.authoriseAppCaller(arbBridge.address, true);
-      await lzMessagerEth.authoriseAppCaller(ethBridge.address, true);
-      await lzMessagerArb.authoriseAppCaller(arbBridge.address, true);
+      await eth2arbSendService.setWhiteList(ethBridge.address, true);
+      await eth2arbRecvService.setWhiteList(arbBridge.address, true);
+      await lzMessagerEth.setWhiteList(ethBridge.address, true);
+      await lzMessagerArb.setWhiteList(arbBridge.address, true);
 
       await ethBridge.setSendService(arbChainId, arbBridge.address, eth2arbSendService.address);
       await ethBridge.setReceiveService(arbChainId, arbBridge.address, lzMessagerEth.address);

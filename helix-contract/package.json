@@ -7,7 +7,7 @@
   "scripts": {
     "build": "hardhat compile",
     "test": "npx hardhat test",
-    "deploy": "npx hardhat run",
+    "script": "npx hardhat run",
     "clean": "shx rm -rf cache artifacts abi",
     "flatten": "npx hardhat flatten",
     "flat": "npx hardhat flat",

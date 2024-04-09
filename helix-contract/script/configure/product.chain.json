@@ -1,0 +1,404 @@
+[
+   {
+       "name": "arbitrum",
+       "url": "https://arb1.arbitrum.io/rpc",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 42161,
+       "lzChainId": 110,
+       "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x509354A4ebf98aCC7a65d2264694A65a2938cac9",
+               "version": "v1.0"
+           },
+           {
+               "name": "MsgportMessager",
+               "address": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
+           },
+           {
+               "name": "Eth2ArbReceiveService",
+               "address": "0xc95D939Da72ECe8Bd794d42EaEd28974CDb0ADa2"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9"
+           },
+           {
+               "name": "usdc",
+               "address": "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"
+           },
+           {
+               "name": "ring",
+               "address": "0x9e523234D36973f9e38642886197D023C88e307e"
+           }
+       ]
+   },
+   {
+       "name": "polygon",
+       "url": "https://polygon-rpc.com",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 137,
+       "lzChainId": 109,
+       "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x463D1730a8527CA58d48EF70C7460B9920346567",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+           },
+           {
+               "name": "ring",
+               "address": "0x9C1C23E60B72Bc88a043bf64aFdb16A02540Ae8f"
+           }
+       ]
+   },
+   {
+       "name": "bsc",
+       "url": "https://bsc-dataseed1.defibit.io",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 56,
+       "lzChainId": 102,
+       "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0x55d398326f99059fF775485246999027B3197955"
+           },
+           {
+               "name": "usdc",
+               "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d"
+           }
+       ]
+   },
+   {
+       "name": "linea",
+       "url": "https://rpc.linea.build",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 59144,
+       "lzChainId": 183,
+       "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0xA219439258ca9da29E9Cc4cE5596924745e12B93"
+           }
+       ]
+   },
+   {
+       "name": "base",
+       "url": "https://mainnet.base.org",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 8453,
+       "lzChainId": 184,
+       "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdc",
+               "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+           }
+       ]
+   },
+   {
+       "name": "op",
+       "url": "https://mainnet.optimism.io",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 10,
+       "lzChainId": 111,
+       "lzEndpoint": "0x3c2269811836af69497E5F486A85D7316753cf62",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58"
+           }
+       ]
+   },
+   {
+       "name": "gnosis",
+       "url": "https://rpc.gnosischain.com",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 100,
+       "lzChainId": 145,
+       "lzEndpoint": "0x9740FF91F1985D8d2B71494aE1A2f723bb3Ed9E4",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x3F7DF5866591e7E48D18C8EbeAE61Bc343a63283",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0x4ECaBa5870353805a9F068101A40E0f32ed605C6"
+           }
+       ]
+   },
+   {
+       "name": "mantle",
+       "url": "https://rpc.mantle.xyz",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 5000,
+       "lzChainId": 181,
+       "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0x201EBa5CC46D216Ce6DC03F6a759e8E766e956aE"
+           },
+           {
+               "name": "usdc",
+               "address": "0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9"
+           }
+       ]
+   },
+   {
+       "name": "scroll",
+       "url": "https://rpc.scroll.io",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 534352,
+       "lzChainId": 214,
+       "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x463d1730a8527ca58d48ef70c7460b9920346567",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0xf55BEC9cafDbE8730f096Aa55dad6D22d44099Df"
+           },
+           {
+               "name": "usdc",
+               "address": "0x06eFdBFf2a14a7c8E15944D1F4A48F9F95F663A4"
+           }
+       ]
+   },
+   {
+       "name": "darwinia-dvm",
+       "url": "https://rpc.darwinia.network",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 46,
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "MsgportMessager",
+               "address": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "ring",
+               "address": "0x0000000000000000000000000000000000000000"
+           },
+           {
+               "name": "crab",
+               "address": "0x273131F7CB50ac002BDd08cA721988731F7e1092"
+           }
+       ]
+   },
+   {
+       "name": "polygon-zkevm",
+       "url": "https://zkevm-rpc.com",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 1101,
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "lzChainId": 158,
+       "lzEndpoint": "0x9740FF91F1985D8d2B71494aE1A2f723bb3Ed9E4",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0x1E4a5963aBFD975d8c9021ce480b42188849D41d"
+           }
+       ]
+   },
+   {
+       "name": "crab-dvm",
+       "url": "https://crab-rpc.darwinia.network",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 44,
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "MsgportMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "ring",
+               "address": "0x273131F7CB50ac002BDd08cA721988731F7e1092"
+           },
+           {
+               "name": "crab",
+               "address": "0x0000000000000000000000000000000000000000"
+           }
+       ]
+   },
+   {
+       "name": "blast",
+       "url": "https://rpc.blast.io",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 81457,
+       "lzChainId": 243,
+       "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+       "blast": "0x4300000000000000000000000000000000000002",
+       "blastPoints": "0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800",
+       "deployer": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
+       "ormpPort": "0x0000000005d961F950adA391C1511c92bbc64D9F",
+       "proxyAdmin": "0x7684389eAa307e25Af38A31873E31Cc3B513EE01",
+       "messager": [
+           {
+               "name": "MsgportMessager",
+               "address": "0x98982b1685a63596834a05C1288dA7fbF27d684E"
+           },
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x8A87497488073307E1a17e8A12475a94Afcb413f",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdb",
+               "address": "0x4300000000000000000000000000000000000003"
+           }
+       ]
+   },
+   {
+       "name": "ethereum",
+       "url": "https://1rpc.io/eth",
+       "chainId": 1,
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "MsgportMessager",
+               "address": "0x65Be094765731F394bc6d9DF53bDF3376F1Fc8B0"
+           },
+           {
+               "name": "Eth2ArbSendService",
+               "address": "0x78a6831Da2293fbEFd0d8aFB4D1f7CBB751e0119"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "ring",
+               "address": "0x9469D013805bFfB7D3DEBe5E7839237e535ec483"
+           }
+       ]
+   },
+   {
+       "name": "astar-zkevm",
+       "url": "https://rpc.startale.com/astar-zkevm",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 3776,
+       "lzChainId": 257,
+       "lzEndpoint": "0xb6319cC6c8c27A8F5dAF0dD3DF91EA35C4720dd7",
+       "proxyAdmin": "0x7684389eAa307e25Af38A31873E31Cc3B513EE01",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "version": "v1.0"
+           }
+       ]
+   },
+   {
+       "name": "zksync",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "proxyAdmin": "0xA0d8a3C04580a8503ed3Ff30deBb22B83EE615F4",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x96892F3EaD26515592Da38432cFABad991BBd69d",
+               "version": "v1.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0x493257fD37EDB34451f62EDf8D2a0C418852bA4C"
+           },
+           {
+               "name": "usdc",
+               "address": "0x3355df6D4c9C3035724Fd0e3914dE96A5a83aaf4"
+           }
+       ]
+   }
+]

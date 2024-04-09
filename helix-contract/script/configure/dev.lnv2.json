@@ -1,0 +1,16 @@
+[
+    {
+        "chain": "sepolia",
+        "defaultLogic": "0x7CE46A6Bd9FB685b4fd6AE18888D71A9D4750e6E",
+        "oppositeLogic": "0x08F2a6B3F8f67E6604aBb731FC318cf1f3EAaF53",
+        "defaultProxy": "0x8429D7Dfd91D6F970ba89fFC005e67D15f1E4739",
+        "oppositeProxy": "0xbA96d83E2A04c4E50F2D6D7eCA03D70bA2426e5f"
+    },
+    {
+        "chain": "arbitrum-sepolia",
+        "defaultLogic": "0x7CE46A6Bd9FB685b4fd6AE18888D71A9D4750e6E",
+        "oppositeLogic": "0x08F2a6B3F8f67E6604aBb731FC318cf1f3EAaF53",
+        "defaultProxy": "0x8429D7Dfd91D6F970ba89fFC005e67D15f1E4739",
+        "oppositeProxy": "0xbA96d83E2A04c4E50F2D6D7eCA03D70bA2426e5f"
+    }
+]

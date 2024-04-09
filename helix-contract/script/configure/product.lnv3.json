@@ -1,0 +1,30 @@
+{
+    "logic": [
+        {
+            "name": "blast",
+            "address": "0x38f4fc6c734b7148e9c375e24bd868778efDb701"
+        },
+        {
+            "name": "astar-zkevm",
+            "address": "0xbbad04cbf890e66b7c9a5e7fd6a7ff110e7d35a9"
+        },
+        {
+            "name": "others",
+            "address": "0xdf383487CB33a3C78a884494e2456910d79d361c"
+        }
+    ],
+    "proxy": [
+        {
+            "name": "blast",
+            "address": "0xB180D7DcB5CC161C862aD60442FA37527546cAFC"
+        },
+        {
+            "name": "astar-zkevm",
+            "address": "0xD476650e03a45E70202b0bcAfa04E1513920f83a"
+        },
+        {
+            "name": "others",
+            "address": "0xbA5D580B18b6436411562981e02c8A9aA1776D10"
+        }
+    ]
+}

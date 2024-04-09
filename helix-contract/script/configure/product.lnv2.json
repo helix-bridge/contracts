@@ -1,0 +1,14 @@
+[
+    {
+        "chain": "zksync",
+        "defaultLogic": "0xefD0DE72e407A55E9b624A91E6d5D6A0CE8490D1",
+        "defaultProxy": "0x767Bc046c989f5e63683fB530f939DD34b91ceAC"
+    },
+    {
+        "chain": "others",
+        "defaultLogic": "0x8af688056c6614acb5A78c62e1f9f49022C0452f",
+        "oppositeLogic": "0x90873fa1bbd028F22277567530A22E05f7721D37",
+        "defaultProxy": "0x94C614DAeFDbf151E1BB53d6A201ae5fF56A9337",
+        "oppositeProxy": "0x48d769d5C7ff75703cDd1543A1a2ed9bC9044A23"
+    }
+]

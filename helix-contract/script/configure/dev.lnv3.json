@@ -1,0 +1,62 @@
+{
+    "logic": [
+        {
+            "name": "zksync-sepolia",
+            "address": "0x67C3C81113Afb9A73d7ce5868046D97D0e44db59"
+        },
+        {
+            "name": "blast-sepolia",
+            "address": "0x99Bd37D588aDfCE4Da02F78276e4Eb934EE16394"
+        },
+        {
+            "name": "taiko",
+            "address": "0xC264988Fa13c33f3101326a4532d61A55CDC17b8"
+        },
+        {
+            "name": "bera",
+            "address": "0xC264988Fa13c33f3101326a4532d61A55CDC17b8"
+        },
+        {
+            "name": "astar-zkevm",
+            "address": "0xbbad04cbf890e66b7c9a5e7fd6a7ff110e7d35a9"
+        },
+        {
+            "name": "morph",
+            "address": "0xbBad04cBF890e66B7c9a5e7FD6A7ff110E7d35A9"
+        },
+        {
+            "name": "others",
+            "address": "0xdf383487CB33a3C78a884494e2456910d79d361c"
+        }
+    ],
+    "proxy": [
+        {
+            "name": "zksync-sepolia",
+            "address": "0xDc55fF59F82AA50D8A4A61dB8CcaDffD26Fb7dD2"
+        },
+        {
+            "name": "blast-sepolia",
+            "address": "0x727f428daaa6780b3BAA748dDf422FD80bB36683"
+        },
+        {
+            "name": "taiko",
+            "address": "0x00e7EFf0826dfCDf2AA5945dFF710B48f4AA7E64"
+        },
+        {
+            "name": "bera",
+            "address": "0x00e7EFf0826dfCDf2AA5945dFF710B48f4AA7E64"
+        },
+        {
+            "name": "astar-zkevm",
+            "address": "0xD476650e03a45E70202b0bcAfa04E1513920f83a"
+        },
+        {
+            "name": "morph",
+            "address": "0xD476650e03a45E70202b0bcAfa04E1513920f83a"
+        },
+        {
+            "name": "others",
+            "address": "0x38627Cb033De66a1E07e73f5D0a7a7adFB6741fa"
+        }
+    ]
+}

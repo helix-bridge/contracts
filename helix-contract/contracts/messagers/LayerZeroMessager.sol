@@ -46,6 +46,10 @@ contract LayerZeroMessager is AccessController {
         whiteList[_caller] = _enable;
     }
 
+    function updateEndpoint(address _endpoint) external onlyDao {
+        endpoint = ILayerZeroEndpoint(_endpoint);
+    }
+
     function setRemoteMessager(uint256 _appRemoteChainId, uint16 _lzRemoteChainId, address _remoteMessager) onlyDao external {
         remoteMessagers[_appRemoteChainId] = RemoteMessager(_lzRemoteChainId, _remoteMessager);
         trustedRemotes[_lzRemoteChainId] = keccak256(abi.encodePacked(_remoteMessager, address(this)));

@@ -4,6 +4,7 @@ const chai = require("chai");
 const ethUtil = require('ethereumjs-util');
 const abi = require('ethereumjs-abi');
 const secp256k1 = require('secp256k1');
+const { config } = require("hardhat");
 
 chai.use(solidity);
 
@@ -206,6 +207,19 @@ describe("eth->arb lnv2 positive bridge tests", () => {
           baseFee,
           liquidityFeeRate
       );
+
+      async function signFee(privateKey, fee, expire) {
+          const key = ethers.utils.arrayify(privateKey);
+          const messageHash = ethers.utils.solidityKeccak256(['uint112', 'uint64'], [fee, expire]);
+          const wallet = new ethers.Wallet(privateKey);
+          const dataHash = ethers.utils.solidityKeccak256(['bytes', 'bytes'], [ethers.utils.toUtf8Bytes('\x19Ethereum Signed Message:\n32'), messageHash]);
+          const signatureECDSA = secp256k1.ecdsaSign(ethers.utils.arrayify(dataHash), key);
+          const ethRecID = signatureECDSA.recid + 27;
+          const signature = Uint8Array.from(
+              signatureECDSA.signature.join().split(',').concat(ethRecID)
+          );
+          return ethers.utils.hexlify(signature);
+      }
 
       async function getChainInfo(direction) {
           if (direction === 'eth2arb') {
@@ -559,6 +573,51 @@ describe("eth->arb lnv2 positive bridge tests", () => {
           console.log("ln bridge test finished");
 
           // !warning there is a bug for lnv2 to slash a native token cross transfer with opposite bridge
+      }
+
+      // test signed baseFee
+      {
+          const dynamicBaseFee = 1234;
+          const expire = await getBlockTimestamp() + 100;
+          const totalFee = Number(await arbBridge.dynamicTotalFee(
+              ethChainId,
+              relayer.address,
+              arbToken.address,
+              ethToken.address,
+              transferAmount,
+              dynamicBaseFee
+          ));
+          const providerKey = getProviderKey(ethChainId, relayer.address, arbToken.address, ethToken.address);
+          const providerInfo = await arbBridge.srcProviders(providerKey);
+          const lastTransferId = providerInfo.lastTransferId;
+          const leftMargin = providerInfo.config.margin;
+          const relayerPrivateKey = config.networks.hardhat.accounts[1].privateKey;
+          const signature = await signFee(relayerPrivateKey, dynamicBaseFee, expire);
+          const balanceOfUser = await arbToken.balanceOf(user.address);
+          const balanceOfRelayer = await arbToken.balanceOf(relayer.address);
+          const tx = await arbBridge.connect(user).transferAndLockMarginWithDynamicFee(
+              [
+                  ethChainId,
+                  relayer.address,
+                  arbToken.address,
+                  ethToken.address,
+                  lastTransferId,
+                  totalFee,
+                  leftMargin
+              ],
+              transferAmount,
+              user.address,
+              dynamicBaseFee,
+              expire,
+              signature
+          );
+          const recipient = await tx.wait();
+          gasUsed = recipient.cumulativeGasUsed;
+          console.log("transferAndLockMarginWithDynamicFee gas used", gasUsed);
+          const balanceOfUserAfter = await arbToken.balanceOf(user.address);
+          const balanceOfRelayerAfter = await arbToken.balanceOf(relayer.address);
+          expect(balanceOfUser - balanceOfUserAfter).to.equal(totalFee + transferAmount);
+          expect(balanceOfRelayerAfter - balanceOfRelayer).to.equal(transferAmount + totalFee - protocolFee);
       }
   });
 });

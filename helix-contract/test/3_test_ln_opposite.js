@@ -212,6 +212,9 @@ describe("eth->arb lnv2 positive bridge tests", () => {
           const key = ethers.utils.arrayify(privateKey);
           const messageHash = ethers.utils.solidityKeccak256(['uint112', 'uint64'], [fee, expire]);
           const wallet = new ethers.Wallet(privateKey);
+          // can also use this method to sign message
+          //const signature = await wallet.signMessage(ethers.utils.arrayify(messageHash));
+
           const dataHash = ethers.utils.solidityKeccak256(['bytes', 'bytes'], [ethers.utils.toUtf8Bytes('\x19Ethereum Signed Message:\n32'), messageHash]);
           const signatureECDSA = secp256k1.ecdsaSign(ethers.utils.arrayify(dataHash), key);
           const ethRecID = signatureECDSA.recid + 27;

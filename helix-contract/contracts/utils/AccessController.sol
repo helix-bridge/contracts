@@ -9,6 +9,8 @@ contract AccessController {
     address public operator;
     address public pendingDao;
 
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
     modifier onlyDao() {
         require(msg.sender == dao, "!dao");
         _;
@@ -33,10 +35,12 @@ contract AccessController {
     }
 
     function acceptOwnership() external {
+        address oldDao = dao;
         address newDao = msg.sender;
         require(pendingDao == newDao, "!pendingDao");
         delete pendingDao;
         dao = newDao;
+        emit OwnershipTransferred(oldDao, newDao);
     }
 }
 

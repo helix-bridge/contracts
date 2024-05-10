@@ -26,11 +26,13 @@ async function deployLnBridgeV3Proxy(wallet, salt, dao, proxyAdminAddress, logic
 }
 
 async function deploy() {
-    const chainInfo = Configure.chain('dev');
-    const network = chainInfo['morph'];
+    const env = 'dev';
+    const chain = 'taiko-hekla';
+    const chainInfo = Configure.chain(env);
+    const network = chainInfo[chain];
     const w = wallet(network.url);
-    const bridgeInfo = Configure.bridgeV3('dev');
-    const logicAddress = bridgeInfo.logic['morph']??bridgeInfo.logic['others'];
+    const bridgeInfo = Configure.bridgeV3(env);
+    const logicAddress = bridgeInfo.logic[chain]??bridgeInfo.logic['others'];
 
     let proxyAddress = await deployLnBridgeV3Proxy(
         w,

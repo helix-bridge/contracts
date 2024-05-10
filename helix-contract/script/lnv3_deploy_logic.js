@@ -26,7 +26,7 @@ async function deployLnBridgeV3(wallet, deployerAddress, salt) {
 // 2. deploy mapping token factory
 async function main() {
     const chainInfo = Configure.chain('dev');
-    const network = chainInfo['morph'];
+    const network = chainInfo['taiko-hekla'];
     const w = wallet(network);
 
     const logicAddress = await deployLnBridgeV3(w, network.deployer, "lnv3-logic-v1.0.0");

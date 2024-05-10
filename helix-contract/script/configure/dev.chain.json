@@ -207,6 +207,33 @@
                "address": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
            }
        ]
+    },
+    {
+        "name": "taiko-hekla",
+        "url": "https://rpc.hekla.taiko.xyz",
+        "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+        "chainId": 167009,
+        "lzChainId": 10274,
+        "deployer": "0x9bc1C7567DDBcaF2212185b6665D755d842d01E4",
+        "proxyAdmin": "0x7684389eAa307e25Af38A31873E31Cc3B513EE01",
+        "lzEndpoint": "0x83c73Da98cf733B03315aFa8758834b36a195b87",
+        "messager": [
+            {
+                "name": "LayerZeroMessager",
+                "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+                "version": "v2.0"
+            }
+        ],
+        "tokens": [
+           {
+               "symbol": "usdt",
+               "address": "0x463D1730a8527CA58d48EF70C7460B9920346567"
+           },
+           {
+               "symbol": "usdc",
+               "address": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
+           }
+       ]
     }
 ]
 

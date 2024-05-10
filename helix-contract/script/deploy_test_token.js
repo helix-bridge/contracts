@@ -23,7 +23,7 @@ function wallet(url) {
 // 2. deploy mapping token factory
 async function main() {
     const chainInfo = Configure.chain('dev');
-    const network = chainInfo['morph'];
+    const network = chainInfo['taiko-hekla'];
 
     const w = wallet(network.url);
     const tokenInfo = tokens[1];

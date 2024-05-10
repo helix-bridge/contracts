@@ -23,7 +23,7 @@ async function deployMessager(wallet, network, salt) {
 
 async function main() {
     const chainInfo = Configure.chain('dev');
-    const network = chainInfo['morph'];
+    const network = chainInfo['taiko-hekla'];
     const w = wallet(network.url);
     await deployMessager(w, network, "v1.0.0");
 }

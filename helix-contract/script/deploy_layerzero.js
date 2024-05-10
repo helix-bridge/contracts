@@ -9,7 +9,7 @@ function wallet(url) {
     return wallet;
 }
 
-async function deployMessager(wallet, network, salt) {
+async function deployMessager(wallet, network) {
     const { dao, lzEndpoint } = network;
     const messagerContract = await ethers.getContractFactory("LayerZeroMessager", wallet);
     const messager = await messagerContract.deploy(dao, lzEndpoint);
@@ -18,11 +18,12 @@ async function deployMessager(wallet, network, salt) {
     return messager.address;
 }
 
+// nonce = 4 on testnet
 async function main() {
     const chainInfo = Configure.chain('dev');
-    const network = chainInfo['morph'];
+    const network = chainInfo['taiko-hekla'];
     const w = wallet(network.url);
-    await deployMessager(w, network, "msgport-messager-v1.0.0");
+    await deployMessager(w, network);
 }
 
 main()

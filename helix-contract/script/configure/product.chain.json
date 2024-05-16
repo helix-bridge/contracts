@@ -77,7 +77,7 @@
        "messager": [
            {
                "name": "LayerZeroMessager",
-               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "address": "0x89AF830781A2C1d3580Db930bea11094F55AfEae",
                "version": "v1.0"
            }
        ],
@@ -260,6 +260,14 @@
            {
                "name": "crab",
                "address": "0x273131F7CB50ac002BDd08cA721988731F7e1092"
+           },
+           {
+               "name": "ahPINK",
+               "address": "0x0000000000000000000000000000000000000404"
+           },
+           {
+               "name": "ahUSDT",
+               "address": "0x0000000000000000000000000000000000000403"
            }
        ]
    },
@@ -398,6 +406,34 @@
            {
                "name": "usdc",
                "address": "0x3355df6D4c9C3035724Fd0e3914dE96A5a83aaf4"
+           }
+       ]
+   },
+   {
+       "name": "moonbeam",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "url": "https://rpc.api.moonbeam.network",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 1284,
+       "lzChainId": 126,
+       "lzEndpoint": "0x9740FF91F1985D8d2B71494aE1A2f723bb3Ed9E4",
+       "deployer": "0x80d4c766c5142d1313d531afe7384d0d5e108db3",
+       "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1",
+               "version": "v1.1"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "xcUSDT",
+               "address": "0xFFFFFFfFea09FB06d082fd1275CD48b191cbCD1d"
+           },
+           {
+               "name": "xcPINK",
+               "address": "0xffffffff30478fafbe935e466da114e14fb3563d"
            }
        ]
    }

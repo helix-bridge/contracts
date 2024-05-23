@@ -151,6 +151,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         TokenInfo memory oldInfo = tokenInfos[key];
         require(oldInfo.index == 0, "token info exist");
         require(tokenIndexer[_index] == bytes32(0), "the index exist");
+        require(_penalty > 0, "penalty can't be zero");
         TokenConfigure memory tokenConfig = TokenConfigure(
             _protocolFee,
             _penalty,
@@ -183,6 +184,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         bytes32 key = getTokenKey(_remoteChainId, _sourceToken, _targetToken);
         TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.index > 0, "token not registered");
+        require(_penalty > 0, "penalty can't be zero");
         tokenInfos[key].config = TokenConfigure(
             _protocolFee,
             _penalty,

@@ -96,7 +96,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint112 penalty,
         uint32 index
     );
-    event TokenInfoUpdated(bytes32 tokenInfoKey, uint112 protocolFee, uint112 penalty, uint112 sourceDecimals, uint112 targetDecimals);
+    event TokenInfoUpdated(bytes32 tokenInfoKey, uint112 protocolFee, uint112 penalty, uint8 sourceDecimals, uint8 targetDecimals);
     event FeeIncomeClaimed(bytes32 tokenInfoKey, uint256 amount, address receiver);
     event TokenLocked(
         TransferParams params,
@@ -113,7 +113,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint16 liquidityfeeRate,
         uint112 transferLimit
     );
-    event PenaltyReserveUpdated(address provider, address sourceToken, uint256 updatedPanaltyReserve);
+    event PenaltyReserveUpdated(address provider, address sourceToken, uint256 updatedPenaltyReserve);
     event LiquidityWithdrawn(bytes32[] transferIds, address provider, uint256 amount);
     event TransferSlashed(bytes32 transferId, address provider, address slasher, uint112 slashAmount);
     event LnProviderPaused(address provider, uint256 remoteChainId, address sourceToken, address targetToken, bool paused);
@@ -246,8 +246,8 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     ) external payable {
         require(_amount > 0, "invalid amount");
         bytes32 key = getProviderStateKey(_sourceToken, msg.sender);
-        uint256 updatedPanaltyReserve = penaltyReserves[key] + _amount;
-        penaltyReserves[key] = updatedPanaltyReserve;
+        uint256 updatedPenaltyReserve = penaltyReserves[key] + _amount;
+        penaltyReserves[key] = updatedPenaltyReserve;
 
         if (_sourceToken == address(0)) {
             require(msg.value == _amount, "invalid penaltyReserve value");
@@ -260,7 +260,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
                 _amount
             );
         }
-        emit PenaltyReserveUpdated(msg.sender, _sourceToken, updatedPanaltyReserve);
+        emit PenaltyReserveUpdated(msg.sender, _sourceToken, updatedPenaltyReserve);
     }
 
     function withdrawPenaltyReserve(
@@ -269,15 +269,15 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     ) external {
         require(_amount > 0, "invalid amount");
         bytes32 key = getProviderStateKey(_sourceToken, msg.sender);
-        uint256 updatedPanaltyReserve = penaltyReserves[key] - _amount;
-        penaltyReserves[key] = updatedPanaltyReserve;
+        uint256 updatedPenaltyReserve = penaltyReserves[key] - _amount;
+        penaltyReserves[key] = updatedPenaltyReserve;
 
         if (_sourceToken == address(0)) {
             TokenTransferHelper.safeTransferNative(msg.sender, _amount);
         } else {
             TokenTransferHelper.safeTransfer(_sourceToken, msg.sender, _amount);
         }
-        emit PenaltyReserveUpdated(msg.sender, _sourceToken, updatedPanaltyReserve);
+        emit PenaltyReserveUpdated(msg.sender, _sourceToken, updatedPenaltyReserve);
     }
 
     function providerPause(

@@ -199,7 +199,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         address _receiver
     ) onlyDao external {
         TokenInfo memory tokenInfo = tokenInfos[_tokenInfoKey];
-        require(tokenInfo.protocolFeeIncome > _amount, "not enough income");
+        require(tokenInfo.protocolFeeIncome >= _amount, "not enough income");
         tokenInfos[_tokenInfoKey].protocolFeeIncome = tokenInfo.protocolFeeIncome - _amount;
         
         if (tokenInfo.sourceToken == address(0)) {

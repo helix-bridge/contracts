@@ -147,6 +147,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint32 _index
     ) onlyDao external {
         require(_index > 0, "invalid index");
+        require(_penalty > 0, "penalty can't be zero");
         bytes32 key = getTokenKey(_remoteChainId, _sourceToken, _targetToken);
         TokenInfo memory oldInfo = tokenInfos[key];
         require(oldInfo.index == 0, "token info exist");
@@ -180,6 +181,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint8 _sourceDecimals,
         uint8 _targetDecimals
     ) onlyDao external {
+        require(_penalty > 0, "penalty can't be zero");
         bytes32 key = getTokenKey(_remoteChainId, _sourceToken, _targetToken);
         TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.index > 0, "token not registered");
@@ -200,6 +202,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
     ) onlyDao external {
         TokenInfo memory tokenInfo = tokenInfos[_tokenInfoKey];
         require(tokenInfo.protocolFeeIncome >= _amount, "not enough income");
+        require(_receiver != address(0), "invalid receiver address");
         tokenInfos[_tokenInfoKey].protocolFeeIncome = tokenInfo.protocolFeeIncome - _amount;
         
         if (tokenInfo.sourceToken == address(0)) {
@@ -241,6 +244,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         address _sourceToken,
         uint256 _amount
     ) external payable {
+        require(_amount > 0, "invalid amount");
         bytes32 key = getProviderStateKey(_sourceToken, msg.sender);
         uint256 updatedPanaltyReserve = penaltyReserves[key] + _amount;
         penaltyReserves[key] = updatedPanaltyReserve;
@@ -263,6 +267,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         address _sourceToken,
         uint256 _amount
     ) external {
+        require(_amount > 0, "invalid amount");
         bytes32 key = getProviderStateKey(_sourceToken, msg.sender);
         uint256 updatedPanaltyReserve = penaltyReserves[key] - _amount;
         penaltyReserves[key] = updatedPanaltyReserve;

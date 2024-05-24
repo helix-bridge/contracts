@@ -192,17 +192,6 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         emit TokenInfoUpdated(key, _protocolFee, _penalty, _sourceDecimals, _targetDecimals);
     }
 
-    // delete a token pair by Helix Dao
-    // This interface should be called with exceptional caution, only when correcting registration errors, to conserve index resources.
-    // Attention! DON'T delete a used token pair
-    function deleteTokenInfo(bytes32 key) onlyDao external {
-        TokenInfo memory tokenInfo = tokenInfos[key];
-        require(tokenInfo.index > 0, "token not registered");
-        require(tokenIndexer[tokenInfo.index] == key, "indexer exception");
-        delete tokenInfos[key];
-        delete tokenIndexer[tokenInfo.index];
-    }
-
     // claim the protocol fee
     function claimProtocolFeeIncome(
         bytes32 _tokenInfoKey,

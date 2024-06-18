@@ -13,11 +13,6 @@ contract LnBridgeTargetV3 {
         address provider;
     }
 
-    // lockTimestamp: the time when the transfer start from source chain
-    // the lockTimestamp is verified on source chain
-    // 1. lockTimestamp verified successed: slasher get the transfer amount, fee and penalty on source chain
-    // 2. lockTimestamp verified failed:    slasher get the transfer amount, but the fee and penalty back to the provider
-    // sourceAmount: the send amount on source chain
     struct SlashInfo {
         uint256 remoteChainId;
         address slasher;

@@ -9,13 +9,13 @@ import "../../interfaces/IBlastPoints.sol";
 contract HelixLnBridgeV3ForBlast is HelixLnBridgeV3 {
     function initialize(address _dao, bytes calldata _data) public override initializer {
         _initialize(_dao);
-        (address _blast, address _blastPoints) = abi.decode(_data, (address, address));
+        (address _blast, address _blastPoints, address _pointReceiver) = abi.decode(_data, (address, address, address));
         IBlast blast = IBlast(_blast);
         blast.configureClaimableGas();
         blast.configureClaimableYield();
         blast.configureGovernor(_dao);
         IBlastPoints blastPoints = IBlastPoints(_blastPoints);
-        blastPoints.configurePointsOperator(_dao);
+        blastPoints.configurePointsOperator(_pointReceiver);
     }
 }
 

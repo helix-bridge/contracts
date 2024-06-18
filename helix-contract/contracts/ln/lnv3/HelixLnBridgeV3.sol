@@ -15,8 +15,6 @@ contract HelixLnBridgeV3 is Initializable, LnBridgeSourceV3, LnBridgeTargetV3 {
     // remoteChainId => messager
     mapping(uint256=>MessagerService) public messagers;
 
-    receive() external payable {}
-
     function initialize(address _dao, bytes calldata) public virtual initializer {
         _initialize(_dao);
     }

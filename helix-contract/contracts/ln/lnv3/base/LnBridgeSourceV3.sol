@@ -96,7 +96,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint112 penalty,
         uint32 index
     );
-    event TokenInfoUpdated(bytes32 tokenInfoKey, uint112 protocolFee, uint112 penalty, uint112 sourceDecimals, uint112 targetDecimals);
+    event TokenInfoUpdated(bytes32 tokenInfoKey, uint112 protocolFee, uint112 penalty, uint8 sourceDecimals, uint8 targetDecimals);
     event FeeIncomeClaimed(bytes32 tokenInfoKey, uint256 amount, address receiver);
     event TokenLocked(
         TransferParams params,
@@ -113,7 +113,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint16 liquidityfeeRate,
         uint112 transferLimit
     );
-    event PenaltyReserveUpdated(address provider, address sourceToken, uint256 updatedPanaltyReserve);
+    event PenaltyReserveUpdated(address provider, address sourceToken, uint256 updatedPenaltyReserve);
     event LiquidityWithdrawn(bytes32[] transferIds, address provider, uint256 amount);
     event TransferSlashed(bytes32 transferId, address provider, address slasher, uint112 slashAmount);
     event LnProviderPaused(address provider, uint256 remoteChainId, address sourceToken, address targetToken, bool paused);
@@ -147,6 +147,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint32 _index
     ) onlyDao external {
         require(_index > 0, "invalid index");
+        require(_penalty > 0, "penalty can't be zero");
         bytes32 key = getTokenKey(_remoteChainId, _sourceToken, _targetToken);
         TokenInfo memory oldInfo = tokenInfos[key];
         require(oldInfo.index == 0, "token info exist");
@@ -180,6 +181,7 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         uint8 _sourceDecimals,
         uint8 _targetDecimals
     ) onlyDao external {
+        require(_penalty > 0, "penalty can't be zero");
         bytes32 key = getTokenKey(_remoteChainId, _sourceToken, _targetToken);
         TokenInfo memory tokenInfo = tokenInfos[key];
         require(tokenInfo.index > 0, "token not registered");
@@ -192,17 +194,6 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         emit TokenInfoUpdated(key, _protocolFee, _penalty, _sourceDecimals, _targetDecimals);
     }
 
-    // delete a token pair by Helix Dao
-    // This interface should be called with exceptional caution, only when correcting registration errors, to conserve index resources.
-    // Attention! DON'T delete a used token pair
-    function deleteTokenInfo(bytes32 key) onlyDao external {
-        TokenInfo memory tokenInfo = tokenInfos[key];
-        require(tokenInfo.index > 0, "token not registered");
-        require(tokenIndexer[tokenInfo.index] == key, "indexer exception");
-        delete tokenInfos[key];
-        delete tokenIndexer[tokenInfo.index];
-    }
-
     // claim the protocol fee
     function claimProtocolFeeIncome(
         bytes32 _tokenInfoKey,
@@ -210,7 +201,8 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         address _receiver
     ) onlyDao external {
         TokenInfo memory tokenInfo = tokenInfos[_tokenInfoKey];
-        require(tokenInfo.protocolFeeIncome > _amount, "not enough income");
+        require(tokenInfo.protocolFeeIncome >= _amount, "not enough income");
+        require(_receiver != address(0), "invalid receiver address");
         tokenInfos[_tokenInfoKey].protocolFeeIncome = tokenInfo.protocolFeeIncome - _amount;
         
         if (tokenInfo.sourceToken == address(0)) {
@@ -252,9 +244,10 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
         address _sourceToken,
         uint256 _amount
     ) external payable {
+        require(_amount > 0, "invalid amount");
         bytes32 key = getProviderStateKey(_sourceToken, msg.sender);
-        uint256 updatedPanaltyReserve = penaltyReserves[key] + _amount;
-        penaltyReserves[key] = updatedPanaltyReserve;
+        uint256 updatedPenaltyReserve = penaltyReserves[key] + _amount;
+        penaltyReserves[key] = updatedPenaltyReserve;
 
         if (_sourceToken == address(0)) {
             require(msg.value == _amount, "invalid penaltyReserve value");
@@ -267,23 +260,24 @@ contract LnBridgeSourceV3 is Pausable, AccessController {
                 _amount
             );
         }
-        emit PenaltyReserveUpdated(msg.sender, _sourceToken, updatedPanaltyReserve);
+        emit PenaltyReserveUpdated(msg.sender, _sourceToken, updatedPenaltyReserve);
     }
 
     function withdrawPenaltyReserve(
         address _sourceToken,
         uint256 _amount
     ) external {
+        require(_amount > 0, "invalid amount");
         bytes32 key = getProviderStateKey(_sourceToken, msg.sender);
-        uint256 updatedPanaltyReserve = penaltyReserves[key] - _amount;
-        penaltyReserves[key] = updatedPanaltyReserve;
+        uint256 updatedPenaltyReserve = penaltyReserves[key] - _amount;
+        penaltyReserves[key] = updatedPenaltyReserve;
 
         if (_sourceToken == address(0)) {
             TokenTransferHelper.safeTransferNative(msg.sender, _amount);
         } else {
             TokenTransferHelper.safeTransfer(_sourceToken, msg.sender, _amount);
         }
-        emit PenaltyReserveUpdated(msg.sender, _sourceToken, updatedPanaltyReserve);
+        emit PenaltyReserveUpdated(msg.sender, _sourceToken, updatedPenaltyReserve);
     }
 
     function providerPause(

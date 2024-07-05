@@ -1,7 +1,7 @@
 [
     {
        "name": "sepolia",
-       "url": "https://1rpc.io/sepolia",
+       "url": "https://rpc.sepolia.org",
        "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
        "chainId": 11155111,
        "lzChainId": 10161,
@@ -18,11 +18,11 @@
        ],
        "tokens": [
            {
-               "symbol": "usdt",
+               "name": "usdt",
                "address": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB"
            },
            {
-               "symbol": "usdc",
+               "name": "usdc",
                "address": "0x876A4f6eCF13EEb101F9E75FCeF58f19Ff383eEB"
            }
        ]
@@ -46,11 +46,11 @@
         ],
        "tokens": [
            {
-               "symbol": "usdt",
+               "name": "usdt",
                "address": "0x3b8Bb7348D4F581e67E2498574F73e4B9Fc51855"
            },
            {
-               "symbol": "usdc",
+               "name": "usdc",
                "address": "0x8A87497488073307E1a17e8A12475a94Afcb413f"
            }
        ]
@@ -85,11 +85,11 @@
         ],
        "tokens": [
            {
-               "symbol": "usdt",
+               "name": "usdt",
                "address": "0x3350f1ef046e21E052dCbA60Fc575919CCaFEdeb"
            },
            {
-               "symbol": "usdc",
+               "name": "usdc",
                "address": "0x253adBFE99Fcd096B9b5502753F96CF78D42eaD0"
            }
        ]
@@ -115,7 +115,7 @@
         ],
         "tokens": [
            {
-               "symbol": "usdb",
+               "name": "usdb",
                "address": "0x4200000000000000000000000000000000000022"
            }
        ]
@@ -129,11 +129,11 @@
         "proxyAdmin": "0x601dE3B81c7cE04BecE3b29e5cEe4F3251d250dB",
         "tokens": [
            {
-               "symbol": "usdt",
+               "name": "usdt",
                "address": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
            },
            {
-               "symbol": "usdc",
+               "name": "usdc",
                "address": "0x3F7DF5866591e7E48D18C8EbeAE61Bc343a63283"
            }
        ]
@@ -156,11 +156,11 @@
         ],
         "tokens": [
            {
-               "symbol": "usdt",
+               "name": "usdt",
                "address": "0x463D1730a8527CA58d48EF70C7460B9920346567"
            },
            {
-               "symbol": "usdc",
+               "name": "usdc",
                "address": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
            }
        ]
@@ -199,11 +199,11 @@
         ],
         "tokens": [
            {
-               "symbol": "usdt",
+               "name": "usdt",
                "address": "0x463D1730a8527CA58d48EF70C7460B9920346567"
            },
            {
-               "symbol": "usdc",
+               "name": "usdc",
                "address": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
            }
        ]
@@ -226,12 +226,39 @@
         ],
         "tokens": [
            {
-               "symbol": "usdt",
+               "name": "usdt",
                "address": "0x463D1730a8527CA58d48EF70C7460B9920346567"
            },
            {
-               "symbol": "usdc",
+               "name": "usdc",
                "address": "0x89AF830781A2C1d3580Db930bea11094F55AfEae"
+           }
+       ]
+    },
+    {
+       "name": "base-sepolia",
+       "url": "https://base-sepolia-rpc.publicnode.com",
+       "dao": "0x88a39B052d477CfdE47600a7C9950a441Ce61cb4",
+       "chainId": 84532,
+       "lzChainId": 40245,
+       "lzEndpoint": "0x6EDCE65403992e310A62460808c4b910D972f10f",
+       "deployer": "0x80D4c766C5142D1313D531Afe7384D0D5E108Db3",
+       "proxyAdmin": "0xE3979fFa68BBa1F53c6F502c8F5788B370d28730",
+       "messager": [
+           {
+               "name": "LayerZeroMessager",
+               "address": "0xfbad806bdf9cec2943be281fb355da05068de925",
+               "version": "v3.0"
+           }
+       ],
+       "tokens": [
+           {
+               "name": "usdt",
+               "address": "0x61B6B8c7C00aA7F060a2BEDeE6b11927CC9c3eF1"
+           },
+           {
+               "name": "usdc",
+               "address": "0x463D1730a8527CA58d48EF70C7460B9920346567"
            }
        ]
     }

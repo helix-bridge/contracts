@@ -29,6 +29,10 @@
             "address": "0xbBad04cBF890e66B7c9a5e7FD6A7ff110E7d35A9"
         },
         {
+            "name": "base-sepolia",
+            "address": "0x77d4481d714102931CA87a41a882410391256091"
+        },
+        {
             "name": "others",
             "address": "0xdf383487CB33a3C78a884494e2456910d79d361c"
         }
@@ -61,6 +65,10 @@
         {
             "name": "taiko-hekla",
             "address": "0xD476650e03a45E70202b0bcAfa04E1513920f83a"
+        },
+        {
+            "name": "base-sepolia",
+            "address": "0x29D148A9e87C763292a33A55B9dBcAf44A194102"
         },
         {
             "name": "others",

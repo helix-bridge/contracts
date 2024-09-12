@@ -35,6 +35,7 @@ contract LnBridgeTargetV3 {
     mapping(bytes32 => SlashInfo) public slashInfos;
 
     event TransferFilled(bytes32 transferId, address provider);
+    event TransferFilledExt(bytes32 transferId, RelayParams params);
     event SlashRequest(bytes32 transferId, uint256 remoteChainId, address provider, address sourceToken, address targetToken, address slasher);
     event LiquidityWithdrawRequested(bytes32[] transferIds, uint256 remoteChainId);
     event UnreachableNativeTokenReceived(bytes32 transferId, address receiver, uint256 amount);
@@ -83,6 +84,7 @@ contract LnBridgeTargetV3 {
             TokenTransferHelper.safeTransferFrom(_params.targetToken, msg.sender, _params.receiver, uint256(_params.targetAmount));
         }
         emit TransferFilled(transferId, _params.provider);
+        emit TransferFilledExt(transferId, _params);
     }
 
     // slash a tx when timeout

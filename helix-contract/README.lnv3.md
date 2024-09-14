@@ -6,12 +6,14 @@ In the HelixBridge cross-chain protocol, there are two key roles: the user and t
 
 ## Roles
 * Market Maker (MM)
-Also known as a relayer or liquidity provider, the market maker must register and stake a small amount of assets as collateral to take orders. MMs monitor the orders assigned to them and compete for orders based on their fees, historical transaction success rate, and other factors. The protocol or system only displays basic information about each MM, leaving the user to choose which MM to assign the order to.
+
+    Also known as a relayer or liquidity provider, the market maker must register and stake a small amount of assets as collateral to take orders. MMs monitor the orders assigned to them and compete for orders based on their fees, historical transaction success rate, and other factors. The protocol or system only displays basic information about each MM, leaving the user to choose which MM to assign the order to.
 
     During the market-making process, MMs do not need to stake large amounts of liquidity, and they aren’t required to hold significant liquidity upfront. However, once they are assigned an order, they must complete the transaction within the timeframe specified by the protocol.
 
 * User
-When initiating a cross-chain transfer, the user selects an MM to place the order. The MM’s staked assets serve as a penalty collateral to ensure the validity of the order. The protocol ensures that either the order is completed or the MM is slashed for timeout, so the user’s assets remain secure throughout the process.
+
+    When initiating a cross-chain transfer, the user selects an MM to place the order. The MM’s staked assets serve as a penalty collateral to ensure the validity of the order. The protocol ensures that either the order is completed or the MM is slashed for timeout, so the user’s assets remain secure throughout the process.
 
 ## Order Execution Flow(Chain A -> Chain B)
 1. The MM registers and stakes a small amount of assets on Chain A as a penalty collateral.

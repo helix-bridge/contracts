@@ -1,4 +1,5 @@
 # Helix Bridge Solidity
+Protocol [Detail](https://github.com/helix-bridge/contracts/blob/xiaoch05-update-readme/helix-contract/README.lnv3.md)
 
 ## Packages
 ```

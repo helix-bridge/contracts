@@ -31,8 +31,11 @@
         "darwinia-dvm(to ethereum)": "0x092e19c46c9daab7824393f1cd9c22f5bea13560",
         "crab-dvm(to darwinia)": "0x004D0dE211BC148c3Ce696C51Cbc85BD421727E9"
     },
-    "xtokenConvertor": {
+    "xRINGConvertor": {
         "ethereum": "0xc29dCb1F12a1618262eF9FBA673b77140adc02D6"
+    },
+    "xKTONConvertor": {
+        "ethereum": "0x3217F36AE34aCA2CE60d218af8F47d29101204a8"
     },
     "guard": {
         "ethereum": "0x4CA75992d2750BEC270731A72DfDedE6b9E71cC7",
@@ -45,6 +48,7 @@
     "xtoken": {
         "darwinia-dvm(xWCRAB)": "0x656567Eb75b765FC320783cc6EDd86bD854b2305",
         "crab-dvm(xWRING)": "0x273131F7CB50ac002BDd08cA721988731F7e1092",
-        "ethereum(xRING)": "0x81e32d4652Be82AE225DEdd1bD0bf3BCba8FEE07 "
+        "ethereum(xRING)": "0x81e32d4652Be82AE225DEdd1bD0bf3BCba8FEE07 ",
+        "ethereum(xKTON)": "0x35f15275041B53324dF461d5ccC952EE19D4a982" 
     }
 }

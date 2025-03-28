@@ -230,12 +230,22 @@ contract MultiSigWallet {
     {
         if (isConfirmed(transactionId)) {
             Transaction storage txn = transactions[transactionId];
-            txn.executed = true;
-            if (external_call(txn.destination, txn.value, txn.data.length, txn.data))
+            txn.executed = true; // Set executed flag before external call to prevent reentrancy
+            bool success = false;
+
+            if (txn.data.length == 0) {
+                // For simple ETH transfer
+                success = payable(txn.destination).send(txn.value);
+            } else {
+                // For other calls, use low-level call with reentrancy check
+                (success, ) = txn.destination.call{value: txn.value}(txn.data);
+            }
+
+            if (success) {
                 emit Execution(transactionId);
-            else {
+            } else {
                 emit ExecutionFailure(transactionId);
-                txn.executed = false;
+                txn.executed = false; // Revert executed flag if the transaction failed
             }
         }
     }

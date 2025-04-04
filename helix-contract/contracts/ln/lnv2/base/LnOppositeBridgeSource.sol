@@ -156,9 +156,17 @@ contract LnOppositeBridgeSource is Pausable {
         emit LnProviderUpdated(_remoteChainId, msg.sender, _sourceToken, _targetToken, config.margin, _baseFee, _liquidityFeeRate);
     }
 
-    // the fee user should paid when transfer.
-    // totalFee = providerFee + protocolFee
-    // providerFee = provider.baseFee + provider.liquidityFeeRate * amount
+    function dynamicTotalFee(
+        uint256 _remoteChainId,
+        address _provider,
+        address _sourceToken,
+        address _targetToken,
+        uint112 _amount,
+        uint112 _dynamicBaseFee
+    ) external view returns(uint256) {
+        return _totalFee(_remoteChainId, _provider, _sourceToken, _targetToken, _amount, _dynamicBaseFee);
+    }
+
     function totalFee(
         uint256 _remoteChainId,
         address _provider,
@@ -166,11 +174,52 @@ contract LnOppositeBridgeSource is Pausable {
         address _targetToken,
         uint112 _amount
     ) external view returns(uint256) {
+        return _totalFee(_remoteChainId, _provider, _sourceToken, _targetToken, _amount, 0);
+    }
+
+    // the fee user should paid when transfer.
+    // totalFee = providerFee + protocolFee
+    // providerFee = provider.baseFee + provider.liquidityFeeRate * amount
+    function _totalFee(
+        uint256 _remoteChainId,
+        address _provider,
+        address _sourceToken,
+        address _targetToken,
+        uint112 _amount,
+        uint112 _dynamicBaseFee
+    ) internal view returns(uint256) {
         bytes32 providerKey = LnBridgeHelper.getProviderKey(_remoteChainId, _provider, _sourceToken, _targetToken);
         SourceProviderInfo memory providerInfo = srcProviders[providerKey];
-        uint112 providerFee = LnBridgeHelper.calculateProviderFee(providerInfo.config.baseFee, providerInfo.config.liquidityFeeRate, _amount);
+        uint112 baseFee = providerInfo.config.baseFee;
+        if (_dynamicBaseFee > 0) {
+            baseFee = _dynamicBaseFee;
+        }
+        uint112 providerFee = LnBridgeHelper.calculateProviderFee(baseFee, providerInfo.config.liquidityFeeRate, _amount);
         bytes32 tokenKey = LnBridgeHelper.getTokenKey(_remoteChainId, _sourceToken, _targetToken);
         return providerFee + tokenInfos[tokenKey].protocolFee;
+    }
+
+    function transferAndLockMargin(
+        Snapshot calldata _snapshot,
+        uint112 _amount,
+        address _receiver
+    ) external payable {
+        _transferAndLockMargin(_snapshot, _receiver, _amount, 0);
+    }
+
+    function transferAndLockMarginWithDynamicFee(
+        Snapshot calldata _snapshot,
+        uint112 _amount,
+        address _receiver,
+        uint112 _baseFee,
+        uint64 _expire,
+        bytes calldata _signature
+    ) external payable {
+        require(_expire >= block.timestamp, "the signature expired");
+        bytes32 messageHash = keccak256(abi.encodePacked(_baseFee, _expire));
+        address provider = LnBridgeHelper.recoverSignature(messageHash, _signature);
+        require(provider == _snapshot.provider, "invalid signer");
+        _transferAndLockMargin(_snapshot, _receiver, _amount, _baseFee);
     }
 
     // This function transfers tokens from the user to LnProvider and generates a proof on the source chain.
@@ -178,31 +227,18 @@ contract LnOppositeBridgeSource is Pausable {
     // If the chain state is updated and does not match the snapshot state, the transaction will be reverted.
     // 1. the state(lastTransferId, fee, margin) must match snapshot
     // 2. transferId not exist
-    function transferAndLockMargin(
+    function _transferAndLockMargin(
         Snapshot calldata _snapshot,
+        address _receiver,
         uint112 _amount,
-        address _receiver
-    ) whenNotPaused external payable {
+        uint112 _dynamicBaseFee
+    ) whenNotPaused internal {
         require(_amount > 0, "invalid amount");
-
-        bytes32 providerKey = LnBridgeHelper.getProviderKey(_snapshot.remoteChainId, _snapshot.provider, _snapshot.sourceToken, _snapshot.targetToken);
-        SourceProviderInfo memory providerInfo = srcProviders[providerKey];
-
-        require(!providerInfo.config.pause, "provider paused");
 
         LnBridgeHelper.TokenInfo memory tokenInfo = tokenInfos[
             LnBridgeHelper.getTokenKey(_snapshot.remoteChainId, _snapshot.sourceToken, _snapshot.targetToken)
         ];
 
-        uint112 providerFee = LnBridgeHelper.calculateProviderFee(providerInfo.config.baseFee, providerInfo.config.liquidityFeeRate, _amount);
-        
-        // the chain state not match snapshot
-        require(providerInfo.lastTransferId == _snapshot.transferId, "snapshot expired");
-        // Note: this requirement is not enough to ensure that the lnProvider's margin is enough because there maybe some frozen margins in other transfers
-        require(providerInfo.config.margin >= _amount + tokenInfo.penaltyLnCollateral + providerFee, "amount not valid");
-        require(_snapshot.depositedMargin <= providerInfo.config.margin, "margin updated");
-        require(_snapshot.totalFee >= tokenInfo.protocolFee + providerFee, "fee is invalid");
-        
         uint112 targetAmount = LnBridgeHelper.sourceAmountToTargetAmount(tokenInfo, _amount);
         require(targetAmount > 0, "invalid amount");
         require(block.timestamp < type(uint32).max, "timestamp overflow");
@@ -215,11 +251,27 @@ contract LnOppositeBridgeSource is Pausable {
             _snapshot.targetToken,
             _receiver,
             targetAmount));
+
+        uint112 providerFee;
+        {
+            bytes32 providerKey = LnBridgeHelper.getProviderKey(_snapshot.remoteChainId, _snapshot.provider, _snapshot.sourceToken, _snapshot.targetToken);
+            SourceProviderInfo memory providerInfo = srcProviders[providerKey];
+            require(!providerInfo.config.pause, "provider paused");
+
+            uint112 baseFee = _dynamicBaseFee > 0 ? _dynamicBaseFee : providerInfo.config.baseFee;
+            providerFee = LnBridgeHelper.calculateProviderFee(baseFee, providerInfo.config.liquidityFeeRate, _amount);
+            // the chain state not match snapshot
+            require(providerInfo.lastTransferId == _snapshot.transferId, "snapshot expired");
+            // Note: this requirement is not enough to ensure that the lnProvider's margin is enough because there maybe some frozen margins in other transfers
+            require(providerInfo.config.margin >= _amount + tokenInfo.penaltyLnCollateral + providerFee, "amount not valid");
+            require(_snapshot.depositedMargin <= providerInfo.config.margin, "margin updated");
+            require(_snapshot.totalFee >= tokenInfo.protocolFee + providerFee, "fee is invalid");
+            // update the state to prevent other transfers using the same snapshot
+            srcProviders[providerKey].lastTransferId = transferId;
+        }
+
         require(lockInfos[transferId].timestamp == 0, "transferId exist");
         lockInfos[transferId] = LockInfo(_amount, tokenInfo.penaltyLnCollateral + providerFee, uint32(block.timestamp), false);
-
-        // update the state to prevent other transfers using the same snapshot
-        srcProviders[providerKey].lastTransferId = transferId;
 
         if (_snapshot.sourceToken == address(0)) {
             require(_amount + _snapshot.totalFee == msg.value, "amount unmatched");

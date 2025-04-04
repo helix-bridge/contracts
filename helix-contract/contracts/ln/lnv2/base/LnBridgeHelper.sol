@@ -2,6 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "@zeppelin-solidity/contracts/token/ERC20/IERC20.sol";
+import "@zeppelin-solidity/contracts/utils/cryptography/ECDSA.sol";
 
 library LnBridgeHelper {
     // the time(seconds) for liquidity provider to delivery message
@@ -101,6 +102,12 @@ library LnBridgeHelper {
             sourceToken,
             targetToken
         ));
+    }
+
+    function recoverSignature(bytes32 messageHash, bytes calldata signature) pure internal returns (address) {
+        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
+        bytes32 dataHash = keccak256(abi.encodePacked(prefix, messageHash));
+        return ECDSA.recover(dataHash, signature);
     }
 }
 
